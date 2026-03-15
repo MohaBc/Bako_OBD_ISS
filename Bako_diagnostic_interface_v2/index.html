@@ -1,0 +1,699 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>BAKO Diagnostics</title>
+<link rel="preconnect" href="https://fonts.googleapis.com"/>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800;900&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<style>
+:root{
+  --bg:#060a0d;--surface:#0b1117;--card:#0f1820;
+  --border:#0f1214;--border2:#1e3045;
+  --accent:#9bc8b2;--accent2:#0099bb;
+  --green:#00ff88;--yellow:#ffcc00;--orange:#ff7722;--red:#d52943;
+  --dim:#2a4560;--dim2:#cbe09c;--text:#dde5eb;
+  --mono:'Share Tech Mono',monospace;
+  --ui:'Exo 2',sans-serif;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden}
+body{background:var(--bg);color:var(--text);font-family:var(--ui);display:flex;flex-direction:column}
+
+/* grid bg */
+body::before{content:'';position:fixed;inset:0;
+  background-image:linear-gradient(rgba(0,212,255,.02) 1px,transparent 1px),
+                   linear-gradient(90deg,rgba(0,212,255,.02) 1px,transparent 1px);
+  background-size:44px 44px;pointer-events:none;z-index:0}
+
+/* ── Header ── */
+header{
+  position:relative;z-index:10;flex-shrink:0;
+  display:flex;align-items:center;justify-content:space-between;
+  padding:10px 20px;
+  border-bottom:1px solid var(--border2);
+  background:linear-gradient(180deg,#0d1a24 0%,transparent 100%);
+}
+.logo{display:flex;align-items:center;gap:10px}
+.logo-bolt{font-size:1.4rem;filter:drop-shadow(0 0 8px var(--accent))}
+.logo h1{font-family:var(--ui);font-weight:900;font-size:1.25rem;
+  letter-spacing:4px;text-transform:uppercase;color:var(--accent);
+  text-shadow:0 0 20px rgba(0,212,255,.5)}
+.logo sub{font-size:.6rem;letter-spacing:2px;color:var(--dim2);font-weight:300;
+  display:block;margin-top:1px}
+.hdr-right{display:flex;align-items:center;gap:18px;font-family:var(--mono);font-size:.7rem;color:var(--dim2)}
+.dot{width:7px;height:7px;border-radius:50%;background:var(--dim);
+  display:inline-block;margin-right:6px;transition:all .3s}
+.dot.live{background:var(--green);box-shadow:0 0 8px var(--green);animation:blink 2s infinite}
+.dot.err{background:var(--red);box-shadow:0 0 6px var(--red)}
+@keyframes blink{0%,100%{opacity:1}50%{opacity:.3}}
+
+/* ── Main layout ── */
+main{
+  position:relative;z-index:1;
+  flex:1;min-height:0;
+  display:grid;
+  grid-template-columns:300px 1fr 220px;
+  grid-template-rows:1fr 200px;
+  gap:10px;padding:10px;
+}
+
+/* ── Cards ── */
+.card{
+  background:var(--card);border:1px solid var(--border);
+  border-radius:3px;overflow:hidden;display:flex;flex-direction:column;
+}
+.card-hdr{
+  flex-shrink:0;display:flex;align-items:center;justify-content:space-between;
+  padding:7px 12px 6px;border-bottom:1px solid var(--border);
+}
+.card-title{font-family:var(--ui);font-weight:600;font-size:.65rem;
+  letter-spacing:3px;text-transform:uppercase;color:var(--dim2)}
+.card-body{flex:1;min-height:0;overflow:hidden;padding:10px 12px}
+
+/* ── Left column: SOC + pack stats ── */
+.left{grid-column:1;grid-row:1}
+
+.soc-wrap{display:flex;flex-direction:column;align-items:center;padding:8px 0 4px}
+.soc-ring{position:relative;width:150px;height:150px}
+.soc-ring svg{width:100%;height:100%;transform:rotate(-90deg)}
+.ring-track{fill:none;stroke:var(--border2);stroke-width:9}
+.ring-fill{fill:none;stroke-width:9;stroke-linecap:round;
+  transition:stroke-dashoffset .9s cubic-bezier(.4,0,.2,1),stroke .4s}
+.soc-center{position:absolute;inset:0;display:flex;flex-direction:column;
+  align-items:center;justify-content:center;gap:1px}
+.soc-pct{font-family:var(--ui);font-weight:900;font-size:2.4rem;line-height:1;color:var(--accent)}
+.soc-lbl{font-family:var(--mono);font-size:.55rem;letter-spacing:3px;color:var(--dim2)}
+
+.stat-grid{display:grid;grid-template-columns:1fr 1fr;gap:1px;
+  background:var(--border);margin:4px -12px -10px}
+.stat{background:var(--card);padding:8px 12px;display:flex;flex-direction:column;gap:2px}
+.stat-lbl{font-family:var(--mono);font-size:.55rem;letter-spacing:2px;color:var(--dim2);text-transform:uppercase}
+.stat-val{font-family:var(--ui);font-weight:700;font-size:1.2rem;color:var(--text)}
+.stat-unit{font-family:var(--mono);font-size:.6rem;color:var(--dim2);margin-left:2px}
+.g{color:var(--green)!important}.y{color:var(--yellow)!important}
+.o{color:var(--orange)!important}.r{color:var(--red)!important}
+.d{color:var(--dim2)!important}
+
+/* ── Center: Cells ── */
+.center{grid-column:2;grid-row:1}
+
+.cell-summary{display:flex;gap:16px;flex-wrap:wrap;
+  padding-bottom:8px;border-bottom:1px solid var(--border);margin-bottom:8px}
+.cs{display:flex;flex-direction:column;gap:1px}
+.cs-lbl{font-family:var(--mono);font-size:.55rem;letter-spacing:2px;color:var(--dim2);text-transform:uppercase}
+.cs-val{font-family:var(--ui);font-weight:700;font-size:.95rem}
+
+.cell-grid{
+  display:grid;
+  grid-template-columns:repeat(auto-fill,minmax(58px,1fr));
+  gap:5px;overflow-y:auto;
+  height:calc(100% - 56px);
+  padding-right:4px;
+}
+.cell-grid::-webkit-scrollbar{width:3px}
+.cell-grid::-webkit-scrollbar-thumb{background:var(--border2)}
+
+.cell{
+  background:var(--surface);border:1px solid var(--border);border-radius:3px;
+  padding:6px 5px 5px;display:flex;flex-direction:column;align-items:center;gap:4px;
+  cursor:default;transition:border-color .25s,box-shadow .25s;
+}
+.cell:hover{border-color:var(--accent);box-shadow:0 0 8px rgba(0,212,255,.12)}
+.cell-num{font-family:var(--mono);font-size:.5rem;color:var(--dim2)}
+.cell-bar-wrap{width:100%;height:28px;display:flex;align-items:flex-end}
+.cell-bar{width:100%;border-radius:2px 2px 0 0;min-height:2px;
+  transition:height .5s ease,background .3s}
+.cell-mv{font-family:var(--ui);font-weight:700;font-size:.78rem;
+  transition:color .3s;white-space:nowrap}
+
+/* ── Right column: Temps ── */
+.right{grid-column:3;grid-row:1}
+
+.temp-list{display:flex;flex-direction:column;gap:12px;height:100%;overflow-y:auto}
+.temp-row{display:flex;flex-direction:column;gap:4px}
+.temp-hdr{display:flex;justify-content:space-between;align-items:baseline}
+.temp-name{font-family:var(--mono);font-size:.62rem;color:var(--dim2)}
+.temp-val{font-family:var(--ui);font-weight:700;font-size:1.05rem}
+.temp-track{height:3px;background:var(--border2);border-radius:2px}
+.temp-fill{height:3px;border-radius:2px;transition:width .6s ease}
+.temp-avg{margin-top:auto;padding-top:10px;border-top:1px solid var(--border);
+  display:flex;justify-content:space-between;align-items:center}
+.temp-avg-lbl{font-family:var(--mono);font-size:.55rem;letter-spacing:2px;color:var(--dim2)}
+.temp-avg-val{font-family:var(--ui);font-weight:700;font-size:1.05rem}
+
+/* ── Bottom: Serial log (full width) ── */
+.log-panel{grid-column:1/-1;grid-row:2}
+
+.log-body{
+  flex:1;min-height:0;
+  font-family:var(--mono);font-size:.65rem;line-height:1.65;
+  color:var(--dim2);overflow-y:scroll;padding:6px 12px;
+}
+.log-body::-webkit-scrollbar{width:3px}
+.log-body::-webkit-scrollbar-thumb{background:var(--border2);border-radius:2px}
+
+.log-line{transition:color .1s;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.log-line.frame{color:#2a6080}
+.log-line.new{color:var(--accent);animation:logFade 2s forwards}
+.log-line.info{color:var(--dim2)}
+.log-line.error{color:var(--red)}
+@keyframes logFade{0%{color:var(--accent)}100%{color:#2a6080}}
+
+/* ── Export buttons ── */
+.exp-btn {
+  font-family: var(--mono);
+  font-size: 0.8rem;  /* bigger text */
+  padding: 7px 13px;  /* bigger button */
+  background: transparent;
+  border: 1px solid var(--border2);
+  color: var(--dim2);
+  border-radius: 2px;
+  cursor: pointer;
+  transition: all 0.2s;
+}
+.exp-btn:hover{border-color:var(--accent);color:var(--accent);background:rgba(0,212,255,.06)}
+.exp-btn-csv:hover{border-color:var(--green);color:var(--green);background:rgba(0,255,136,.06)}
+
+/* ── Overlay ── */
+#overlay{
+  position:fixed;inset:0;z-index:100;
+  background:rgba(6,10,13,.9);backdrop-filter:blur(6px);
+  display:flex;align-items:center;justify-content:center;transition:opacity .4s
+}
+#overlay.hidden{opacity:0;pointer-events:none}
+.ov-box{text-align:center;border:1px solid var(--border2);
+  background:var(--card);padding:40px 60px;border-radius:4px}
+.ov-box h2{font-family:var(--ui);font-weight:900;font-size:1.5rem;
+  letter-spacing:4px;text-transform:uppercase;color:var(--accent);margin-bottom:8px}
+.ov-box p{font-family:var(--mono);font-size:.7rem;color:var(--dim2);margin-bottom:24px}
+.spinner{width:36px;height:36px;border:2px solid var(--border2);
+  border-top-color:var(--accent);border-radius:50%;
+  animation:spin 1s linear infinite;margin:0 auto}
+@keyframes spin{to{transform:rotate(360deg)}}
+</style>
+</head>
+<body>
+
+<div id="overlay">
+  <div class="ov-box">
+    <h2>Bako</h2>
+    <p>Connecting to dashboard server…</p>
+    <div class="spinner"></div>
+  </div>
+</div>
+
+<header>
+  <div class="logo">
+    <span class="logo-bolt">🔧</span>
+    <div>
+      <h1>BAKO Diagnostics</h1>
+    </div>
+  </div>
+  <div class="hdr-right">
+    <span><span class="dot" id="dot"></span><span id="conn-lbl">Connecting…</span></span>
+    <span id="port-lbl">—</span>
+    <span id="frames-lbl">0 frames</span>
+    <span id="clock">—</span>
+  </div>
+</header>
+
+<main>
+
+  <!-- Left: SOC + pack -->
+  <div class="card left">
+    <div class="card-hdr"><span class="card-title">Pack Overview</span></div>
+    <div class="card-body">
+      <div class="soc-wrap">
+        <div class="soc-ring">
+          <svg viewBox="0 0 120 120">
+            <circle class="ring-track" cx="60" cy="60" r="50"/>
+            <circle class="ring-fill" id="ring" cx="60" cy="60" r="50"
+              stroke-dasharray="314.2" stroke-dashoffset="314.2"/>
+          </svg>
+          <div class="soc-center">
+            <div class="soc-pct" id="soc-val">—</div>
+            <div class="soc-lbl">SOC</div>
+          </div>
+        </div>
+      </div>
+      <div class="stat-grid">
+        <div class="stat">
+          <span class="stat-lbl">Voltage</span>
+          <span class="stat-val" id="pack-v">—<span class="stat-unit">V</span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-lbl">Disch Limit</span>
+          <span class="stat-val" id="disch-i">—<span class="stat-unit">A</span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-lbl">Chg Request</span>
+          <span class="stat-val" id="chg-i">—<span class="stat-unit">A</span></span>
+        </div>
+        <div class="stat">
+          <span class="stat-lbl">Cells</span>
+          <span class="stat-val" id="cell-count-hdr">—</span>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Center: Cells -->
+  <div class="card center">
+    <div class="card-hdr">
+      <span class="card-title">Cell Voltages</span>
+      <span id="cell-summary-hdr" style="font-family:var(--mono);font-size:.6rem;color:var(--dim2)"></span>
+    </div>
+    <div class="card-body" style="display:flex;flex-direction:column">
+      <div class="cell-summary">
+        <div class="cs"><span class="cs-lbl">Min</span><span class="cs-val" id="c-min">—</span></div>
+        <div class="cs"><span class="cs-lbl">Max</span><span class="cs-val" id="c-max">—</span></div>
+        <div class="cs"><span class="cs-lbl">Spread</span><span class="cs-val" id="c-spread">—</span></div>
+        <div class="cs"><span class="cs-lbl">Avg</span><span class="cs-val" id="c-avg">—</span></div>
+        <div class="cs"><span class="cs-lbl">Bal Threshold</span><span class="cs-val" style="color:var(--dim2)">3300 mV</span></div>
+      </div>
+      <div class="cell-grid" id="cell-grid">
+        <div style="font-family:var(--mono);font-size:.65rem;color:var(--dim2);padding:20px 0;grid-column:1/-1;text-align:center">
+          Waiting for cell voltage frames…
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Right: Temps -->
+  <div class="card right">
+    <div class="card-hdr"><span class="card-title">Temperatures</span></div>
+    <div class="card-body">
+      <div class="temp-list" id="temp-list">
+        <div style="font-family:var(--mono);font-size:.65rem;color:var(--dim2);padding:20px 0;text-align:center">
+          Waiting…
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Bottom: Serial log -->
+  <div class="card log-panel">
+    <div class="card-hdr">
+      <span class="card-title">Serial Monitor</span>
+      <div style="display:flex;align-items:center;gap:8px">
+        <span id="log-count" style="font-family:var(--mono);font-size:.58rem;color:var(--dim2)">0 lines</span>
+        <button onclick="exportTxt()" class="exp-btn">⬇ TXT</button>
+        <button onclick="exportCsv()" class="exp-btn exp-btn-csv">⬇ XLSX</button>
+      </div>
+    </div>
+    <div class="log-body" id="log-body"></div>
+  </div>
+
+</main>
+
+<script>
+// ── Colour helpers ─────────────────────────────────────────────────────────
+const THRESH = {cell_ov:3750,cell_full:3650,cell_bal:3300,cell_nom:3200,cell_uv:2500};
+
+function cellColor(mv) {
+  if (mv >= THRESH.cell_ov)   return 'var(--red)';
+  if (mv >= THRESH.cell_full) return 'var(--accent)';
+  if (mv >= THRESH.cell_bal)  return 'var(--green)';
+  if (mv >= THRESH.cell_nom)  return 'var(--text)';
+  if (mv >= THRESH.cell_uv)   return 'var(--yellow)';
+  return 'var(--red)';
+}
+function cellBarColor(mv) {
+  if (mv >= THRESH.cell_ov)   return '#ff2244';
+  if (mv >= THRESH.cell_full) return '#00d4ff';
+  if (mv >= THRESH.cell_bal)  return '#00ff88';
+  if (mv >= THRESH.cell_nom)  return '#4488aa';
+  if (mv >= THRESH.cell_uv)   return '#ffcc00';
+  return '#ff2244';
+}
+function cellBarPct(mv) {
+  return Math.max(4, Math.min(100, ((mv - 2400) / (3700 - 2400)) * 100));
+}
+function socColor(s) {
+  return s >= 60 ? 'var(--green)' : s >= 30 ? 'var(--yellow)' : 'var(--red)';
+}
+function tempColor(t) {
+  if (t < 0)   return '#29b6f6';
+  if (t < 15)  return '#4dd0e1';
+  if (t <= 35) return 'var(--green)';
+  if (t <= 45) return 'var(--yellow)';
+  return 'var(--red)';
+}
+function fmt(v, d=1) { return (v != null) ? Number(v).toFixed(d) : '—'; }
+
+// ── Full log buffer (all lines ever received, for export) ─────────────────
+let allLogLines  = [];   // every raw line, never trimmed
+let lastLogHash  = '';   // detect actual new content
+
+// ── Export helpers ─────────────────────────────────────────────────────────
+function downloadFile(filename, content, mime) {
+  const blob = new Blob([content], {type: mime});
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = filename;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+function exportTxt() {
+  if (!allLogLines.length) return;
+  const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  downloadFile(`bms_log_${ts}.txt`, allLogLines.join('\r\n'), 'text/plain');
+}
+
+function exportCsv() {
+  if (!allLogLines.length) return;
+
+  const re   = /\[(\d+)ms\]\s+ID:\s+(0x[0-9A-Fa-f]+)\s+DLC:\s+(\d+)\s+Data:\s+([0-9A-Fa-f\s]+)/;
+  const u16le = (b,o) => parseInt(b[o],16) | (parseInt(b[o+1],16)<<8);
+  const u16be = (b,o) => (parseInt(b[o],16)<<8) | parseInt(b[o+1],16);
+
+  // Buckets per sheet
+  const cells   = [];   // one row per frame (4 cells each)
+  const pack    = [];   // 0x98FF28F4
+  const soc     = [];   // 0x98FFE5F4
+  const minmax  = [];   // 0x98FE28F4
+  const temps   = [];   // 0x98B428F4
+
+  allLogLines.forEach(line => {
+    const m = re.exec(line);
+    if (!m) return;
+    const ts   = parseInt(m[1]);
+    const id   = m[2];
+    const b    = m[4].trim().split(/\s+/);
+    const func = (parseInt(id,16) >> 16) & 0xFF;
+    const sub  = (parseInt(id,16) >>  8) & 0xFF;
+
+    if (func >= 0xC8 && func <= 0xCC) {
+      const group = func - 0xC8;
+      const base  = group * 4 + 1;
+      const row   = { 'Timestamp (ms)': ts, 'Frame ID': id };
+      for (let i = 0; i < 4; i++) {
+        const mv = u16be(b, i*2);
+        const cn = 'C' + String(base+i).padStart(2,'0') + ' (mV)';
+        row[cn] = mv !== 0 ? mv : '';
+      }
+      cells.push(row);
+    }
+    else if (func === 0xB4) {
+      temps.push({
+        'Timestamp (ms)': ts,
+        'Frame ID':       id,
+        'Sensor 1 (C)':  parseInt(b[0],16) - 40,
+        'Sensor 2 (C)':  parseInt(b[1],16) - 40,
+        'Sensor 3 (C)':  parseInt(b[2],16) - 40,
+      });
+    }
+    else if (func === 0xFF && sub === 0xE5) {
+      soc.push({
+        'Timestamp (ms)':       ts,
+        'Frame ID':             id,
+        'SOC (%)':              u16le(b,0) / 10,
+        'Charge Request (A)':   u16le(b,2) / 10,
+      });
+    }
+    else if (func === 0xFF && sub === 0x28) {
+      pack.push({
+        'Timestamp (ms)':        ts,
+        'Frame ID':              id,
+        'Pack Voltage (V)':      u16le(b,0) / 100,
+        'Disch Limit (A)':       u16le(b,2) / 100,
+        'SOC (%)':               u16le(b,4) / 10,
+      });
+    }
+    else if (func === 0xFE && sub === 0x28) {
+      minmax.push({
+        'Timestamp (ms)':   ts,
+        'Frame ID':         id,
+        'Max Cell (mV)':    u16le(b,0),
+        'Min Cell (mV)':    u16le(b,2),
+        'Spread (mV)':      u16le(b,0) - u16le(b,2),
+        'Temp 1 (C)':       parseInt(b[4],16) - 40,
+        'Temp 2 (C)':       parseInt(b[5],16) - 40,
+        'Disch Limit (A)':  u16le(b,6) / 10,
+      });
+    }
+  });
+
+  // Build workbook using SheetJS
+  const XLSX = window.XLSX;
+  const wb   = XLSX.utils.book_new();
+
+  function addSheet(data, name) {
+    if (!data.length) return;
+    const ws = XLSX.utils.json_to_sheet(data);
+    // Auto column widths
+    const cols = Object.keys(data[0]).map(k => ({ wch: Math.max(k.length, 12) }));
+    ws['!cols'] = cols;
+    XLSX.utils.book_append_sheet(wb, ws, name);
+  }
+
+  addSheet(pack,   'Pack Summary');
+  addSheet(soc,    'SOC & Charge');
+  addSheet(minmax, 'Min-Max Cells');
+  addSheet(temps,  'Temperatures');
+
+  // Cell voltages: pivot so each row = one timestamp, columns = all 19 cells
+  if (cells.length) {
+    // Merge rows with same timestamp (groups of up to 5 frames per cycle)
+    const merged = {};
+    cells.forEach(row => {
+      const ts = row['Timestamp (ms)'];
+      if (!merged[ts]) merged[ts] = { 'Timestamp (ms)': ts };
+      Object.assign(merged[ts], row);
+      delete merged[ts]['Frame ID'];
+    });
+    const pivoted = Object.values(merged).sort((a,b) => a['Timestamp (ms)'] - b['Timestamp (ms)']);
+    const ws = XLSX.utils.json_to_sheet(pivoted);
+    ws['!cols'] = Object.keys(pivoted[0]).map(k => ({ wch: Math.max(k.length, 10) }));
+    XLSX.utils.book_append_sheet(wb, ws, 'Cell Voltages');
+  }
+
+  const ts = new Date().toISOString().replace(/[:.]/g,'-').slice(0,19);
+  XLSX.writeFile(wb, `bms_log_${ts}.xlsx`);
+}
+
+// ── Cell card cache ────────────────────────────────────────────────────────
+let cellCardKeys = [];
+
+function buildCellGrid(keys) {
+  const grid = document.getElementById('cell-grid');
+  grid.innerHTML = '';
+  cellCardKeys = keys;
+  keys.forEach(k => {
+    const el = document.createElement('div');
+    el.className = 'cell';
+    el.id = `cell-${k}`;
+    el.innerHTML = `
+      <div class="cell-num">C${String(k).padStart(2,'0')}</div>
+      <div class="cell-bar-wrap"><div class="cell-bar" id="cb-${k}"></div></div>
+      <div class="cell-mv" id="cv-${k}">—</div>`;
+    grid.appendChild(el);
+  });
+}
+
+// ── Serial log ─────────────────────────────────────────────────────────────
+function updateLog(lines) {
+  if (!lines || !lines.length) return;
+
+  // Detect if anything actually changed by comparing last line content
+  const hash = lines[lines.length - 1] + lines.length;
+  if (hash === lastLogHash) return;
+  lastLogHash = hash;
+
+  const box = document.getElementById('log-body');
+
+  // Find truly new lines: anything in `lines` not yet in allLogLines
+  // Server sends last 40 lines — we append only what we haven't stored yet
+  const prevLen  = allLogLines.length;
+  const overlap  = lines.filter(l => !allLogLines.includes(l));
+
+  // More reliable: use the last known line as anchor
+  let newLines;
+  if (allLogLines.length === 0) {
+    newLines = lines;
+  } else {
+    const lastKnown = allLogLines[allLogLines.length - 1];
+    const idx = lines.lastIndexOf(lastKnown);
+    newLines = (idx >= 0) ? lines.slice(idx + 1) : lines;
+  }
+
+  if (!newLines.length) return;
+
+  // Append to full buffer
+  allLogLines.push(...newLines);
+
+  // Update line counter
+  document.getElementById('log-count').textContent = allLogLines.length + ' lines';
+
+  // Render new lines into DOM
+  newLines.forEach(line => {
+    const el = document.createElement('div');
+    el.className = 'log-line';
+    if      (line.startsWith('[INFO]'))    el.classList.add('info');
+    else if (line.startsWith('[ERR]'))     el.classList.add('error');
+    else if (line.includes('ID: 0x'))   { el.classList.add('frame'); el.classList.add('new');
+      setTimeout(() => el.classList.remove('new'), 2100); }
+    else                                   el.classList.add('info');
+    el.textContent = line;
+    box.appendChild(el);
+  });
+
+  // Keep DOM to last 150 lines (allLogLines keeps everything for export)
+  while (box.children.length > 150) box.removeChild(box.firstChild);
+  // Use requestAnimationFrame so scroll happens after paint
+  requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+}
+
+// ── Main update ────────────────────────────────────────────────────────────
+function update(d) {
+  // Header
+  document.getElementById('frames-lbl').textContent = d.frame_count + ' frames';
+  document.getElementById('port-lbl').textContent   = d.port || '—';
+
+  const dot = document.getElementById('dot');
+  const lbl = document.getElementById('conn-lbl');
+  if (d.connected) { dot.className = 'dot live'; lbl.textContent = 'Live'; }
+  else             { dot.className = 'dot err';  lbl.textContent = 'Reconnecting…'; }
+
+  // SOC ring
+  if (d.soc != null) {
+    const pct  = Math.max(0, Math.min(100, d.soc));
+    const circ = 314.2;
+    const ring = document.getElementById('ring');
+    ring.style.strokeDashoffset = circ * (1 - pct / 100);
+    ring.style.stroke = socColor(pct);
+    const sv = document.getElementById('soc-val');
+    sv.textContent   = Math.round(pct) + '%';
+    sv.style.color   = socColor(pct);
+    sv.style.textShadow = `0 0 24px ${socColor(pct)}80`;
+  }
+
+  // Pack stats
+  setVal('pack-v',  d.pack_v,      2, 'V');
+  setVal('disch-i', d.disch_i_lim, 1, 'A');
+  setVal('chg-i',   d.chg_i_req,   1, 'A');
+  document.getElementById('cell-count-hdr').textContent =
+    d.cell_count ? d.cell_count + ' S' : '—';
+
+  // Cell summary
+  if (d.cell_min_mv) {
+    const mn = document.getElementById('c-min');
+    mn.textContent = d.cell_min_mv + ' mV';
+    mn.style.color = cellColor(d.cell_min_mv);
+  }
+  if (d.cell_max_mv) {
+    const mx = document.getElementById('c-max');
+    mx.textContent = d.cell_max_mv + ' mV';
+    mx.style.color = cellColor(d.cell_max_mv);
+  }
+  if (d.cell_spread_mv != null) {
+    const sp = document.getElementById('c-spread');
+    sp.textContent = d.cell_spread_mv + ' mV';
+    sp.style.color = d.cell_spread_mv < 20 ? 'var(--green)' :
+                     d.cell_spread_mv < 50 ? 'var(--yellow)' : 'var(--red)';
+  }
+  if (d.cell_avg_mv) document.getElementById('c-avg').textContent = d.cell_avg_mv + ' mV';
+
+  // Cell cards
+  const cells = d.cells || {};
+  const keys  = Object.keys(cells).map(Number).sort((a,b) => a-b);
+  if (keys.length && JSON.stringify(keys) !== JSON.stringify(cellCardKeys)) {
+    buildCellGrid(keys);
+  }
+  keys.forEach(k => {
+    const info = cells[k];
+    const mv   = info.mv;
+    const vEl  = document.getElementById(`cv-${k}`);
+    const bEl  = document.getElementById(`cb-${k}`);
+    if (vEl) { vEl.textContent = mv + ' mV'; vEl.style.color = cellColor(mv); }
+    if (bEl) {
+      bEl.style.height     = cellBarPct(mv) + '%';
+      bEl.style.background = cellBarColor(mv);
+      bEl.style.boxShadow  = `0 0 5px ${cellBarColor(mv)}55`;
+    }
+    // highlight min/max
+    const card = document.getElementById(`cell-${k}`);
+    
+  });
+
+  // Temperatures
+  const temps = d.temps || {};
+  const tKeys = Object.keys(temps).map(Number).sort((a,b) => a-b);
+  if (tKeys.length) {
+    const tl = document.getElementById('temp-list');
+    // Update existing rows or rebuild
+    const existing = tl.querySelectorAll('.temp-row');
+    if (existing.length !== tKeys.length) {
+      tl.innerHTML = '';
+      tKeys.forEach(k => {
+        const row = document.createElement('div');
+        row.className = 'temp-row';
+        row.id = `tr-${k}`;
+        row.innerHTML = `
+          <div class="temp-hdr">
+            <span class="temp-name">SENSOR ${k}</span>
+            <span class="temp-val" id="tv-${k}">—</span>
+          </div>
+          <div class="temp-track"><div class="temp-fill" id="tf-${k}"></div></div>`;
+        tl.appendChild(row);
+      });
+      if (d.avg_temp != null) {
+        const avg = document.createElement('div');
+        avg.className = 'temp-avg';
+        avg.innerHTML = `<span class="temp-avg-lbl">AVG</span>
+          <span class="temp-avg-val" id="tv-avg">—</span>`;
+        tl.appendChild(avg);
+      }
+    }
+    tKeys.forEach(k => {
+      const t    = temps[k];
+      const col  = tempColor(t);
+      const pct  = Math.max(4, Math.min(100, ((t + 10) / 70) * 100));
+      const tv   = document.getElementById(`tv-${k}`);
+      const tf   = document.getElementById(`tf-${k}`);
+      if (tv) { tv.textContent = (t >= 0 ? '+' : '') + t.toFixed(1) + '°C'; tv.style.color = col; }
+      if (tf) { tf.style.width = pct + '%'; tf.style.background = col; tf.style.boxShadow = `0 0 5px ${col}66`; }
+    });
+    const avgEl = document.getElementById('tv-avg');
+    if (avgEl && d.avg_temp != null) {
+      avgEl.textContent = (d.avg_temp >= 0 ? '+' : '') + d.avg_temp.toFixed(1) + '°C';
+      avgEl.style.color = tempColor(d.avg_temp);
+    }
+  }
+
+  // Serial log
+  if (d.log) updateLog(d.log);
+}
+
+function setVal(id, val, dec, unit) {
+  const el = document.getElementById(id);
+  if (!el || val == null) return;
+  el.innerHTML = Number(val).toFixed(dec) + `<span class="stat-unit">${unit}</span>`;
+}
+
+// ── WebSocket ─────────────────────────────────────────────────────────────
+const overlay = document.getElementById('overlay');
+let ws, retryMs = 1000;
+
+function connect() {
+  ws = new WebSocket(`ws://${location.host}/ws`);
+  ws.onopen = () => { overlay.classList.add('hidden'); retryMs = 1000; };
+  ws.onmessage = e => { try { update(JSON.parse(e.data)); } catch(err){} };
+  ws.onclose = ws.onerror = () => {
+    overlay.classList.remove('hidden');
+    setTimeout(connect, retryMs);
+    retryMs = Math.min(retryMs * 1.5, 8000);
+  };
+}
+connect();
+
+// Clock
+setInterval(() => {
+  document.getElementById('clock').textContent = new Date().toLocaleTimeString();
+}, 1000);
+</script>
+</body>
+</html>
