@@ -7,10 +7,10 @@ Complete instructions for setting up the ISS Report repository on GitHub.
 ## 📋 Repository Information
 
 ```
-Repository Name: iss-report
-Organization: [your-organization]
+File Name: iss-report
+Organization: Medtech
 Visibility: Private (recommended)
-Description: Comprehensive Technical Report for Intelligent Sustainable System (ISS)
+Description: Comprehensive Technical Report ISS
 Topics: latex, technical-documentation, collaborative-project
 ```
 
