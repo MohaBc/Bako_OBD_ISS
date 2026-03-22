@@ -542,16 +542,7 @@ iss-report/
 
 ---
 
-## 🔗 Useful GitHub Links
 
-- **Repository:** https://github.com/organization/iss-report
-- **Issues:** https://github.com/organization/iss-report/issues
-- **Pull Requests:** https://github.com/organization/iss-report/pulls
-- **Projects:** https://github.com/organization/iss-report/projects
-- **Discussions:** https://github.com/organization/iss-report/discussions
-- **Actions:** https://github.com/organization/iss-report/actions
-
----
 
 ## 📞 Getting Help
 
