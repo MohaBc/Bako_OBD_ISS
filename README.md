@@ -1,21 +1,20 @@
-
 # 🔋 Bako OBD ISS — Battery CAN Analyzer
 
 **SAE J1939 Battery Management System (BMS) Communication Protocol Decoder**
 
-ISS Senior Project 2026 | Battery Health & Diagnostic Analysis Tool
+ISS Senior Project 2026 | Battery Health & Diagnostic Analysis Tool | O'CELL IFS60.8-500-F-E3
 
 ---
 
 ## 📋 Overview
 
-Bako OBD ISS is a comprehensive battery analysis system designed to decode and visualize CAN bus communications from LiFePO₄ (LFP) battery management systems. The project provides both a **Python command-line parser** and an **interactive web-based analyzer** to interpret SAE J1939 standard battery CAN frames.
+Bako OBD ISS is a comprehensive battery analysis system designed to decode and visualize CAN bus communications from an **O'CELL IFS60.8-500-F-E3 19S1P LiFePO₄ battery pack** (60.8V / 50Ah). The project provides three complementary tools to interpret SAE J1939 standard battery CAN frames:
 
-This tool is essential for:
-- **Battery Health Monitoring**: Real-time SOC, voltage, current, and temperature tracking
-- **Diagnostics**: Fault detection and detailed error reporting
-- **Development & Testing**: Analyze CAN frame data from battery hardware
-- **Educational**: Learn SAE J1939 protocol implementation for automotive battery systems
+| Tool | File | Mode | Use Case |
+|------|------|------|----------|
+| Python CLI Parser | `battery_can_parser.py` | Offline | Quick terminal analysis from a `.txt` log file |
+| Standalone Web UI | `battery_analyzer.html` | Offline | Interactive browser dashboard, no server needed |
+| Live Dashboard | `Bako_diagnostic_interface_v2/` | Live | Real-time monitoring via ESP32 USB serial + WebSocket |
 
 ---
 
@@ -23,217 +22,129 @@ This tool is essential for:
 
 ```
 Bako_OBD_ISS/
-├── battery_can_parser.py        # Python CLI parser - decodes CAN frames to console output
-├── battery_analyzer.html        # Web UI - interactive visual analyzer with real-time dashboard
-├── batterie.txt                 # Sample CAN frame log - Arduino raw logger output
-└── README.md                    # This file
+│
+├── battery_can_parser.py              # Python CLI parser — decodes CAN log to terminal
+├── battery_analyzer.html              # Standalone web UI — no server, upload & analyze
+├── batterie.txt                       # Real captured CAN log from hardware (638 lines)
+├── bms_log_2026-03-10T10-20-02.txt   # Additional real BMS session log
+├── bms_log_2026-03-10T10-20-06.xlsx  # Session log exported as Excel
+├── README.md                          # This file
+│
+├── Bako_diagnostic_interface/         # v1 — Live dashboard (server + frontend)
+│   ├── server.py                      # FastAPI + WebSocket backend
+│   ├── index.html                     # Dark HUD dashboard frontend
+│   └── esp32_bms_simulator/
+│       └── esp32_bms_simulator.ino    # ESP32 Arduino simulator sketch
+│
+├── Bako_diagnostic_interface_v2/      # v2 — Recommended version (multi-format support)
+│   ├── server.py                      # Same as v1 + normalize_line() for multiple CAN loggers
+│   ├── index.html                     # Same dashboard UI
+│   └── temp                           # Temporary scratch file (ignore)
+│
+└── ISS_Report/                        # LaTeX academic report (XeLaTeX)
+    ├── main.tex                        # Entry point
+    ├── main.pdf                        # Compiled output
+    ├── preamble.tex
+    ├── references.bib
+    ├── Preliminary Files/             # Abstract, acknowledgements, declaration
+    └── Section Files/                 # 22 sections (00–21) + appendices
 ```
 
 ---
 
-## 🚀 Features
+## 🔋 Target Hardware
 
-### Core Capabilities
-
-#### **Pack-Level Monitoring**
-- **Pack Voltage** (0–100 V range, 0.1 V resolution)
-- **Pack Current** (-500 to +500 A, where negative = charging)
-- **State of Charge (SOC)** (0–100%)
-- **Charge State Detection** (Charging / Discharging / Idle)
-- **Contactor Status** (Charge & discharge contactor states)
-- **Ready Signal** (Pack operational readiness)
-
-#### **Cell-Level Diagnostics**
-- **Individual Cell Voltages** (all 19 cells × 1 mV resolution)
-- **Max/Min Cell Voltage** tracking
-- **Cell Voltage Spread** (balance monitoring)
-- **Low Cell Detection** (visual alerts)
-
-#### **Temperature Monitoring**
-- **Min/Max Cell Temperatures** (±1°C resolution)
-- **Multiple Temperature Probes** (up to 8 probes)
-- **Thermal Warnings** (color-coded thresholds)
-
-#### **Charge Control**
-- **Max Charge Voltage** (BMS → Charger request)
-- **Max Charge Current** (BMS → Charger request)
-- **Charge Permission** (Allow/Block charging)
-
-#### **Safety & Faults**
-- **Multi-Level Fault Detection**
-  - Level-0: No Fault ✅
-  - Level-1: Critical Stop (🚨 STOP VEHICLE IMMEDIATELY)
-  - Level-2+: Warning Faults ⚠️
-- **Fault Codes** (detailed error identification)
+| Property | Value |
+|----------|-------|
+| Battery model | O'CELL IFS60.8-500-F-E3 |
+| Chemistry | LiFePO₄ (LFP) |
+| Configuration | 19S1P (19 cells in series) |
+| Nominal voltage | 60.8 V |
+| Capacity | 50 Ah |
+| CAN standard | SAE J1939, 29-bit extended IDs |
+| CAN baud rate | 250 kbps |
+| ESP32 serial baud | 115200 |
 
 ---
 
-## 📡 CAN Protocol Details
+## 📡 CAN Protocol Reference
 
-### Supported J1939 CAN IDs (250 kbps, 29-bit extended)
+All frame IDs use the format `0x98_FUNC_SUB_F4` (29-bit extended J1939).
 
-#### **0x18FF28F4** — BMS Basic Info Frame 1
-- **Byte 0**: Status flags (charging connected, charge state, etc.)
-- **Byte 1**: SOC [0–100%, 1%/bit]
-- **Bytes 2–3**: Pack current [offset -500A, 0.1 A/bit]
-- **Bytes 4–5**: Pack voltage [0.1 V/bit]
-- **Byte 6**: Fault level
-- **Byte 7**: Fault code
+> **Note:** The README and protocol docs reference both `0x18...` and `0x98...` prefix variants. The real hardware outputs `0x98...` IDs (priority bits set). The server and simulator use `0x98...`. Use `0x98...` as the authoritative format.
 
-#### **0x18FE28F4** — BMS Basic Info Frame 2
-- **Bytes 0–1**: Max cell voltage [mV]
-- **Bytes 2–3**: Min cell voltage [mV]
-- **Byte 4**: Max cell temperature [offset -40°C, 1°C/bit]
-- **Byte 5**: Min cell temperature [offset -40°C, 1°C/bit]
-- **Bytes 6–7**: Max discharge current [0.1 A/bit]
+### Frame Map
 
-#### **0x18B428F4** — Temperature Detail Frame
-- **Bytes 0–7**: Temperature probes [offset -40°C, 1°C/bit each]
+| CAN ID | Name | Rate | Contents |
+|--------|------|------|----------|
+| `0x98C828F4`–`0x98CC28F4` | Cell voltages 1–19 | 500 ms | 4 cells × 2 bytes each, big-endian uint16, unit = 1 mV |
+| `0x98B428F4` | Temperature detail | 500 ms | Bytes 0–2: probes 1–3, `raw − 40 = °C` |
+| `0x98FFE5F4` | SOC + charge request | 500 ms | LE uint16: SOC × 10, charge current request × 10 |
+| `0x98FF28F4` | Pack summary | 100 ms | LE uint16: pack V × 100, discharge limit × 100, SOC × 10 |
+| `0x98FE28F4` | Min/max cell + temps | 100 ms | LE uint16: max cell mV, min cell mV; temps; discharge limit × 10 |
 
-#### **0x18FFE5F4** — Charge Request Frame
-- **Bytes 0–1**: Max charge voltage [0.1 V/bit]
-- **Bytes 2–3**: Max charge current [0.1 A/bit]
-- **Byte 4**: Charge control flag (bit 1 = block charging)
+### Cell Voltage Frames — Byte Layout
 
-#### **0x18C828F4–0x18CD28F4** — Cell Voltage Detail Frames
-- **4 frames, 8 bytes each**
-- **2 bytes per cell** (4 cells/frame, 19 cells total)
-- **Resolution**: 1 mV/bit
+Each cell voltage frame carries 4 cells, **big-endian** uint16, 1 mV per bit:
+
+| Frame ID | Cells |
+|----------|-------|
+| `0x98C828F4` | 1–4 |
+| `0x98C928F4` | 5–8 |
+| `0x98CA28F4` | 9–12 |
+| `0x98CB28F4` | 13–16 |
+| `0x98CC28F4` | 17–19 (bytes 6–7 = 0x0000 pad) |
+
+### Voltage & Current Thresholds
+
+| Parameter | Value |
+|-----------|-------|
+| Cell overvoltage | ≥ 3750 mV |
+| Cell full | ≥ 3650 mV |
+| Cell good | ≥ 3300 mV |
+| Cell nominal | ≥ 3200 mV |
+| Cell low | ≥ 2500 mV |
+| Cell undervoltage | < 2500 mV |
+| Pack full voltage | 69.35 V |
+| Pack empty voltage | 47.50 V |
+| Max charge current | 25 A |
+| Max discharge current | 50 A |
+
+### Temperature Thresholds
+
+| Range | Status |
+|-------|--------|
+| < 35 °C | Normal (cyan) |
+| 35–50 °C | Caution (yellow) |
+| > 50 °C | Critical (red) |
 
 ---
 
-## 🛠️ Usage
+## 🛠️ Tool 1 — Python CLI Parser (`battery_can_parser.py`)
 
-### Option 1: Python CLI Parser
+A zero-dependency Python 3 script that reads a `.txt` CAN log and prints a formatted analysis to the terminal.
 
-**Requirements:**
-- Python 3.6+
-- No external dependencies
-
-**Running the Parser:**
+### Setup
 
 ```bash
+# No pip installs needed — uses only Python standard library
 python battery_can_parser.py
 ```
 
-**What it does:**
-1. Reads the CAN log file specified in `FILE_PATH` (default: `batterie.txt`)
-2. Decodes all J1939 frames
-3. Prints formatted analysis to console with:
-   - Pack voltage, current, SOC
-   - Temperature readings
-   - Cell voltage visualization with bar charts
-   - Charge request details
-   - Fault status
+### ⚠️ Configuration Required
 
-**Example Output:**
-```
-═════════════════════════════════════════════════════════════
-  SAE J1939 BATTERY ANALYSIS  —  Based on Manufacturer Protocol
-═════════════════════════════════════════════════════════════
+Before running, edit **line 6** of `battery_can_parser.py` to point to your log file:
 
-📊  PACK STATUS (last known values)
-
-  🔌 Pack Voltage          : 76.8 V
-  ⚡ Pack Current          : -50.0 A  (neg = charging)
-  📈 State of Charge (SOC) : 85 %
-  ⚙️  Charge Status         : 🔋 CHARGING
-  🔌 Charge Cable          : Connected
-  🟢 Pack Ready            : Yes
-  🚨 Fault                 : ✅ No Fault
-
-🌡  TEMPERATURE
-
-  Max cell temperature     : 35 °C
-  Min cell temperature     : 28 °C
-  Probe 1                  : 32 °C
-  Probe 2                  : 31 °C
-
-⚡  CELL VOLTAGES
-
-  Max cell voltage         : 3.313 V
-  Min cell voltage         : 3.278 V
-  Cell  1  3313 mV  |████████████████████|
-  Cell  2  3301 mV  |███████████████████░|
-  Cell  3  3290 mV  |██████████████████░░|
-  ...
+```python
+# Change this to your actual file path:
+FILE_PATH = "batterie.txt"          # relative path (recommended)
+# or
+FILE_PATH = "/absolute/path/to/batterie.txt"
 ```
 
-### Option 2: Web UI Analyzer
+The default is hardcoded to a developer's local machine path and will fail on any other system.
 
-**Requirements:**
-- Any modern web browser (Chrome, Firefox, Safari, Edge)
-- No server needed (pure client-side HTML/JavaScript)
-
-**Opening the Tool:**
-
-1. **Option A**: Double-click `battery_analyzer.html` in your file explorer
-2. **Option B**: Open in browser: `File > Open > Select battery_analyzer.html`
-3. **Option C**: Drag and drop the file onto your browser window
-
-**Using the Web UI:**
-
-1. **Load a CAN Log File**:
-   - Enter file path in the input box, then click **▶ Analyze**
-   - OR click **⬆ Upload File** to select from your computer
-
-2. **View the Dashboard**:
-   - 📊 **Pack Overview**: Voltage, Current, Charge Status (3 KPI cards)
-   - 📈 **State of Charge**: Visual percentage bar
-   - 🌡️ **Temperature Panel**: Min/Max/Probe readings
-   - 🔋 **Charge Request**: Max voltage, current, permission status
-   - ⚡ **Cell Voltages**: Individual cell readings with color-coded health bars
-   - 📋 **Raw CAN Frames**: All parsed frames with syntax highlighting
-
-3. **Interactive Features**:
-   - **Live Status Indicator**: Green dot = data loaded
-   - **Color Coding**: Green (good), Yellow (warning), Red (critical)
-   - **Health Visualization**: Cell voltage bars indicate charge levels
-   - **Fault Banner**: Prominent alert system for errors
-
-4. **Export Analysis**:
-   - Click **💾 Save as .txt** to export the analysis report
-   - Click **🗑 Clear Data** to reset the interface
-
----
-
-## 📊 Dashboard Components
-
-### Pack Overview (KPI Cards)
-- **Pack Voltage**: Current pack voltage with nominal 76.8V reference
-- **Pack Current**: Positive (discharge) or negative (charging) current
-- **Charge Status**: Current operational state with cable/ready indicators
-
-### SOC (State of Charge) Bar
-- Visual percentage indicator (0–100%)
-- Color gradient from empty to full
-
-### Temperature Section
-- **Min/Max Cell Temps**: Overall pack temperature range
-- **Temp Probes**: Individual sensor readings (up to 8)
-- **Color Warnings**: Red (>50°C), Yellow (35–50°C), Cyan (<35°C)
-
-### Cell Voltage Grid
-- **All 19 Cells** displayed in real-time
-- **Spread Calculation**: Max − Min voltage difference
-- **Health Bars**: Visual representation (green = healthy)
-- **Imbalance Detection**: Low cells highlighted in red
-
-### Charge Request Card
-- **Max Charge Voltage**: Requested voltage limit
-- **Max Charge Current**: Requested current limit
-- **Permission Status**: Charging allowed or blocked
-
-### Raw CAN Frames Panel
-- **Total Frames**: Count of all CAN messages in log
-- **Matched Frames**: Count of decoded protocol frames
-- **Frame Details**: Timestamp, CAN ID, payload hex dump
-
----
-
-## 📝 Input File Format
-
-The tool expects CAN log files in the following format:
+### Input File Format
 
 ```
 ========================================
@@ -241,148 +152,232 @@ The tool expects CAN log files in the following format:
 ========================================
 [1849ms] ID: 0x98C828F4 DLC: 8 Data: 0C DE 0C E1 0C DF 0C DE
 [1854ms] ID: 0x98C928F4 DLC: 8 Data: 0C DF 0C DF 0C E0 0C DF
-[1859ms] ID: 0x98CA28F4 DLC: 8 Data: 0C DE 0C DF 0C E0 0C E0
 ```
 
-**Format Specification:**
-- `[XXXms]` — Timestamp in milliseconds
-- `ID: 0xXXXXXXXX` — 29-bit CAN extended ID in hexadecimal
-- `DLC: X` — Data length (typically 8)
-- `Data: XX XX XX XX XX XX XX XX` — Payload bytes in hex (space-separated)
+- `[XXXms]` — timestamp in milliseconds
+- `ID: 0xXXXXXXXX` — 29-bit extended CAN ID
+- `DLC: X` — data length (8 for all supported frames)
+- `Data: XX XX ...` — payload bytes, space-separated hex
 
----
+### Example Output
 
-## 🔧 Configuration
-
-### Python Parser
-Edit `battery_can_parser.py` line 6:
-```python
-FILE_PATH = "C:/Users/legio/Desktop/Bako/batterie.txt"
 ```
-Change to your CAN log file path.
+═════════════════════════════════════════════════════════════════
+  SAE J1939 BATTERY ANALYSIS  —  Based on Manufacturer Protocol
+═════════════════════════════════════════════════════════════════
 
-### Web UI
-- **File Input Field**: Enter path or click upload button
-- **No configuration needed** — works entirely client-side
+📊  PACK STATUS (last known values)
 
----
+  🔌 Pack Voltage          : 62.6 V
+  ⚡ Pack Current          : 0.0 A  (neg = charging)
+  📈 State of Charge (SOC) : 26 %
+  ⚙️  Charge Status         : ⏸  IDLE / STANDBY
+  🔌 Charge Cable          : Not connected
+  🟢 Pack Ready            : Yes
+  🚨 Fault                 : ✅ No Fault
 
-## ⚙️ Technical Details
+🌡  TEMPERATURE
 
-### Protocol Specifications
-- **Standard**: SAE J1939 automotive CAN
-- **Baud Rate**: 250 kbps
-- **Frame Type**: 29-bit extended CAN IDs
-- **Battery Chemistry**: LiFePO₄ (LFP)
-- **Pack Configuration**: 19S1P (19 cells in series)
-- **Cell Type**: 230 Ah LiFePO₄
+  Max cell temperature     : 28 °C
+  Min cell temperature     : 28 °C
+  Probe 1                  : 28 °C
+  Probe 2                  : 28 °C
+  Probe 3                  : 28 °C
 
-### Voltage Ranges
-- **Pack Nominal**: 76.8 V (19S × 4.04 V)
-- **Pack Min**: ~60 V (19S × 3.15 V)
-- **Pack Max**: ~87.6 V (19S × 4.61 V)
-- **Cell Range**: 3.0–3.65 V (LFP typical)
+⚡  CELL VOLTAGES
 
-### Current Limits
-- **Max Discharge**: 200 A (continuous)
-- **Max Charge**: 100 A (typical)
-- **Current Offset**: -500 A (raw value 0 = -500 A)
-
-### Temperature Thresholds
-- **Normal**: <35°C (blue)
-- **Caution**: 35–50°C (yellow)
-- **Critical**: >50°C (red)
-- **Min Safe**: -40°C to +85°C
-
----
-
-## 🐛 Troubleshooting
-
-### Python Parser Issues
-
-**"FileNotFoundError: No such file or directory"**
-- Check that `FILE_PATH` in the script points to a valid CAN log file
-- Use absolute paths (C:/... or /path/to/...)
-
-**"No output or empty analysis"**
-- Verify the log file contains valid CAN frames in the expected format
-- Check that frame IDs match supported J1939 protocol (0x18FF28F4, etc.)
-
-### Web UI Issues
-
-**"Could not fetch file from server"**
-- The HTML tries to load files as web assets (requires a server)
-- **Solution**: Use the **Upload File** button instead to load directly from your computer
-
-**Charts not appearing**
-- Try clearing browser cache (Ctrl+Shift+Delete)
-- Ensure JavaScript is enabled
-
-**Copy/Paste test data**
-- Manually paste CAN frame data using the upload feature
-
----
-
-## 📚 Example: Interpreting a Frame
-
-**Raw Frame:**
-```
-[1889ms] ID: 0x98FF28F4 DLC: 8 Data: 38 1A 88 13 72 02 00 00
+  Max cell voltage         : 3.297 V
+  Min cell voltage         : 3.294 V
+  Cell  1  3294 mV  |████████████████████|
+  Cell  2  3297 mV  |████████████████████|
+  ...
 ```
 
-**Decoded:**
-- **CID**: 0x98FF28F4 → **FF28F4** (BMS Basic Info Frame 1)
-- **Byte 0** (0x38 = 56): Status flags
-  - Bit 0 (Charge Wire): 0 = Not connected
-  - Bit 1 (Is Charging): 0 = Not charging
-  - Bit 3 (Ready): 1 = Pack ready
-  - Bit 4 (Discharge Contactor): 1 = Enabled
-- **Byte 1** (0x1A = 26): SOC = **26%**
-- **Bytes 2–3** (0x88 0x13 = 0x1388 = 5000): Current = 5000 × 0.1 − 500 = **0 A**
-- **Bytes 4–5** (0x72 0x02 = 0x0272 = 626): Voltage = 626 × 0.1 = **62.6 V**
-- **Bytes 6–7** (0x00 0x00): No fault
+---
+
+## 🌐 Tool 2 — Standalone Web UI (`battery_analyzer.html`)
+
+A fully client-side single-file HTML/JavaScript dashboard. No server, no install — open directly in any modern browser.
+
+### Opening
+
+```bash
+# Option A: double-click battery_analyzer.html in your file explorer
+# Option B:
+open battery_analyzer.html          # macOS
+xdg-open battery_analyzer.html      # Linux
+start battery_analyzer.html         # Windows
+```
+
+### Features
+
+- Upload a `.txt` CAN log file via the file picker
+- **Pack Overview** — Voltage, current, charge status KPI cards
+- **SOC Bar** — Visual 0–100% state of charge indicator
+- **Temperature Panel** — Min/max + up to 8 individual probes
+- **Charge Request Card** — Max charge voltage, current, and permission status
+- **Cell Voltage Grid** — All 19 cells with color-coded health bars
+- **Raw CAN Frame Log** — Timestamp, ID, hex payload for every decoded frame
+- **Export** — Save full analysis as `.txt`
 
 ---
 
-## 🎯 Use Cases
+## ⚡ Tool 3 — Live Dashboard (`Bako_diagnostic_interface_v2/`) ← Recommended
 
-1. **Battery Debugging**: Identify cell imbalances, temperature issues, or faults
-2. **Development Testing**: Verify BMS communication during hardware testing
-3. **Data Logging**: Record battery behavior during charge/discharge cycles
-4. **Diagnostics**: Quickly assess battery health from CAN frame data
-5. **Integration Testing**: Validate charger/battery communication handshakes
-6. **Field Service**: Analyze customer battery data for warranty claims
+Real-time BMS monitoring over a live ESP32 USB serial connection. The server decodes incoming CAN frames and pushes updates to the browser via WebSocket at **10 Hz**.
+
+### Requirements
+
+```bash
+pip install fastapi uvicorn pyserial
+```
+
+### Running
+
+```bash
+cd Bako_diagnostic_interface_v2
+
+python server.py                        # auto-detect USB port
+python server.py --port COM3            # Windows
+python server.py --port /dev/ttyUSB0    # Linux/macOS
+python server.py --baud 115200          # default baud rate
+python server.py --web-port 8765        # default web port
+```
+
+Then open **http://localhost:8765** in your browser.
+
+### Architecture
+
+```
+ESP32 (CAN logger)
+    │  USB Serial @ 115200 baud
+    ▼
+server.py  (FastAPI + pyserial)
+    │  WebSocket /ws  @ 10 Hz JSON push
+    ▼
+index.html (browser dashboard)
+```
+
+The `BMSState` class holds all decoded values thread-safely (with a `threading.Lock`). The serial reader runs in a background daemon thread; the WebSocket handler runs in the async FastAPI event loop.
+
+### v2 vs v1 — What Changed
+
+v2 adds `normalize_line()`, which makes the server compatible with multiple CAN logger formats:
+
+| Format | Example | Support |
+|--------|---------|---------|
+| ESP32 native (correct) | `[1849ms] ID: 0x98C828F4 DLC: 8 Data: 0C DE...` | v1 + v2 |
+| Other CAN tools | `Extended ID: 0x18FE28F4  DLC: 8  Data: 0x43 0x0D...` | v2 only |
+
+Use **v2** unless you have a specific reason to use v1.
+
+---
+
+## 🧪 ESP32 BMS Simulator (`esp32_bms_simulator.ino`)
+
+An Arduino sketch that simulates the exact CAN frame output of the real BMS over USB serial — useful for testing the live dashboard without physical hardware.
+
+### Upload & Run
+
+1. Open `Bako_diagnostic_interface/esp32_bms_simulator/esp32_bms_simulator.ino` in Arduino IDE
+2. Select board: **ESP32 Dev Module** (or any ESP32 variant)
+3. Upload and open Serial Monitor at **115200 baud**
+4. Run `server.py` — it will connect to the simulator just like real hardware
+
+### Simulation Behaviour
+
+| Parameter | Behaviour |
+|-----------|-----------|
+| SOC | Ramps 70% → 20% (discharge), then 20% → 90% (charge), cycling |
+| Pack voltage | Linear between 47.5V (0%) and 69.35V (100%) + ±50mV noise |
+| Cell voltages | Track SOC with ±8mV individual drift per cell per cycle |
+| Temperature | 3 probes rise at +0.05°C/cycle during discharge, −0.03°C/cycle during charge |
+| Current | +8A (discharge) or −15A (charge) |
+| Frame timing | Full set (all frames) every 500ms; FF28 + FE28 repeated every 100ms |
+
+---
+
+## 📊 Sample Data — `batterie.txt`
+
+This is a real capture from the physical battery hardware. Key values from this session:
+
+| Parameter | Value |
+|-----------|-------|
+| Pack voltage | 62.6 V |
+| Pack current | 0.0 A (idle) |
+| SOC | ~26% |
+| All cell voltages | 3294–3297 mV (3 mV spread — excellent balance) |
+| All temperatures | 28 °C across 3 probes |
+| Fault | None |
+| Charge permission | Allowed |
+| Max charge voltage | 71.7 V |
+| Max charge current | 25.0 A |
+
+---
+
+## ⚙️ Technical Notes & Known Issues
+
+### Cell Voltage Endianness
+Cell voltage frames (`0x98C8–CC28F4`) must be parsed as **big-endian** uint16. The live server and simulator both use big-endian correctly. The standalone CLI parser (`battery_can_parser.py`) uses a little-endian helper (`le16`) for cell frames — this is inconsistent with the actual hardware data and may produce incorrect cell mV values when the high and low bytes differ significantly.
+
+### Hardcoded File Path
+`battery_can_parser.py` has `FILE_PATH` hardcoded to a developer's local Windows path on line 6. Always update this before running.
+
+### Frame ID Prefix (`0x18` vs `0x98`)
+The protocol documentation uses `0x18XXXXXX` IDs. The actual hardware outputs `0x98XXXXXX` IDs (the top 3 priority bits differ). Both represent the same PGN — the server masks correctly using `func = (can_id >> 16) & 0xFF`. The CLI parser uses `endswith()` string matching which handles both variants.
+
+### ISS Report Status
+The LaTeX report structure (`ISS_Report/`) is complete and compiles successfully to PDF. All 22 section files currently contain only `% Content placeholder` — the written content has not yet been committed to the repository.
+
+---
+
+## 🚀 Quick Start Guide
+
+**I have real hardware and want live monitoring:**
+```bash
+cd Bako_diagnostic_interface_v2
+pip install fastapi uvicorn pyserial
+python server.py
+# Open http://localhost:8765
+```
+
+**I have a CAN log file and want a quick analysis:**
+```bash
+# Edit FILE_PATH in battery_can_parser.py first, then:
+python battery_can_parser.py
+```
+
+**I have a CAN log file and want a visual dashboard:**
+```bash
+# Open battery_analyzer.html in your browser, then upload the .txt file
+```
+
+**I have no hardware and want to test the live dashboard:**
+```bash
+# 1. Flash esp32_bms_simulator.ino to an ESP32
+# 2. cd Bako_diagnostic_interface_v2
+# 3. python server.py
+# 4. Open http://localhost:8765
+```
+
+---
+
+## 📚 Protocol Reference
+
+- **SAE J1939** — Automotive CAN standard for commercial vehicles and industrial equipment
+- **Battery model** — O'CELL / Bat72 230Ah BMS communication protocol
+- **CAN frame type** — 29-bit extended IDs at 250 kbps
 
 ---
 
 ## 📄 License & Credits
 
-- **Project**: Bako OBD ISS (2026)
+- **Project**: Bako OBD ISS (2026) — ISS Senior Project
+- **Institution**: MEDTECH
 - **Protocol**: SAE J1939 Standard
-- **Battery System**: Bat72 230Ah BMS
-- **Repository**: [GitHub/MohaBc/Bako_OBD_ISS](https://github.com/MohaBc/Bako_OBD_ISS)
+- **Battery System**: O'CELL IFS60.8-500-F-E3 / Bat72 230Ah BMS
+- **Repository**: [github.com/MohaBc/Bako_OBD_ISS](https://github.com/MohaBc/Bako_OBD_ISS)
 
 ---
 
-## 🤝 Contributing
-
-For issues, improvements, or additional CAN frame types:
-1. Document the new frame structure
-2. Add decoder function (Python + JavaScript)
-3. Add UI visualization component
-4. Test with real CAN logs
-
----
-
-## 📞 Support
-
-For questions about:
-- **CAN Protocol**: Refer to SAE J1939 standard documentation
-- **BMS Communication**: Check Bat72 protocol specifications
-- **Tool Usage**: See examples in this README and sample `batterie.txt`
-
----
-
-**Last Updated**: March 2026  
-**Status**: Active Development  
-**Supported Platforms**: Windows, macOS, Linux (Python & HTML5)
+**Last Updated**: March 2026 | **Status**: Active Development | **Platforms**: Windows, macOS, Linux
