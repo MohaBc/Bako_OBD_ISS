@@ -1,0 +1,811 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Battery CAN Analyzer — J1939</title>
+<link href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Barlow:wght@300;400;600;700&family=Barlow+Condensed:wght@700;900&display=swap" rel="stylesheet"/>
+<style>
+  :root {
+    --bg:       #0a0d12;
+    --surface:  #111520;
+    --card:     #161c2b;
+    --border:   #1e2840;
+    --accent:   #00e5ff;
+    --accent2:  #ff6b35;
+    --green:    #00e676;
+    --red:      #ff1744;
+    --yellow:   #ffd740;
+    --text:     #dde4f0;
+    --muted:    #5a6580;
+    --font-mono: 'Share Tech Mono', monospace;
+    --font-body: 'Barlow', sans-serif;
+    --font-head: 'Barlow Condensed', sans-serif;
+  }
+
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: var(--font-body);
+    font-size: 14px;
+    min-height: 100vh;
+    padding: 0;
+  }
+
+  /* ── SCANLINE overlay ── */
+  body::before {
+    content: '';
+    position: fixed; inset: 0; z-index: 999; pointer-events: none;
+    background: repeating-linear-gradient(0deg,
+      transparent, transparent 2px,
+      rgba(0,0,0,.04) 2px, rgba(0,0,0,.04) 4px);
+  }
+
+  /* ── HEADER ── */
+  header {
+    display: flex; align-items: center; gap: 18px;
+    padding: 18px 32px;
+    background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    position: sticky; top: 0; z-index: 50;
+  }
+  .logo {
+    width: 38px; height: 38px;
+    border: 2px solid var(--accent);
+    border-radius: 6px;
+    display: flex; align-items: center; justify-content: center;
+    font-family: var(--font-head);
+    font-size: 13px; font-weight: 900;
+    color: var(--accent);
+    letter-spacing: 1px;
+    flex-shrink: 0;
+  }
+  header h1 {
+    font-family: var(--font-head);
+    font-weight: 900; font-size: 22px;
+    letter-spacing: 2px; text-transform: uppercase;
+    color: var(--text);
+  }
+  header h1 span { color: var(--accent); }
+  .header-badge {
+    margin-left: auto;
+    font-family: var(--font-mono);
+    font-size: 11px; color: var(--muted);
+    border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 4px;
+  }
+  .status-dot {
+    width: 8px; height: 8px; border-radius: 50%;
+    background: var(--muted); flex-shrink: 0;
+    transition: background .3s;
+    box-shadow: 0 0 0 0 transparent;
+  }
+  .status-dot.live {
+    background: var(--green);
+    animation: pulse-dot 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse-dot {
+    0%,100% { box-shadow: 0 0 0 0 rgba(0,230,118,.4); }
+    50%      { box-shadow: 0 0 0 6px rgba(0,230,118,0); }
+  }
+
+  /* ── LAYOUT ── */
+  .wrapper { max-width: 1280px; margin: 0 auto; padding: 24px 24px 48px; }
+
+  /* ── LOAD SECTION ── */
+  .load-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 24px;
+    margin-bottom: 24px;
+    display: flex; gap: 14px; align-items: flex-end; flex-wrap: wrap;
+  }
+  .load-section .field { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 220px; }
+  .load-section label {
+    font-family: var(--font-mono); font-size: 11px;
+    text-transform: uppercase; color: var(--muted); letter-spacing: 1px;
+  }
+  .load-section input[type=text] {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    color: var(--text);
+    font-family: var(--font-mono); font-size: 13px;
+    padding: 9px 12px; border-radius: 6px;
+    outline: none; width: 100%;
+    transition: border-color .2s;
+  }
+  .load-section input:focus { border-color: var(--accent); }
+
+  /* ── BUTTONS ── */
+  .btn {
+    display: inline-flex; align-items: center; gap: 7px;
+    padding: 9px 18px; border-radius: 6px; border: none;
+    font-family: var(--font-head); font-size: 14px; font-weight: 700;
+    letter-spacing: 1px; text-transform: uppercase;
+    cursor: pointer; transition: all .15s; white-space: nowrap;
+  }
+  .btn-primary { background: var(--accent); color: #000; }
+  .btn-primary:hover { background: #33eeff; box-shadow: 0 0 16px rgba(0,229,255,.4); }
+  .btn-danger  { background: transparent; color: var(--red); border: 1px solid var(--red); }
+  .btn-danger:hover  { background: rgba(255,23,68,.12); }
+  .btn-save    { background: transparent; color: var(--green); border: 1px solid var(--green); }
+  .btn-save:hover    { background: rgba(0,230,118,.12); }
+  .btn:disabled { opacity: .4; cursor: not-allowed; }
+
+  /* ── ACTION BAR (clear / save) ── */
+  .action-bar {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 16px 24px;
+    margin-bottom: 24px;
+    display: flex; gap: 12px; align-items: center; flex-wrap: wrap;
+  }
+  .action-bar-label {
+    font-family: var(--font-mono); font-size: 11px;
+    text-transform: uppercase; color: var(--muted); letter-spacing: 1px;
+    margin-right: auto;
+  }
+
+  /* ── SECTION TITLE ── */
+  .section-title {
+    font-family: var(--font-head); font-size: 13px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 2px;
+    color: var(--muted);
+    margin-bottom: 14px;
+    display: flex; align-items: center; gap: 8px;
+  }
+  .section-title::after {
+    content: ''; flex: 1; height: 1px; background: var(--border);
+  }
+
+  /* ── GRID ── */
+  .grid-3 { display: grid; grid-template-columns: repeat(3,1fr); gap: 14px; margin-bottom: 24px; }
+  .grid-2 { display: grid; grid-template-columns: repeat(2,1fr); gap: 14px; margin-bottom: 24px; }
+  @media(max-width:900px){ .grid-3{ grid-template-columns:repeat(2,1fr); } }
+  @media(max-width:600px){ .grid-3,.grid-2{ grid-template-columns:1fr; } }
+
+  /* ── KPI CARD ── */
+  .kpi {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    position: relative; overflow: hidden;
+    transition: border-color .2s;
+  }
+  .kpi:hover { border-color: var(--accent); }
+  .kpi::before {
+    content: '';
+    position: absolute; top: 0; left: 0; right: 0; height: 2px;
+    background: linear-gradient(90deg, var(--accent), transparent);
+  }
+  .kpi.accent2::before { background: linear-gradient(90deg, var(--accent2), transparent); }
+  .kpi.green::before   { background: linear-gradient(90deg, var(--green), transparent); }
+  .kpi.yellow::before  { background: linear-gradient(90deg, var(--yellow), transparent); }
+  .kpi.red::before     { background: linear-gradient(90deg, var(--red), transparent); }
+
+  .kpi-label {
+    font-family: var(--font-mono); font-size: 11px;
+    text-transform: uppercase; color: var(--muted); letter-spacing: 1px;
+    margin-bottom: 8px;
+  }
+  .kpi-value {
+    font-family: var(--font-head); font-size: 34px; font-weight: 900;
+    line-height: 1; color: var(--text);
+  }
+  .kpi-value .unit {
+    font-size: 14px; font-weight: 400; color: var(--muted); margin-left: 4px;
+  }
+  .kpi-sub {
+    margin-top: 6px;
+    font-size: 12px; color: var(--muted);
+    font-family: var(--font-mono);
+  }
+  .kpi-badge {
+    display: inline-block; margin-top: 8px;
+    padding: 3px 10px; border-radius: 4px;
+    font-family: var(--font-mono); font-size: 11px; font-weight: 700;
+    text-transform: uppercase; letter-spacing: 1px;
+  }
+  .badge-green  { background: rgba(0,230,118,.15); color: var(--green); }
+  .badge-red    { background: rgba(255,23,68,.15);  color: var(--red); }
+  .badge-yellow { background: rgba(255,215,64,.15); color: var(--yellow); }
+  .badge-blue   { background: rgba(0,229,255,.15);  color: var(--accent); }
+  .badge-muted  { background: rgba(90,101,128,.2);  color: var(--muted); }
+
+  /* ── SOC BAR ── */
+  .soc-bar-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 24px;
+  }
+  .soc-bar-track {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 6px; height: 26px;
+    overflow: hidden; margin-top: 12px; position: relative;
+  }
+  .soc-bar-fill {
+    height: 100%; border-radius: 6px;
+    background: linear-gradient(90deg, var(--green), #00b0ff);
+    transition: width .8s cubic-bezier(.4,0,.2,1);
+    width: 0%;
+    display: flex; align-items: center; justify-content: flex-end;
+    padding-right: 8px;
+    font-family: var(--font-mono); font-size: 12px; color: #000; font-weight: 700;
+  }
+
+  /* ── CELL VOLTAGE TABLE ── */
+  .cell-table-wrap {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 20px 22px;
+    margin-bottom: 24px;
+  }
+  .cell-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+    gap: 8px; margin-top: 12px;
+  }
+  .cell-row {
+    display: flex; align-items: center; gap: 10px;
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 7px 10px;
+  }
+  .cell-idx {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--muted); width: 46px; flex-shrink: 0;
+  }
+  .cell-mv {
+    font-family: var(--font-mono); font-size: 13px;
+    color: var(--text); width: 55px; flex-shrink: 0;
+  }
+  .cell-bar-track {
+    flex: 1; height: 6px; background: var(--border); border-radius: 3px; overflow: hidden;
+  }
+  .cell-bar-fill {
+    height: 100%; border-radius: 3px;
+    background: var(--green); transition: width .5s;
+  }
+  .cell-bar-fill.low  { background: var(--red); }
+  .cell-bar-fill.mid  { background: var(--yellow); }
+
+  /* ── TEMP CARDS ── */
+  .temp-grid {
+    display: flex; gap: 10px; flex-wrap: wrap; margin-top: 12px;
+  }
+  .temp-card {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 8px; padding: 12px 18px;
+    display: flex; flex-direction: column; gap: 4px; min-width: 120px;
+  }
+  .temp-card-label {
+    font-family: var(--font-mono); font-size: 11px;
+    color: var(--muted); text-transform: uppercase;
+  }
+  .temp-card-val {
+    font-family: var(--font-head); font-size: 28px; font-weight: 900;
+    color: var(--text);
+  }
+  .temp-card-val .unit { font-size: 13px; font-weight: 300; color: var(--muted); }
+
+  /* ── FAULT BANNER ── */
+  .fault-banner {
+    border-radius: 8px; padding: 14px 18px;
+    display: flex; align-items: center; gap: 12px;
+    margin-bottom: 14px; font-family: var(--font-mono); font-size: 13px;
+  }
+  .fault-banner.ok   { background: rgba(0,230,118,.08); border: 1px solid rgba(0,230,118,.3); color: var(--green); }
+  .fault-banner.warn { background: rgba(255,215,64,.08); border: 1px solid rgba(255,215,64,.3); color: var(--yellow); }
+  .fault-banner.err  { background: rgba(255,23,68,.08);  border: 1px solid rgba(255,23,68,.3);  color: var(--red); }
+  .fault-icon { font-size: 20px; }
+
+  /* ── CHARGE REQUEST CARD ── */
+  .chg-row {
+    display: flex; gap: 8px; align-items: center;
+    padding: 9px 0; border-bottom: 1px solid var(--border);
+  }
+  .chg-row:last-child { border-bottom: none; }
+  .chg-lbl { font-family: var(--font-mono); font-size: 12px; color: var(--muted); flex: 1; }
+  .chg-val { font-family: var(--font-mono); font-size: 13px; color: var(--text); font-weight: 700; }
+
+  /* ── RAW LOG ── */
+  .raw-panel {
+    background: var(--bg);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 0;
+    overflow: hidden; margin-bottom: 24px;
+  }
+  .raw-panel-header {
+    display: flex; align-items: center; gap: 10px;
+    padding: 12px 18px;
+    background: var(--card); border-bottom: 1px solid var(--border);
+  }
+  .raw-panel-header span { font-family: var(--font-mono); font-size: 12px; color: var(--muted); }
+  .raw-panel-header span.cnt { color: var(--accent); }
+  .raw-body {
+    font-family: var(--font-mono); font-size: 12px; color: var(--muted);
+    padding: 14px 18px; max-height: 220px; overflow-y: auto;
+    line-height: 1.8;
+  }
+  .raw-body::-webkit-scrollbar { width: 4px; }
+  .raw-body::-webkit-scrollbar-track { background: transparent; }
+  .raw-body::-webkit-scrollbar-thumb { background: var(--border); border-radius: 2px; }
+  .hl-id   { color: var(--accent); }
+  .hl-data { color: var(--text); }
+  .hl-ts   { color: var(--muted); }
+  .hl-match { color: var(--accent2); }
+
+  /* ── EMPTY STATE ── */
+  .empty {
+    text-align: center; padding: 60px 20px;
+    color: var(--muted);
+  }
+  .empty-icon { font-size: 48px; margin-bottom: 16px; opacity: .4; }
+  .empty-title {
+    font-family: var(--font-head); font-size: 20px; font-weight: 700;
+    letter-spacing: 2px; text-transform: uppercase; margin-bottom: 8px;
+  }
+  .empty-sub { font-size: 13px; line-height: 1.6; }
+
+  /* ── FOOTER ── */
+  footer {
+    text-align: center; padding: 20px;
+    font-family: var(--font-mono); font-size: 11px; color: var(--muted);
+    border-top: 1px solid var(--border);
+  }
+
+  /* ── animations ── */
+  .fade-in { animation: fadeIn .4s ease forwards; }
+  @keyframes fadeIn { from { opacity:0; transform:translateY(8px); } to { opacity:1; transform:none; } }
+  .stagger > * { animation: fadeIn .35s ease both; }
+  .stagger > *:nth-child(1){animation-delay:.05s}
+  .stagger > *:nth-child(2){animation-delay:.10s}
+  .stagger > *:nth-child(3){animation-delay:.15s}
+  .stagger > *:nth-child(4){animation-delay:.20s}
+  .stagger > *:nth-child(5){animation-delay:.25s}
+  .stagger > *:nth-child(6){animation-delay:.30s}
+</style>
+</head>
+<body>
+
+<!-- ── HEADER ── -->
+<header>
+  <div class="logo">CAN</div>
+  <h1>Battery <span>Analyzer</span></h1>
+  <div style="display:flex;align-items:center;gap:8px;margin-left:auto;">
+    <div class="status-dot" id="statusDot"></div>
+    <div class="header-badge" id="headerBadge">SAE J1939 · No file loaded</div>
+  </div>
+</header>
+
+<div class="wrapper">
+
+  <!-- ── LOAD FILE ── -->
+  <div class="load-section">
+    <div class="field">
+      <label>📂 File Path (.txt)</label>
+      <input type="text" id="filePath"
+        placeholder='e.g.  C:\Users\you\Desktop\batterie.txt'
+        value="batterie__can_frames_exemples__.txt"/>
+    </div>
+    <button class="btn btn-primary" onclick="loadFile()">
+      ▶ Analyze
+    </button>
+    <label class="btn btn-primary" style="cursor:pointer;">
+      ⬆ Upload File
+      <input type="file" accept=".txt" style="display:none" onchange="uploadFile(event)"/>
+    </label>
+  </div>
+
+  <!-- ── ACTION BAR ── -->
+  <div class="action-bar">
+    <span class="action-bar-label">⚡ Data Actions</span>
+    <button class="btn btn-save" id="btnSave" onclick="saveData()" disabled>
+      💾 Save as .txt
+    </button>
+    <button class="btn btn-danger" id="btnClear" onclick="clearData()" disabled>
+      🗑 Clear Data
+    </button>
+  </div>
+
+  <!-- ── MAIN CONTENT ── -->
+  <div id="emptyState">
+    <div class="empty">
+      <div class="empty-icon">🔋</div>
+      <div class="empty-title">No Data Loaded</div>
+      <div class="empty-sub">Enter the path to your CAN log file above<br>or upload a .txt file directly to begin analysis.</div>
+    </div>
+  </div>
+
+  <div id="dashboard" style="display:none;">
+
+    <!-- Fault Banner -->
+    <div id="faultBanner"></div>
+
+    <!-- KPI Row -->
+    <div class="section-title">Pack Overview</div>
+    <div class="grid-3 stagger" id="kpiRow"></div>
+
+    <!-- SOC Bar -->
+    <div class="section-title">State of Charge</div>
+    <div class="soc-bar-wrap fade-in">
+      <div style="display:flex;justify-content:space-between;align-items:baseline;">
+        <span style="font-family:var(--font-head);font-size:22px;font-weight:900;" id="socLabel">—</span>
+        <span style="font-family:var(--font-mono);font-size:12px;color:var(--muted);" id="socRange">—</span>
+      </div>
+      <div class="soc-bar-track">
+        <div class="soc-bar-fill" id="socFill">0%</div>
+      </div>
+    </div>
+
+    <!-- Temperature + Charge Request -->
+    <div class="grid-2">
+      <div>
+        <div class="section-title">Temperature</div>
+        <div class="cell-table-wrap fade-in">
+          <div class="temp-grid" id="tempGrid"></div>
+        </div>
+      </div>
+      <div>
+        <div class="section-title">Charge Request (BMS → Charger)</div>
+        <div class="cell-table-wrap fade-in" id="chgReqCard"></div>
+      </div>
+    </div>
+
+    <!-- Cell Voltages -->
+    <div class="section-title">Individual Cell Voltages</div>
+    <div class="cell-table-wrap fade-in">
+      <div id="cellLegend" style="display:flex;gap:14px;flex-wrap:wrap;margin-bottom:10px;font-family:var(--font-mono);font-size:11px;color:var(--muted);"></div>
+      <div class="cell-grid" id="cellGrid"></div>
+    </div>
+
+    <!-- Raw Log -->
+    <div class="section-title">Raw CAN Frames</div>
+    <div class="raw-panel">
+      <div class="raw-panel-header">
+        <span>Total frames: <span class="cnt" id="totalFrames">0</span></span>
+        <span style="margin-left:12px;">Matched: <span class="cnt" id="matchedFrames">0</span></span>
+      </div>
+      <div class="raw-body" id="rawBody"></div>
+    </div>
+
+  </div><!-- /dashboard -->
+</div>
+
+<footer>SAE J1939 Battery CAN Analyzer · 250 kbps · LFP Chemistry</footer>
+
+<script>
+// ─── Parser (mirrors the Python logic) ────────────────────────────────────────
+const LE16 = (lo,hi) => (hi<<8)|lo;
+
+function decode_FF28(d) {
+  const flags = d[0], soc = d[1];
+  const rawI  = LE16(d[2],d[3]);
+  const rawV  = LE16(d[4],d[5]);
+  const faultLvl = d[6], faultCode = d[7];
+
+  const current = rawI * 0.1 - 500.0;
+  const voltage = rawV * 0.1;
+
+  const isCharging   = !!(flags & 0x02);
+  const disContactor = !!(flags & 0x10);
+  let chargeState;
+  if (isCharging)           chargeState = 'CHARGING';
+  else if (disContactor)    chargeState = 'DISCHARGING';
+  else                      chargeState = 'IDLE';
+
+  let fault = 'NO FAULT';
+  if (faultLvl === 0x01) fault = `LVL-1 FAULT — CODE 0x${faultCode.toString(16).padStart(2,'0').toUpperCase()}`;
+  else if (faultLvl > 0) fault = `LVL-${faultLvl} FAULT — CODE 0x${faultCode.toString(16).padStart(2,'0').toUpperCase()}`;
+
+  return { voltage, current, soc,
+           chargeWire: !!(flags&1), isCharging, ready: !!(flags&8),
+           disContactor, chgContactor: !!(flags&0x20),
+           chargeState, fault, faultLvl };
+}
+
+function decode_FE28(d) {
+  return {
+    maxCellV  : LE16(d[0],d[1]),
+    minCellV  : LE16(d[2],d[3]),
+    maxTemp   : d[4] - 40,
+    minTemp   : d[5] - 40,
+    maxDisA   : LE16(d[6],d[7]) * 0.1,
+  };
+}
+
+function decode_B428(d) {
+  return d.filter(b => b !== 0x00).map(b => b - 40);
+}
+
+function decode_FFE5(d) {
+  return {
+    maxChgV   : LE16(d[0],d[1]) * 0.1,
+    maxChgA   : LE16(d[2],d[3]) * 0.1,
+    chgAllowed: !(d[4] & 0x02),
+  };
+}
+
+function decode_cells(cid, d) {
+  const pf   = parseInt(cid.substring(2,4), 16);
+  const base = (pf - 0xC8) * 4 + 1;
+  const cells = {};
+  for (let i=0;i<4;i++) {
+    const raw = (d[i*2]<<8)|d[i*2+1];
+    if (raw > 0) cells[base+i] = raw;
+  }
+  return cells;
+}
+
+const LINE_RE = /\[(\d+)ms\]\s+ID:\s+0x([0-9A-Fa-f]+)\s+DLC:\s+\d+\s+Data:\s+([\dA-Fa-f\s]+)/;
+
+function parseLine(line) {
+  const m = LINE_RE.exec(line);
+  if (!m) return null;
+  return {
+    ts    : parseInt(m[1]),
+    cid   : m[2].toUpperCase(),
+    data  : m[3].trim().split(/\s+/).map(b => parseInt(b,16)),
+    raw   : line.trim(),
+  };
+}
+
+function analyzeLog(text) {
+  const lines = text.split('\n');
+  let last = {}, cells = {}, probes = [];
+  let totalFrames = 0, matchedFrames = 0;
+  const rawFrames = [];
+
+  for (const line of lines) {
+    const p = parseLine(line);
+    if (!p) continue;
+    totalFrames++;
+    const { ts, cid, data } = p;
+
+    let matched = false;
+    if (cid.endsWith('FF28F4'))          { last.ff28 = decode_FF28(data); matched=true; }
+    else if (cid.endsWith('FE28F4'))     { last.fe28 = decode_FE28(data); matched=true; }
+    else if (cid.endsWith('B428F4'))     { const r=decode_B428(data); last.b428=r; probes=r; matched=true; }
+    else if (cid.endsWith('FFE5F4'))     { last.ffe5 = decode_FFE5(data); matched=true; }
+    else if (['C8','C9','CA','CB','CC','CD'].includes(cid.substring(2,4))) {
+      Object.assign(cells, decode_cells(cid, data)); matched=true;
+    }
+
+    if (matched) matchedFrames++;
+    rawFrames.push({ ...p, matched });
+  }
+
+  return { last, cells, probes, totalFrames, matchedFrames, rawFrames };
+}
+
+// ─── State ────────────────────────────────────────────────────────────────────
+let _result = null;
+let _filename = '';
+
+// ─── Render ───────────────────────────────────────────────────────────────────
+function render(result, filename) {
+  _result   = result;
+  _filename = filename;
+  const { last, cells, probes, totalFrames, matchedFrames, rawFrames } = result;
+  const ff28 = last.ff28 || {};
+  const fe28 = last.fe28 || {};
+  const ffe5 = last.ffe5 || {};
+
+  document.getElementById('emptyState').style.display  = 'none';
+  document.getElementById('dashboard').style.display   = '';
+  document.getElementById('btnSave').disabled  = false;
+  document.getElementById('btnClear').disabled = false;
+  document.getElementById('statusDot').classList.add('live');
+  document.getElementById('headerBadge').textContent =
+    `SAE J1939 · ${filename} · ${totalFrames} frames`;
+
+  // ── Fault Banner
+  const faultEl = document.getElementById('faultBanner');
+  if (!ff28.faultLvl || ff28.faultLvl===0) {
+    faultEl.innerHTML = `<div class="fault-banner ok"><span class="fault-icon">✅</span> No Fault Detected — System Nominal</div>`;
+  } else if (ff28.faultLvl===1) {
+    faultEl.innerHTML = `<div class="fault-banner err"><span class="fault-icon">🚨</span> ${ff28.fault} — STOP VEHICLE IMMEDIATELY</div>`;
+  } else {
+    faultEl.innerHTML = `<div class="fault-banner warn"><span class="fault-icon">⚠️</span> ${ff28.fault}</div>`;
+  }
+
+  // ── KPI cards
+  const cs = ff28.chargeState || '—';
+  const csBadge = cs==='CHARGING'?'badge-blue':cs==='DISCHARGING'?'badge-yellow':'badge-muted';
+  const csLabel = cs==='CHARGING'?'🔋 Charging':cs==='DISCHARGING'?'⚡ Discharging':'⏸ Idle';
+
+  document.getElementById('kpiRow').innerHTML = `
+    <div class="kpi accent2">
+      <div class="kpi-label">Pack Voltage</div>
+      <div class="kpi-value">${ff28.voltage!==undefined?ff28.voltage.toFixed(1):'—'}<span class="unit">V</span></div>
+      <div class="kpi-sub">Nominal 76.8 V · Range 60–87.6 V</div>
+    </div>
+    <div class="kpi green">
+      <div class="kpi-label">Pack Current</div>
+      <div class="kpi-value">${ff28.current!==undefined?ff28.current.toFixed(1):'—'}<span class="unit">A</span></div>
+      <div class="kpi-sub">Neg = charging · Max disch. 200 A</div>
+    </div>
+    <div class="kpi">
+      <div class="kpi-label">Charge Status</div>
+      <div class="kpi-value" style="font-size:22px;padding-top:4px;">${csLabel}</div>
+      <span class="kpi-badge ${csBadge}">${cs}</span>
+      <div class="kpi-sub" style="margin-top:6px;">
+        Cable: ${ff28.chargeWire?'Connected':'Not connected'} ·
+        Ready: ${ff28.ready?'Yes':'No'}
+      </div>
+    </div>
+  `;
+
+  // ── SOC bar
+  const soc = ff28.soc !== undefined ? ff28.soc : null;
+  document.getElementById('socLabel').textContent  = soc!==null ? `${soc} %` : '— %';
+  document.getElementById('socRange').textContent  = 'Charge interval: 5 – 100%';
+  const fill = document.getElementById('socFill');
+  setTimeout(()=>{
+    fill.style.width = soc!==null ? `${soc}%` : '0%';
+    fill.textContent = soc!==null && soc>8 ? `${soc}%` : '';
+  }, 100);
+
+  // ── Temperature
+  const tempGrid = document.getElementById('tempGrid');
+  const temps = [];
+  if (fe28.maxTemp !== undefined) temps.push({ lbl:'Max Cell Temp', val: fe28.maxTemp });
+  if (fe28.minTemp !== undefined) temps.push({ lbl:'Min Cell Temp', val: fe28.minTemp });
+  probes.forEach((t,i) => temps.push({ lbl:`Probe ${i+1}`, val: t }));
+
+  tempGrid.innerHTML = temps.map(t => {
+    const col = t.val > 50 ? 'var(--red)' : t.val > 35 ? 'var(--yellow)' : 'var(--accent)';
+    return `<div class="temp-card">
+      <div class="temp-card-label">${t.lbl}</div>
+      <div class="temp-card-val" style="color:${col}">${t.val}<span class="unit"> °C</span></div>
+    </div>`;
+  }).join('') || '<div style="color:var(--muted);font-family:var(--font-mono);font-size:13px;">No temperature data</div>';
+
+  // ── Charge Request
+  document.getElementById('chgReqCard').innerHTML = ffe5.maxChgV !== undefined ? `
+    <div class="chg-row"><span class="chg-lbl">Max Charge Voltage</span><span class="chg-val">${ffe5.maxChgV.toFixed(1)} V</span></div>
+    <div class="chg-row"><span class="chg-lbl">Max Charge Current</span><span class="chg-val">${ffe5.maxChgA.toFixed(1)} A</span></div>
+    <div class="chg-row"><span class="chg-lbl">Permission</span>
+      <span class="kpi-badge ${ffe5.chgAllowed?'badge-green':'badge-red'}" style="margin:0;">
+        ${ffe5.chgAllowed?'✅ ALLOWED':'🚫 BLOCKED'}
+      </span>
+    </div>
+  ` : '<div style="color:var(--muted);font-family:var(--font-mono);font-size:13px;padding:10px 0;">No charge request frame found</div>';
+
+  // ── Cell Voltages
+  const sortedCells = Object.entries(cells).sort((a,b)=>a[0]-b[0]);
+  if (sortedCells.length) {
+    const allMv  = sortedCells.map(c=>c[1]);
+    const maxMv  = Math.max(...allMv);
+    const minMv  = Math.min(...allMv);
+    const spread = maxMv - minMv;
+    document.getElementById('cellLegend').innerHTML = `
+      <span>Max: <b style="color:var(--green)">${maxMv} mV</b></span>
+      <span>Min: <b style="color:var(--red)">${minMv} mV</b></span>
+      <span>Spread: <b style="color:var(--yellow)">${spread} mV</b></span>
+      <span style="margin-left:auto;">${sortedCells.length} cells · 19S1P</span>
+    `;
+    document.getElementById('cellGrid').innerHTML = sortedCells.map(([idx,mv]) => {
+      const pct = Math.max(0, Math.min(100, ((mv-3200)/400)*100));
+      const cls = mv<3000?'low':mv<3200?'mid':'';
+      return `<div class="cell-row">
+        <span class="cell-idx">Cell ${String(idx).padStart(2,'0')}</span>
+        <span class="cell-mv">${mv} mV</span>
+        <div class="cell-bar-track">
+          <div class="cell-bar-fill ${cls}" style="width:${pct}%"></div>
+        </div>
+      </div>`;
+    }).join('');
+  } else {
+    document.getElementById('cellGrid').innerHTML =
+      '<div style="color:var(--muted);font-family:var(--font-mono);font-size:13px;grid-column:1/-1;">No cell voltage frames found</div>';
+  }
+
+  // ── Raw frames
+  document.getElementById('totalFrames').textContent   = totalFrames;
+  document.getElementById('matchedFrames').textContent = matchedFrames;
+  document.getElementById('rawBody').innerHTML = rawFrames.map(f => {
+    const cls = f.matched ? 'hl-match' : 'hl-id';
+    return `<div><span class="hl-ts">[${f.ts}ms]</span> ID: <span class="${cls}">0x${f.cid}</span>  <span class="hl-data">${f.data.map(b=>b.toString(16).padStart(2,'0').toUpperCase()).join(' ')}</span></div>`;
+  }).join('');
+}
+
+// ─── File Load (path → fetch fallback) ────────────────────────────────────────
+async function loadFile() {
+  const path = document.getElementById('filePath').value.trim();
+  if (!path) return;
+  const name = path.split(/[\\/]/).pop();
+  try {
+    const res  = await fetch(name);
+    if (!res.ok) throw new Error('fetch failed');
+    const text = await res.text();
+    render(analyzeLog(text), name);
+  } catch(e) {
+    alert(`⚠️ Could not fetch "${name}" from the server.\n\nUse the "Upload File" button to load it directly from your computer.`);
+  }
+}
+
+function uploadFile(evt) {
+  const file = evt.target.files[0];
+  if (!file) return;
+  document.getElementById('filePath').value = file.name;
+  const reader = new FileReader();
+  reader.onload = e => render(analyzeLog(e.target.result), file.name);
+  reader.readAsText(file);
+}
+
+// ─── Save ─────────────────────────────────────────────────────────────────────
+function saveData() {
+  if (!_result) return;
+  const { last, cells, probes, totalFrames, matchedFrames } = _result;
+  const ff28 = last.ff28 || {};
+  const fe28 = last.fe28 || {};
+  const ffe5 = last.ffe5 || {};
+
+  const SEP = '═'.repeat(60);
+  const now = new Date().toISOString();
+  let lines = [
+    SEP,
+    '  SAE J1939 BATTERY ANALYSIS REPORT',
+    `  Generated : ${now}`,
+    `  Source    : ${_filename}`,
+    `  Frames    : ${totalFrames} total / ${matchedFrames} matched`,
+    SEP, '',
+    '── PACK STATUS ──────────────────────────────────',
+    `  Pack Voltage     : ${ff28.voltage!==undefined?ff28.voltage.toFixed(1):'N/A'} V`,
+    `  Pack Current     : ${ff28.current!==undefined?ff28.current.toFixed(1):'N/A'} A`,
+    `  State of Charge  : ${ff28.soc!==undefined?ff28.soc:'N/A'} %`,
+    `  Charge Status    : ${ff28.chargeState||'N/A'}`,
+    `  Charge Cable     : ${ff28.chargeWire===undefined?'N/A':ff28.chargeWire?'Connected':'Not connected'}`,
+    `  Pack Ready       : ${ff28.ready===undefined?'N/A':ff28.ready?'Yes':'No'}`,
+    `  Fault            : ${ff28.fault||'N/A'}`,
+    '',
+    '── TEMPERATURE ──────────────────────────────────',
+    `  Max Cell Temp    : ${fe28.maxTemp!==undefined?fe28.maxTemp:'N/A'} °C`,
+    `  Min Cell Temp    : ${fe28.minTemp!==undefined?fe28.minTemp:'N/A'} °C`,
+    ...probes.map((t,i)=>`  Probe ${i+1}          : ${t} °C`),
+    '',
+    '── CHARGE REQUEST (BMS → Charger) ───────────────',
+    `  Max Charge V     : ${ffe5.maxChgV!==undefined?ffe5.maxChgV.toFixed(1):'N/A'} V`,
+    `  Max Charge A     : ${ffe5.maxChgA!==undefined?ffe5.maxChgA.toFixed(1):'N/A'} A`,
+    `  Permission       : ${ffe5.chgAllowed===undefined?'N/A':ffe5.chgAllowed?'ALLOWED':'BLOCKED'}`,
+    '',
+    '── CELL VOLTAGES ────────────────────────────────',
+    fe28.maxCellV!==undefined?`  Max Cell Voltage : ${fe28.maxCellV} mV`:'',
+    fe28.minCellV!==undefined?`  Min Cell Voltage : ${fe28.minCellV} mV`:'',
+    ...Object.entries(cells).sort((a,b)=>a[0]-b[0]).map(([i,mv])=>`  Cell ${String(i).padStart(2,'0')}          : ${mv} mV`),
+    '', SEP,
+  ];
+
+  const blob = new Blob([lines.join('\n')], { type: 'text/plain' });
+  const a    = document.createElement('a');
+  a.href     = URL.createObjectURL(blob);
+  a.download = `battery_analysis_${now.replace(/[:.]/g,'-')}.txt`;
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ─── Clear ────────────────────────────────────────────────────────────────────
+function clearData() {
+  _result = null;
+  _filename = '';
+  document.getElementById('emptyState').style.display  = '';
+  document.getElementById('dashboard').style.display   = 'none';
+  document.getElementById('btnSave').disabled  = true;
+  document.getElementById('btnClear').disabled = true;
+  document.getElementById('statusDot').classList.remove('live');
+  document.getElementById('headerBadge').textContent = 'SAE J1939 · No file loaded';
+  document.getElementById('filePath').value = '';
+}
+</script>
+</body>
+</html>
