@@ -1,4 +1,4 @@
-# 🔋 Bako OBD ISS — Battery CAN Analyzer
+# 🔋 Bako OBD ISS — Battery CAN Analyzers
 
 **SAE J1939 Battery Management System (BMS) Communication Protocol Decoder**
 
