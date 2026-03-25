@@ -23,10 +23,61 @@ This tool is essential for:
 
 ```
 Bako_OBD_ISS/
-├── battery_can_parser.py        # Python CLI parser - decodes CAN frames to console output
-├── battery_analyzer.html        # Web UI - interactive visual analyzer with real-time dashboard
-├── batterie.txt                 # Sample CAN frame log - Arduino raw logger output
-└── README.md                    # This file
+│
+├── firmware/                        # Domain: Hardware & ESP32
+│   ├── esp32_can_logger/            # Real CAN bus logger sketch
+│   │   └── esp32_can_logger.ino
+│   ├── esp32_bms_simulator/         # Simulator for testing without hardware
+│   │   └── esp32_bms_simulator.ino
+│   └── README.md
+│
+├── hardware/                        # Domain: Circuit, PCB & Mechanical
+│   ├── schematics/                  # KiCad or EasyEDA schematic files
+│   ├── pcb/                         # PCB layout files + Gerber exports
+│   ├── casing/                      # 3D design files (.step, .stl, .f3d)
+│   └── README.md
+│
+├── backend/                         # Domain: Python Server
+│   ├── server.py                    # FastAPI + WebSocket backend
+│   ├── requirements.txt             # pip dependencies
+│   ├── .env.example                 # Environment variable template
+│   └── README.md
+│
+├── frontend/                        # Domain: Web Dashboard
+│   ├── index.html                   # Live dashboard (served by backend)
+│   ├── battery_analyzer.html        # Standalone offline analyzer
+│   └── README.md
+│
+├── data/                            # Domain: CAN Logs & Data Analysis
+│   ├── raw/                         # Unmodified captured logs (.txt)
+│   │   └── batterie.txt
+│   ├── processed/                   # Parsed exports (.xlsx, .csv)
+│   │   └── bms_log_2026-03-10.xlsx
+│   ├── battery_can_parser.py        # CLI parser tool
+│   └── README.md
+│
+├── report/                          # Domain: LaTeX ISS Report
+│   ├── main.tex
+│   ├── preamble.tex
+│   ├── titlepage.tex
+│   ├── references.bib
+│   ├── Preliminary Files/
+│   ├── Section Files/
+│   ├── images/
+│   └── README.md
+│
+├── docs/                            # Shared project documentation
+│   ├── CONTRIBUTING.md              # ← This file
+│   ├── CHANGELOG.md                 # Version history (auto-maintained)
+│   ├── ARCHITECTURE.md              # System-level technical overview
+│   └── decisions/                   # ADR — Architecture Decision Records
+│       └── 001-server-websocket.md
+│
+├── .github/
+│   └── PULL_REQUEST_TEMPLATE.md     # PR checklist shown on every PR
+│
+├── .gitignore
+└── README.md                        # Project overview (public face)
 ```
 
 ---
