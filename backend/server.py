@@ -384,7 +384,7 @@ _stop = threading.Event()
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    with open("index.html", encoding="utf-8") as f:
+    with open("../frontend/index.html", encoding="utf-8") as f:
         return f.read()
 
 
