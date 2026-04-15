@@ -60,9 +60,11 @@ Pack voltage: sum of 19 cell voltages / 1000 — matches car display to 0.01V.
 Battery capacity: 44.7 Ah actual / 50.0 Ah rated -> SOH 89.4%
 """
 
-import re, sys, time, asyncio, argparse, threading
+import re, sys, time, asyncio, argparse, threading, json, sqlite3, os
+import urllib.request, urllib.error
 from collections import deque
 from datetime import datetime
+from pathlib import Path
 
 try:
     import serial, serial.tools.list_ports
@@ -70,12 +72,23 @@ except ImportError:
     print("ERROR: pip install pyserial"); sys.exit(1)
 
 try:
-    from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+    from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Header, HTTPException, Request
     from fastapi.responses import HTMLResponse
     from fastapi.middleware.cors import CORSMiddleware
     import uvicorn
 except ImportError:
     print("ERROR: pip install fastapi uvicorn"); sys.exit(1)
+
+_HERE          = Path(__file__).parent
+_FRONTEND      = _HERE.parent / "frontend" / "index.html"
+_DB_PATH       = _HERE / "bms_cloud.db"
+_API_KEY       = os.environ.get("BMS_API_KEY", "bako-bms-2024")
+
+# Firebase — optional.  Set these env vars to let /ws/cloud pull from Firebase:
+#   FIREBASE_URL    https://<project>-default-rtdb.firebaseio.com
+#   FIREBASE_TOKEN  your database secret / legacy token
+_FIREBASE_URL   = os.environ.get("FIREBASE_URL", "").rstrip("/")
+_FIREBASE_TOKEN = os.environ.get("FIREBASE_TOKEN", "")
 
 
 # ---------------------------------------------------------------------------
@@ -374,27 +387,167 @@ def serial_reader(port, baud, state, stop):
 # FastAPI
 # ---------------------------------------------------------------------------
 
-app = FastAPI()
+app = FastAPI(title="Bako OBD Dashboard")
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
 
 bms   = BMSState()
 _stop = threading.Event()
 
+# ---------------------------------------------------------------------------
+# Cloud storage (SQLite — no external deps)
+# ---------------------------------------------------------------------------
+
+_cloud_state: dict = {"connected": False, "source": "cloud"}
+_cloud_lock  = threading.Lock()
+
+
+def _db_init():
+    conn = sqlite3.connect(str(_DB_PATH))
+    conn.execute("""
+        CREATE TABLE IF NOT EXISTS snapshots (
+            id        INTEGER PRIMARY KEY AUTOINCREMENT,
+            ts        TEXT    NOT NULL,
+            device_id TEXT    NOT NULL DEFAULT 'esp32',
+            payload   TEXT    NOT NULL
+        )
+    """)
+    conn.commit()
+    conn.close()
+
+
+def _db_insert(ts: str, device_id: str, payload: str):
+    conn = sqlite3.connect(str(_DB_PATH))
+    conn.execute(
+        "INSERT INTO snapshots (ts, device_id, payload) VALUES (?, ?, ?)",
+        (ts, device_id, payload),
+    )
+    conn.commit()
+    conn.close()
+
+
+def _db_fetch(limit: int) -> list:
+    conn = sqlite3.connect(str(_DB_PATH))
+    rows = conn.execute(
+        "SELECT ts, device_id, payload FROM snapshots ORDER BY id DESC LIMIT ?",
+        (limit,),
+    ).fetchall()
+    conn.close()
+    return [{"ts": r[0], "device_id": r[1], **json.loads(r[2])} for r in rows]
+
+
+def _firebase_fetch() -> dict | None:
+    """Pull the live BMS snapshot from Firebase REST API (blocking)."""
+    if not _FIREBASE_URL:
+        return None
+    url = f"{_FIREBASE_URL}/bms/live.json"
+    if _FIREBASE_TOKEN:
+        url += f"?auth={_FIREBASE_TOKEN}"
+    try:
+        with urllib.request.urlopen(url, timeout=4) as resp:
+            data = json.loads(resp.read())
+            if isinstance(data, dict):
+                data["source"] = "firebase"
+                return data
+    except Exception:
+        pass
+    return None
+
+
+# ---------------------------------------------------------------------------
+# FastAPI startup
+# ---------------------------------------------------------------------------
+
+@app.on_event("startup")
+async def _startup():
+    _db_init()
+
+
+# ---------------------------------------------------------------------------
+# Existing routes — serial dashboard
+# ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
 async def index():
-    with open("../frontend/index.html", encoding="utf-8") as f:
+    with open(_FRONTEND, encoding="utf-8") as f:
         return f.read()
 
 
 @app.websocket("/ws")
-async def ws_endpoint(ws: WebSocket):
+async def ws_serial(ws: WebSocket):
+    """Live serial stream — 10 Hz."""
     await ws.accept()
     try:
         while True:
             await ws.send_json(bms.to_dict())
-            await asyncio.sleep(0.1)    # 10 Hz
+            await asyncio.sleep(0.1)
+    except (WebSocketDisconnect, Exception):
+        pass
+
+
+# ---------------------------------------------------------------------------
+# Cloud API — ESP32 → server → browser
+# ---------------------------------------------------------------------------
+
+@app.post("/api/ingest")
+async def api_ingest(request: Request, x_api_key: str = Header(None)):
+    """
+    ESP32 posts BMS JSON here via SIM800L HTTP.
+    Header:  X-Api-Key: <BMS_API_KEY>
+    Body:    same JSON structure as BMSState.to_dict()
+    """
+    if x_api_key != _API_KEY:
+        raise HTTPException(status_code=401, detail="Invalid API key")
+
+    data = await request.json()
+    ts        = data.get("timestamp") or datetime.now().isoformat()
+    device_id = data.get("device_id", "esp32")
+
+    loop = asyncio.get_event_loop()
+    await loop.run_in_executor(None, _db_insert, ts, device_id, json.dumps(data))
+
+    with _cloud_lock:
+        _cloud_state.clear()
+        _cloud_state.update(data)
+        _cloud_state["connected"] = True
+        _cloud_state["source"]    = "cloud"
+
+    return {"status": "ok", "ts": ts}
+
+
+@app.get("/api/latest")
+async def api_latest():
+    """Return the most recent snapshot pushed by the ESP32."""
+    with _cloud_lock:
+        return dict(_cloud_state)
+
+
+@app.get("/api/history")
+async def api_history(limit: int = 100):
+    """Return the last *limit* snapshots (newest first)."""
+    loop = asyncio.get_event_loop()
+    return await loop.run_in_executor(None, _db_fetch, min(limit, 1000))
+
+
+@app.websocket("/ws/cloud")
+async def ws_cloud(ws: WebSocket):
+    """
+    Cloud stream — 2 Hz push.
+    Priority: Firebase Realtime DB  →  in-memory state (from /api/ingest)
+    Set FIREBASE_URL + FIREBASE_TOKEN env vars to enable Firebase mode.
+    """
+    await ws.accept()
+    loop = asyncio.get_event_loop()
+    try:
+        while True:
+            if _FIREBASE_URL:
+                fb = await loop.run_in_executor(None, _firebase_fetch)
+                state = fb if fb else {"connected": False, "source": "firebase"}
+            else:
+                with _cloud_lock:
+                    state = dict(_cloud_state)
+            await ws.send_json(state)
+            await asyncio.sleep(2.0)   # Firebase REST is rate-limited; 2 s is safe
     except (WebSocketDisconnect, Exception):
         pass
 
@@ -405,35 +558,37 @@ async def ws_endpoint(ws: WebSocket):
 
 def main():
     parser = argparse.ArgumentParser(description="O'CELL BMS CAN dashboard server")
-    parser.add_argument("--port",    "-p", help="Serial port (auto-detected if omitted)")
-    parser.add_argument("--baud",    "-b", type=int, default=115200)
-    parser.add_argument("--host",         default="0.0.0.0")
-    parser.add_argument("--web-port",     type=int, default=8765, dest="web_port")
+    parser.add_argument("--port",     "-p", help="Serial port (auto-detected if omitted)")
+    parser.add_argument("--baud",     "-b", type=int, default=115200)
+    parser.add_argument("--host",           default="0.0.0.0")
+    parser.add_argument("--web-port",       type=int, default=8765, dest="web_port")
+    parser.add_argument("--cloud-only",     action="store_true",
+                        help="Start without serial (cloud-ingest only mode)")
     args = parser.parse_args()
 
-    port = args.port or auto_detect_port()
-    if not port:
-        print("No serial port found. Use --port to specify one.")
-        for p in serial.tools.list_ports.comports():
-            print(f"  {p.device}  {p.description}")
-        sys.exit(1)
+    top_v = round(BMSState.SOC_CAR_TOP_MV * 19 / 1000, 2)
+    cap   = BMSState.CAP_ACTUAL_AH
+    soh   = round(cap / BMSState.CAP_RATED_AH * 100, 1)
 
-    top_v   = round(BMSState.SOC_CAR_TOP_MV * 19 / 1000, 2)
-    cap     = BMSState.CAP_ACTUAL_AH
-    soh     = round(cap / BMSState.CAP_RATED_AH * 100, 1)
-
-    print("-" * 50)
+    print("-" * 54)
     print("  O'CELL BMS Dashboard")
-    print("-" * 50)
-    print(f"  Serial   : {port} @ {args.baud} baud")
-    print(f"  Browser  : http://localhost:{args.web_port}")
-    print(f"  SOC range: {BMSState.PACK_EMPTY_V} V = 0%  ->  {top_v} V = 100%")
-    print(f"  Capacity : {cap} Ah  (rated {BMSState.CAP_RATED_AH} Ah, SOH {soh}%)")
-    print("-" * 50)
+    print("-" * 54)
+    print(f"  Browser   : http://localhost:{args.web_port}")
+    print(f"  Cloud API : POST /api/ingest  (key: {_API_KEY})")
+    print(f"  SOC range : {BMSState.PACK_EMPTY_V} V = 0%  ->  {top_v} V = 100%")
+    print(f"  Capacity  : {cap} Ah  (rated {BMSState.CAP_RATED_AH} Ah, SOH {soh}%)")
 
-    threading.Thread(target=serial_reader,
-                     args=(port, args.baud, bms, _stop),
-                     daemon=True).start()
+    if not args.cloud_only:
+        port = args.port or auto_detect_port()
+        if port:
+            print(f"  Serial    : {port} @ {args.baud} baud")
+            threading.Thread(target=serial_reader,
+                             args=(port, args.baud, bms, _stop),
+                             daemon=True).start()
+        else:
+            print("  Serial    : no port found — cloud-only mode")
+
+    print("-" * 54)
 
     uvicorn.run(app, host=args.host, port=args.web_port, log_level="warning")
 

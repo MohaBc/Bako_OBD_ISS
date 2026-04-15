@@ -1,6 +1,4 @@
-# Bako CAN Dashboard — Python dependencies
-# Install with: pip install -r requirements.txt
-
-fastapi==0.115.0      # Web framework + WebSocket support
-uvicorn==0.29.0       # ASGI server to run FastAPI
-pyserial==3.5         # Serial port communication with ESP32
+# O'CELL BMS Dashboard — Python dependencies
+fastapi==0.115.0    # Web framework + WebSocket
+uvicorn==0.29.0     # ASGI server
+pyserial==3.5       # Serial port I/O (ESP32 USB)
