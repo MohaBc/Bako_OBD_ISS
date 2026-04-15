@@ -1,375 +1,528 @@
+/*
+ * ESP32 BMS Firebase Publisher
+ * ============================
+ * Reads O'CELL IFS60.8-500 BMS CAN frames via MCP2515 (250 kbps),
+ * decodes SAE J1939 data, and PUTs a live JSON snapshot to Firebase
+ * Realtime Database every PUBLISH_INTERVAL ms via SIM800L GPRS.
+ *
+ * Uses the SIM800L AT+HTTP* service (no TinyGSM needed on ESP32) and
+ * HardwareSerial UART1 for reliable high-speed AT communication.
+ *
+ * Wiring
+ * ──────
+ *   MCP2515  │  ESP32
+ *   ─────────┼──────────────────────────────────
+ *   VCC      │  3.3 V
+ *   GND      │  GND
+ *   CS       │  GPIO 15   (VSPI CS0)
+ *   INT      │  GPIO  4
+ *   SCK      │  GPIO 18   (VSPI SCK)
+ *   MISO     │  GPIO 19   (VSPI MISO)
+ *   MOSI     │  GPIO 23   (VSPI MOSI)
+ *
+ *   SIM800L  │  ESP32
+ *   ─────────┼──────────────────────────────────
+ *   VCC      │  4.0 V external supply (≥ 2 A)
+ *   GND      │  GND (shared)
+ *   TXD      │  GPIO 16   (ESP32 UART1 RX)
+ *   RXD      │  GPIO 17   (ESP32 UART1 TX)
+ *   RST      │  GPIO  5
+ *
+ * Config — edit secrets.h
+ * ────────────────────────
+ *   FIREBASE_HOST  → https://<project>-default-rtdb.firebaseio.com
+ *   FIREBASE_AUTH  → database secret (Firebase console → Project settings →
+ *                    Service accounts → Database secrets)
+ *   APN            → your SIM carrier APN  (e.g. "internet", "iam", "maroctel")
+ *
+ * Firebase data paths
+ * ───────────────────
+ *   PUT  /bms/live.json          ← overwrites latest snapshot (dashboard)
+ *   POST /bms/history.json       ← appends timestamped entry   (log)
+ */
+
 #include <Arduino.h>
-#include <SoftwareSerial.h>
+#include <ArduinoJson.h>
+#include <mcp_can.h>
+#include <SPI.h>
+#include "secrets.h"
 
-// SIM800L pins
-#define SIM800_RX  16
-#define SIM800_TX  17
-#define SIM800_RST 5
+// ─── SIM800L — UART1 (HardwareSerial avoids SoftwareSerial timing issues) ────
+HardwareSerial sim800l(1);
+constexpr uint8_t SIM_RX  = 16;
+constexpr uint8_t SIM_TX  = 17;
+constexpr uint8_t SIM_RST =  5;
 
-SoftwareSerial sim800(SIM800_RX, SIM800_TX);
+// ─── MCP2515 CAN ──────────────────────────────────────────────────────────────
+constexpr uint8_t CAN_CS  = 15;
+constexpr uint8_t CAN_INT =  4;
 
-// APN settings — change to your carrier
-const char APN[]  = "internet";
-const char USER[] = "";
-const char PASS[] = "";
+// ─── GPRS APN — override in secrets.h if needed ───────────────────────────────
+#ifndef APN
+  #define APN       "internet.ooredoo.tn"
+#endif
+#ifndef APN_USER
+  #define APN_USER  ""
+#endif
+#ifndef APN_PASS
+  #define APN_PASS  ""
+#endif
 
-// ─────────────────────────────────────────
-// Helpers
-// ─────────────────────────────────────────
-bool sendAT(const char* cmd, const char* expected = "OK", uint16_t timeout = 3000) {
-  sim800.println(cmd);
-  Serial.print(">> "); Serial.println(cmd);
+// ─── Timing ───────────────────────────────────────────────────────────────────
+constexpr unsigned long PUBLISH_INTERVAL = 5000;   // 5 s between publishes
+constexpr int           MAX_RETRIES      = 3;
 
-  long deadline = millis() + timeout;
-  String resp = "";
+// ─── SOC calibration (mirrors server.py) ──────────────────────────────────────
+static constexpr uint16_t CELL_UV        = 2500;   // mV → 0%
+static constexpr uint16_t SOC_CAR_TOP_MV = 3387;   // mV → 100% (car-calibrated)
 
-  while (millis() < deadline) {
-    while (sim800.available()) {
-      char c = sim800.read();
-      resp += c;
-    }
-    if (resp.indexOf(expected) != -1) {
-      Serial.print("<< "); Serial.println(resp);
-      return true;
-    }
-  }
-  Serial.print("TIMEOUT/FAIL: "); Serial.println(resp);
-  return false;
+// ─── BMS state ────────────────────────────────────────────────────────────────
+struct BMSData {
+    uint16_t cell_mv[19] = {};
+    uint8_t  cell_count  = 0;
+    float    temp_c[4]   = {};
+    uint8_t  temp_count  = 0;
+    float    soc         = -1.0f;
+    float    pack_v      = 0.0f;
+    uint16_t cell_max    = 0;
+    uint16_t cell_min    = 0xFFFF;
+    uint16_t cell_avg    = 0;
+    uint32_t frame_count = 0;
+};
+
+static BMSData       bms;
+static unsigned long lastPublish = 0;
+
+MCP_CAN CAN0(CAN_CS);
+char    responseBuf[512];
+
+// ─── Prototypes ───────────────────────────────────────────────────────────────
+bool   connectGPRS();
+bool   openBearer();
+void   closeBearer();
+bool   publishToFirebase();
+bool   httpPut(const char* path, const char* body, size_t bodyLen);
+bool   httpPost(const char* path, const char* body, size_t bodyLen);
+void   sendAT(const char* cmd, int waitMs = 1000);
+bool   sendATExpect(const char* cmd, const char* expected, int waitMs = 5000);
+size_t readResponse(char* buf, size_t bufLen, unsigned long timeoutMs);
+void   checkSignal();
+void   getNetworkTime(char* buf, size_t bufLen);
+
+// ─── Byte helpers ─────────────────────────────────────────────────────────────
+static inline uint16_t u16be(const uint8_t* d, int o) {
+    return ((uint16_t)d[o] << 8) | d[o + 1];
+}
+static inline uint16_t u16le(const uint8_t* d, int o) {
+    return d[o] | ((uint16_t)d[o + 1] << 8);
 }
 
-String sendATResponse(const char* cmd, uint16_t timeout = 3000) {
-  sim800.println(cmd);
-  Serial.print(">> "); Serial.println(cmd);
-
-  long deadline = millis() + timeout;
-  String resp = "";
-
-  while (millis() < deadline) {
-    while (sim800.available()) {
-      char c = sim800.read();
-      resp += c;
-    }
-  }
-  Serial.print("<< "); Serial.println(resp);
-  return resp;
+static const char* cellStatus(uint16_t mv) {
+    if (mv >= 3750) return "overvoltage";
+    if (mv >= 3650) return "full";
+    if (mv >= 3300) return "good";
+    if (mv >= 3200) return "normal";
+    if (mv >= 2500) return "low";
+    return "undervoltage";
 }
 
-// ─────────────────────────────────────────
-// Wait for SIM to be ready
-// ─────────────────────────────────────────
-bool waitForSIM(uint16_t timeout = 15000) {
-  Serial.println("=== Waiting for SIM ===");
-  long deadline = millis() + timeout;
+// ─── J1939 frame decoder ──────────────────────────────────────────────────────
+void decodeFrame(uint32_t can_id, uint8_t len, uint8_t* data) {
+    uint8_t func = (can_id >> 16) & 0xFF;
+    uint8_t sub  = (can_id >>  8) & 0xFF;
+    bms.frame_count++;
 
-  while (millis() < deadline) {
-    sim800.println("AT+CPIN?");
-    delay(500);
+    // Cell voltages: func 0xC8–0xCC, big-endian uint16 mV, 4 cells/frame
+    if (func >= 0xC8 && func <= 0xCC && len == 8) {
+        uint8_t group = func - 0xC8;
+        uint8_t base  = group * 4;    // 0-indexed
+        for (int i = 0; i < 4; i++) {
+            int o = i * 2;
+            if (o + 1 < len) {
+                uint16_t mv = u16be(data, o);
+                if (mv != 0 && (base + i) < 19) {
+                    bms.cell_mv[base + i] = mv;
+                    if (base + i + 1 > bms.cell_count)
+                        bms.cell_count = base + i + 1;
+                }
+            }
+        }
+        // Recompute derived stats
+        uint32_t sum = 0;
+        bms.cell_max = 0;
+        bms.cell_min = 0xFFFF;
+        for (int i = 0; i < bms.cell_count; i++) {
+            if (!bms.cell_mv[i]) continue;
+            sum += bms.cell_mv[i];
+            if (bms.cell_mv[i] > bms.cell_max) bms.cell_max = bms.cell_mv[i];
+            if (bms.cell_mv[i] < bms.cell_min) bms.cell_min = bms.cell_mv[i];
+        }
+        bms.cell_avg = bms.cell_count ? (uint16_t)(sum / bms.cell_count) : 0;
+        bms.pack_v   = sum / 1000.0f;
+        float s = (bms.cell_avg - CELL_UV) / (float)(SOC_CAR_TOP_MV - CELL_UV) * 100.0f;
+        bms.soc = max(0.0f, min(100.0f, s));
+    }
+    // Temperatures: func 0xB4, raw − 40 = °C, 0xFF = absent
+    else if (func == 0xB4 && len >= 4) {
+        bms.temp_count = 0;
+        for (int i = 0; i < 4 && i < len; i++) {
+            if (data[i] != 0xFF && data[i] != 0x00)
+                bms.temp_c[bms.temp_count++] = (float)data[i] - 40.0f;
+        }
+    }
+    // Min/Max summary: func 0xFE sub 0x28, little-endian
+    else if (func == 0xFE && sub == 0x28 && len >= 4) {
+        bms.cell_max = u16le(data, 0);
+        bms.cell_min = u16le(data, 2);
+    }
+}
 
-    String resp = "";
-    long t = millis() + 1000;
-    while (millis() < t) {
-      while (sim800.available()) resp += (char)sim800.read();
+// ─── JSON builder ─────────────────────────────────────────────────────────────
+String buildJSON(const char* timestamp) {
+    JsonDocument doc;
+
+    doc["connected"]    = true;
+    doc["source"]       = "esp32-sim800l";
+    doc["device_id"]    = DEVICE_ID;
+    doc["frame_count"]  = bms.frame_count;
+
+    if (strlen(timestamp) > 0)
+        doc["timestamp"] = timestamp;
+    else
+        doc["uptime_ms"] = millis();
+
+    if (bms.soc >= 0)
+        doc["soc"]      = roundf(bms.soc * 10.0f)     / 10.0f;
+    if (bms.pack_v > 0)
+        doc["pack_v"]   = roundf(bms.pack_v * 100.0f)  / 100.0f;
+
+    doc["cell_max_mv"]  = (int)bms.cell_max;
+    doc["cell_min_mv"]  = (bms.cell_min < 0xFFFF) ? (int)bms.cell_min : 0;
+    doc["cell_avg_mv"]  = (int)bms.cell_avg;
+    doc["cell_count"]   = (int)bms.cell_count;
+    if (bms.cell_count > 1)
+        doc["cell_spread_mv"] = (int)(bms.cell_max - bms.cell_min);
+
+    // Individual cells
+    JsonObject cells = doc["cells"].to<JsonObject>();
+    for (int i = 0; i < bms.cell_count; i++) {
+        if (!bms.cell_mv[i]) continue;
+        JsonObject c = cells[String(i + 1)].to<JsonObject>();
+        c["mv"]     = bms.cell_mv[i];
+        c["status"] = cellStatus(bms.cell_mv[i]);
     }
 
-    Serial.print("CPIN: "); Serial.println(resp);
+    // Temperatures
+    JsonObject temps = doc["temps"].to<JsonObject>();
+    float tsum = 0.0f;
+    for (int i = 0; i < bms.temp_count; i++) {
+        temps[String(i + 1)] = roundf(bms.temp_c[i] * 10.0f) / 10.0f;
+        tsum += bms.temp_c[i];
+    }
+    if (bms.temp_count > 0)
+        doc["avg_temp"] = roundf(tsum / bms.temp_count * 10.0f) / 10.0f;
 
-    if (resp.indexOf("READY") != -1) {
-      Serial.println(">>> SIM is READY!");
-      return true;
-    } else if (resp.indexOf("SIM PIN") != -1) {
-      Serial.println(">>> SIM requires PIN — unlock it first.");
-      return false;
-    } else if (resp.indexOf("SIM not inserted") != -1) {
-      Serial.println(">>> SIM not detected, retrying...");
+    String out;
+    serializeJson(doc, out);
+    return out;
+}
+
+// ─── Firebase publish (PUT /bms/live + POST /bms/history) ─────────────────────
+bool publishToFirebase() {
+    char timestamp[32] = "";
+    getNetworkTime(timestamp, sizeof(timestamp));
+
+    String body = buildJSON(timestamp);
+    Serial.printf("[JSON] %s\n", body.c_str());
+
+    // PUT → always overwrite live snapshot (dashboard view)
+    char livePath[128];
+    snprintf(livePath, sizeof(livePath), "%s/bms/live.json?auth=%s",
+             FIREBASE_HOST, FIREBASE_AUTH);
+
+    bool ok = httpPut(livePath, body.c_str(), body.length());
+
+    // POST → append to history log (creates auto-key entry)
+    if (ok) {
+        char histPath[128];
+        snprintf(histPath, sizeof(histPath), "%s/bms/history.json?auth=%s",
+                 FIREBASE_HOST, FIREBASE_AUTH);
+        httpPost(histPath, body.c_str(), body.length());   // best-effort, ignore failure
     }
 
+    return ok;
+}
+
+// ─── SIM800L HTTP service — PUT ────────────────────────────────────────────────
+bool httpRequest(const char* method, int methodId,
+                 const char* url, const char* body, size_t bodyLen) {
+
+    if (!sendATExpect("AT+HTTPINIT", "OK", 3000)) {
+        Serial.println(F("[HTTP] HTTPINIT failed"));
+        return false;
+    }
+    sendAT("AT+HTTPPARA=\"CID\",1", 1000);
+
+    char urlCmd[600];
+    snprintf(urlCmd, sizeof(urlCmd), "AT+HTTPPARA=\"URL\",\"%s\"", url);
+    sendAT(urlCmd, 1000);
+
+    sendAT("AT+HTTPPARA=\"CONTENT\",\"application/json\"", 1000);
+    sendAT("AT+HTTPSSL=1", 1000);
+
+    // Upload body
+    char dataCmd[64];
+    snprintf(dataCmd, sizeof(dataCmd), "AT+HTTPDATA=%d,10000", (int)bodyLen);
+    if (!sendATExpect(dataCmd, "DOWNLOAD", 5000)) {
+        Serial.println(F("[HTTP] HTTPDATA prompt failed"));
+        sendAT("AT+HTTPTERM", 1000);
+        return false;
+    }
+    sim800l.write((const uint8_t*)body, bodyLen);
     delay(2000);
-  }
+    readResponse(responseBuf, sizeof(responseBuf), 3000);
 
-  Serial.println(">>> SIM timeout — check insertion.");
-  return false;
-}
+    // Execute request (0=GET, 1=POST, 2=HEAD, 3=PUT)
+    Serial.printf("[HTTP] >> AT+HTTPACTION=%d\n", methodId);
+    sim800l.printf("AT+HTTPACTION=%d\r\n", methodId);
 
-// ─────────────────────────────────────────
-// Wait for network registration
-// ─────────────────────────────────────────
-bool waitForNetwork(uint16_t timeout = 30000) {
-  Serial.println("=== Waiting for Network ===");
-  long deadline = millis() + timeout;
+    // Wait for +HTTPACTION (SSL handshake can take 15–30 s)
+    char actionResp[128] = {};
+    size_t actionLen = 0;
+    unsigned long start = millis();
+    while (millis() - start < 30000) {
+        while (sim800l.available() && actionLen < sizeof(actionResp) - 1)
+            actionResp[actionLen++] = sim800l.read();
+        if (strstr(actionResp, "+HTTPACTION:")) break;
+        delay(100);
+    }
+    Serial.println(actionResp);
 
-  while (millis() < deadline) {
-    sim800.println("AT+CREG?");
-    delay(500);
-
-    String resp = "";
-    long t = millis() + 1000;
-    while (millis() < t) {
-      while (sim800.available()) resp += (char)sim800.read();
+    bool success = false;
+    char* ptr = strstr(actionResp, "+HTTPACTION:");
+    if (ptr) {
+        int m, statusCode, dataLen;
+        if (sscanf(ptr, "+HTTPACTION: %d,%d,%d", &m, &statusCode, &dataLen) == 3) {
+            Serial.printf("[HTTP] %s %d  (%d bytes)\n", method, statusCode, dataLen);
+            success = (statusCode == 200);
+            if (dataLen > 0) sendAT("AT+HTTPREAD", 3000);
+        }
     }
 
-    Serial.print("CREG: "); Serial.println(resp);
+    sendAT("AT+HTTPTERM", 1000);
+    return success;
+}
 
-    // 0,1 = registered home | 0,5 = roaming
-    if (resp.indexOf(",1") != -1 || resp.indexOf(",5") != -1) {
-      Serial.println(">>> Network registered!");
-      return true;
+bool httpPut(const char* url, const char* body, size_t bodyLen) {
+    return httpRequest("PUT", 3, url, body, bodyLen);
+}
+
+bool httpPost(const char* url, const char* body, size_t bodyLen) {
+    return httpRequest("POST", 1, url, body, bodyLen);
+}
+
+// ─── GPRS connection ──────────────────────────────────────────────────────────
+bool connectGPRS() {
+    Serial.println(F("[GSM] Connecting GPRS..."));
+    sendAT("AT", 1000);
+
+    if (!sendATExpect("AT+CPIN?", "READY", 5000)) {
+        Serial.println(F("[GSM] SIM not ready — check SIM card"));
+        return false;
+    }
+    Serial.println(F("[GSM] SIM ready"));
+
+    checkSignal();
+
+    if (!sendATExpect("AT+CREG?", "0,1", 10000) &&
+        !sendATExpect("AT+CREG?", "0,5",  5000)) {
+        Serial.println(F("[GSM] Not registered on network — continuing anyway"));
+    }
+    return true;
+}
+
+bool openBearer() {
+    Serial.println(F("[GSM] Opening bearer..."));
+
+    sendAT("AT+SAPBR=0,1", 2000);   // close any stale bearer
+    sendAT("AT+SAPBR=3,1,\"Contype\",\"GPRS\"", 1000);
+
+    char cmd[128];
+    snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"APN\",\"%s\"", APN);
+    sendAT(cmd, 1000);
+
+    if (strlen(APN_USER) > 0) {
+        snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"USER\",\"%s\"", APN_USER);
+        sendAT(cmd, 1000);
+    }
+    if (strlen(APN_PASS) > 0) {
+        snprintf(cmd, sizeof(cmd), "AT+SAPBR=3,1,\"PWD\",\"%s\"", APN_PASS);
+        sendAT(cmd, 1000);
     }
 
-    delay(3000);
-  }
-
-  Serial.println(">>> Network timeout — check SIM/signal.");
-  return false;
+    if (!sendATExpect("AT+SAPBR=1,1", "OK", 15000)) {
+        Serial.println(F("[GSM] Bearer open failed"));
+        return false;
+    }
+    if (!sendATExpect("AT+SAPBR=2,1", "+SAPBR: 1,1", 5000)) {
+        Serial.println(F("[GSM] Bearer not fully connected"));
+        return false;
+    }
+    Serial.println(F("[GSM] Bearer OK"));
+    return true;
 }
 
-// ─────────────────────────────────────────
-// Init SIM800L
-// ─────────────────────────────────────────
-void initSIM800() {
-  Serial.println("=== Initialising SIM800L ===");
-
-  // Hardware reset
-  pinMode(SIM800_RST, OUTPUT);
-  digitalWrite(SIM800_RST, LOW);
-  delay(100);
-  digitalWrite(SIM800_RST, HIGH);
-  delay(3000);
-
-  sendAT("AT");           // basic check
-  sendAT("ATE0");         // echo off
-  sendAT("AT+CMEE=2");    // verbose errors
-  sendAT("AT+CSQ");       // signal quality
+void closeBearer() {
+    sendAT("AT+SAPBR=0,1", 2000);
 }
 
-// ─────────────────────────────────────────
-// Open GPRS
-// ─────────────────────────────────────────
-bool openGPRS() {
-  Serial.println("=== Opening GPRS ===");
+// ─── AT helpers ───────────────────────────────────────────────────────────────
+void sendAT(const char* cmd, int waitMs) {
+    Serial.printf(">> %s\n", cmd);
+    sim800l.println(cmd);
+    delay(waitMs);
+    while (sim800l.available()) Serial.write(sim800l.read());
+    Serial.println();
+}
 
-  // Attach GPRS
-  if (!sendAT("AT+CGATT=1", "OK", 10000)) {
-    Serial.println("GPRS attach failed!");
+bool sendATExpect(const char* cmd, const char* expected, int waitMs) {
+    Serial.printf(">> %s\n", cmd);
+    sim800l.println(cmd);
+
+    char buf[256] = {};
+    size_t len = 0;
+    unsigned long start = millis();
+
+    while (millis() - start < (unsigned long)waitMs) {
+        while (sim800l.available() && len < sizeof(buf) - 1)
+            buf[len++] = sim800l.read();
+        buf[len] = '\0';
+        if (strstr(buf, expected)) { Serial.println(buf); return true; }
+        delay(10);
+    }
+    Serial.println(buf);
     return false;
-  }
-
-  sendAT("AT+SAPBR=3,1,\"Contype\",\"GPRS\"");
-
-  char apnCmd[64];
-  snprintf(apnCmd, sizeof(apnCmd), "AT+SAPBR=3,1,\"APN\",\"%s\"", APN);
-  sendAT(apnCmd);
-
-  if (*USER) {
-    char userCmd[64];
-    snprintf(userCmd, sizeof(userCmd), "AT+SAPBR=3,1,\"USER\",\"%s\"", USER);
-    sendAT(userCmd);
-  }
-  if (*PASS) {
-    char passCmd[64];
-    snprintf(passCmd, sizeof(passCmd), "AT+SAPBR=3,1,\"PWD\",\"%s\"", PASS);
-    sendAT(passCmd);
-  }
-
-  // Open bearer
-  if (!sendAT("AT+SAPBR=1,1", "OK", 10000)) {
-    Serial.println("Failed to open bearer!");
-    return false;
-  }
-
-  // Print assigned IP
-  String ip = sendATResponse("AT+SAPBR=2,1", 3000);
-  Serial.print("IP: "); Serial.println(ip);
-  return true;
 }
 
-// ─────────────────────────────────────────
-// HTTP GET
-// ─────────────────────────────────────────
-void httpGet(const char* url) {
-  Serial.println("=== HTTP GET ===");
-
-  sendAT("AT+HTTPINIT");
-  sendAT("AT+HTTPPARA=\"CID\",1");
-
-  char urlCmd[128];
-  snprintf(urlCmd, sizeof(urlCmd), "AT+HTTPPARA=\"URL\",\"%s\"", url);
-  sendAT(urlCmd);
-
-  if (!sendAT("AT+HTTPACTION=0", "+HTTPACTION", 10000)) {
-    Serial.println("HTTP GET failed!");
-  } else {
-    String data = sendATResponse("AT+HTTPREAD", 5000);
-    Serial.println("=== Response ===");
-    Serial.println(data);
-  }
-
-  sendAT("AT+HTTPTERM");
+size_t readResponse(char* buf, size_t bufLen, unsigned long timeoutMs) {
+    unsigned long start = millis();
+    size_t len = 0;
+    while (millis() - start < timeoutMs && len < bufLen - 1) {
+        if (sim800l.available()) buf[len++] = sim800l.read();
+    }
+    buf[len] = '\0';
+    return len;
 }
 
-// ─────────────────────────────────────────
-// Close GPRS
-// ─────────────────────────────────────────
-void closeGPRS() {
-  sendAT("AT+HTTPTERM");   // close HTTP if still open
-  sendAT("AT+SAPBR=0,1"); // close bearer
-  sendAT("AT+CGATT=0");   // detach GPRS
-  Serial.println("GPRS closed.");
+void checkSignal() {
+    sim800l.println("AT+CSQ");
+    delay(1000);
+    char resp[64] = {};
+    size_t len = 0;
+    while (sim800l.available() && len < sizeof(resp) - 1)
+        resp[len++] = sim800l.read();
+    Serial.print(resp);
+    char* idx = strstr(resp, "+CSQ: ");
+    if (idx) {
+        int rssi = atoi(idx + 6);
+        if      (rssi == 99) Serial.println(F("[GSM] No signal"));
+        else if (rssi <  10) Serial.println(F("[GSM] Poor signal"));
+        else if (rssi <  20) Serial.println(F("[GSM] Good signal"));
+        else                 Serial.println(F("[GSM] Excellent signal"));
+    }
 }
 
-// ─────────────────────────────────────────
-// SIM Compatibility Diagnostic
-// ─────────────────────────────────────────
-void runDiagnostics() {
-  Serial.println("\n\n╔═════════════════════════════════════════╗");
-  Serial.println("║  SIM800L SIM CARD COMPATIBILITY TEST     ║");
-  Serial.println("╚═════════════════════════════════════════╝\n");
+void getNetworkTime(char* buf, size_t bufLen) {
+    sim800l.println("AT+CCLK?");
+    delay(1000);
+    char resp[128] = {};
+    size_t len = 0;
+    while (sim800l.available() && len < sizeof(resp) - 1)
+        resp[len++] = sim800l.read();
 
-  // Test 1: Check if modem is responding
-  Serial.println("[TEST 1] Modem Response...");
-  if (sendAT("AT", "OK", 2000)) {
-    Serial.println("✓ Modem is responding\n");
-  } else {
-    Serial.println("✗ Modem not responding. Check wiring and power.\n");
-    return;
-  }
-
-  // Test 2: Get modem info
-  Serial.println("[TEST 2] Modem Information...");
-  sendAT("ATI", "OK", 2000);
-  sendAT("AT+GMM", "OK", 2000);
-  sendAT("AT+CGMM", "OK", 2000);
-
-  // Test 3: Check SIM status
-  Serial.println("[TEST 3] SIM Card Status (AT+CPIN)...");
-  String cpinResp = sendATResponse("AT+CPIN?", 2000);
-  if (cpinResp.indexOf("READY") != -1) {
-    Serial.println("✓ SIM is READY\n");
-  } else if (cpinResp.indexOf("SIM PIN") != -1) {
-    Serial.println("✗ SIM is PIN-locked. Need to unlock first.\n");
-  } else if (cpinResp.indexOf("SIM PUK") != -1) {
-    Serial.println("✗ SIM is PUK-locked. Contact carrier.\n");
-  } else if (cpinResp.indexOf("SIM wrong") != -1) {
-    Serial.println("✗ SIM WRONG - SIM may not be compatible with this modem.\n");
-    Serial.println("  Possible causes:");
-    Serial.println("  1. SIM card is not compatible with SIM800L");
-    Serial.println("  2. SIM card needs to be activated by carrier");
-    Serial.println("  3. Defective SIM card or modem\n");
-  } else {
-    Serial.println("? Unknown SIM status: " + cpinResp + "\n");
-  }
-
-  // Test 4: Check IMSI
-  Serial.println("[TEST 4] SIM IMSI (International Mobile Subscriber Identity)...");
-  String imsiResp = sendATResponse("AT+CIMI", 3000);
-  if (imsiResp.length() > 5 && imsiResp.indexOf("ERROR") == -1) {
-    Serial.println("✓ SIM IMSI detected: " + imsiResp + "\n");
-  } else {
-    Serial.println("✗ Cannot read IMSI - SIM may not be compatible\n");
-  }
-
-  // Test 5: Check ICCID
-  Serial.println("[TEST 5] SIM Card ICCID...");
-  String iccidResp = sendATResponse("AT+CCID", 3000);
-  if (iccidResp.length() > 10 && iccidResp.indexOf("ERROR") == -1) {
-    Serial.println("✓ SIM ICCID detected: " + iccidResp + "\n");
-  } else {
-    Serial.println("✗ Cannot read ICCID - SIM may not be compatible\n");
-  }
-
-  // Test 6: Check network registration
-  Serial.println("[TEST 6] Network Registration...");
-  String nregResp = sendATResponse("AT+CREG?", 3000);
-  Serial.println("Network registration response: " + nregResp);
-  if (nregResp.indexOf("1") != -1 || nregResp.indexOf("5") != -1) {
-    Serial.println("✓ Registered on network\n");
-  } else if (nregResp.indexOf("2") != -1) {
-    Serial.println("⊘ Searching for network...\n");
-  } else {
-    Serial.println("✗ Not registered on network\n");
-  }
-
-  // Test 7: Check signal quality
-  Serial.println("[TEST 7] Signal Quality...");
-  String csqResp = sendATResponse("AT+CSQ", 3000);
-  Serial.println("Signal quality: " + csqResp + "\n");
-
-  // Test 8: Try basic operations
-  Serial.println("[TEST 8] Try storing SMS to SIM...");
-  sendAT("AT+CMGF=1", "OK", 2000); // Set SMS text mode
-  String smemResp = sendATResponse("AT+CPMS?", 3000);
-  Serial.println("Message storage: " + smemResp + "\n");
-
-  Serial.println("╔═════════════════════════════════════════╗");
-  Serial.println("║  TROUBLESHOOTING STEPS                   ║");
-  Serial.println("╠═════════════════════════════════════════╣");
-  Serial.println("║ 1. Verify SIM with phone first           ║");
-  Serial.println("║ 2. Try different SIM cards               ║");
-  Serial.println("║ 3. Check power supply (2A recommended)   ║");
-  Serial.println("║ 4. Add 1000µF capacitor on power lines   ║");
-  Serial.println("║ 5. Verify RX/TX pins are correct         ║");
-  Serial.println("║ 6. Test with known-working SIM           ║");
-  Serial.println("║ 7. Check if carrier supports 2G/GPRS     ║");
-  Serial.println("╚═════════════════════════════════════════╝\n");
+    // Format: +CCLK: "yy/MM/dd,HH:mm:ss±zz"
+    char* qs = strchr(resp, '"');
+    char* qe = qs ? strchr(qs + 1, '"') : nullptr;
+    if (qs && qe && (size_t)(qe - qs - 1) < bufLen) {
+        size_t n = qe - qs - 1;
+        strncpy(buf, qs + 1, n);
+        buf[n] = '\0';
+    } else {
+        buf[0] = '\0';
+    }
 }
 
-// ─────────────────────────────────────────
-// Main
-// ─────────────────────────────────────────
+// ─── Setup ────────────────────────────────────────────────────────────────────
 void setup() {
-  Serial.begin(115200);
-  delay(2000); // Give Serial Monitor time to connect
-  
-  sim800.begin(9600);
-  delay(1000);
+    Serial.begin(115200);
+    sim800l.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
+    delay(3000);
 
-  Serial.println("\n\n=== ESP32 SIM800L Diagnostic Tool ===");
-  Serial.println("Options:");
-  Serial.println("  'd' or 'D' - Run SIM diagnostics");
-  Serial.println("  Any other text - Send as AT command");
-  Serial.println("====================================\n");
+    Serial.println(F("\n========================================"));
+    Serial.println(F("   ESP32 BMS Firebase Publisher"));
+    Serial.println(F("========================================\n"));
 
-  initSIM800();
-  runDiagnostics();
+    // ── MCP2515 CAN ──────────────────────────────────────────────────────────
+    Serial.print(F("[CAN] Init MCP2515... "));
+    if (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_16MHZ) == CAN_OK) {
+        CAN0.setMode(MCP_NORMAL);
+        pinMode(CAN_INT, INPUT);
+        Serial.println(F("OK (250 kbps)"));
+    } else {
+        Serial.println(F("FAILED — check CS/INT/SPI wiring"));
+    }
+
+    // ── GPRS with retries ─────────────────────────────────────────────────────
+    bool connected = false;
+    for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
+        Serial.printf("[GSM] Attempt %d/%d\n", attempt, MAX_RETRIES);
+        if (connectGPRS() && openBearer()) { connected = true; break; }
+        delay(3000);
+    }
+    if (!connected) {
+        Serial.println(F("[GSM] All retries failed — restarting in 10 s..."));
+        delay(10000);
+        ESP.restart();
+    }
+
+    Serial.println(F("\n=== Ready — reading CAN bus ===\n"));
 }
 
+// ─── Loop ─────────────────────────────────────────────────────────────────────
 void loop() {
-  // Read from Serial Monitor
-  if (Serial.available()) {
-    String command = Serial.readStringUntil('\n');
-    command.trim(); // Remove any trailing whitespace
-    
-    if (command.length() > 0) {
-      if (command[0] == 'd' || command[0] == 'D') {
-        runDiagnostics();
-      } else {
-        Serial.print(">> ");
-        Serial.println(command);
-        
-        // Send command to SIM800L
-        sim800.println(command);
-        
-        // Read response
-        long timeout = millis() + 5000; // 5 seconds timeout
-        String response = "";
-        
-        while (millis() < timeout) {
-          while (sim800.available()) {
-            char c = sim800.read();
-            response += c;
-            Serial.write(c);
-          }
+    // Drain all pending CAN frames before the next publish
+    while (!digitalRead(CAN_INT)) {
+        unsigned long rxId = 0;
+        uint8_t  len  = 0;
+        uint8_t  buf[8] = {};
+
+        if (CAN0.readMsgBuf(&rxId, &len, buf) == CAN_OK) {
+            if (rxId & 0x80000000) rxId &= 0x1FFFFFFF;   // strip extended flag
+            decodeFrame(rxId, len, buf);
         }
-        
-        if (response.length() == 0) {
-          Serial.println("\n[No response or timeout]");
-        }
-        Serial.println("\n");
-      }
     }
-  }
-  
-  // Also print any unsolicited responses from the modem
-  while (sim800.available()) {
-    Serial.write(sim800.read());
-  }
+
+    if (millis() - lastPublish >= PUBLISH_INTERVAL) {
+        lastPublish = millis();
+
+        if (bms.frame_count == 0) {
+            Serial.println(F("[CAN] No frames yet — waiting..."));
+            return;
+        }
+
+        Serial.printf("[CAN] Frames: %lu  SOC: %.1f%%  Pack: %.2f V  "
+                      "Cells: %d  Temps: %d\n",
+                      bms.frame_count, bms.soc, bms.pack_v,
+                      bms.cell_count, bms.temp_count);
+
+        if (!publishToFirebase()) {
+            Serial.println(F("[FB] Failed — reconnecting bearer..."));
+            closeBearer();
+            delay(2000);
+            if (connectGPRS() && openBearer()) {
+                if (!publishToFirebase())
+                    Serial.println(F("[FB] Retry also failed — skipping"));
+            }
+        }
+    }
 }

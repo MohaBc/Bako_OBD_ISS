@@ -118,6 +118,30 @@
       color: var(--dim2)
     }
 
+    .src-toggle {
+      display: flex;
+      background: #0d1820;
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      overflow: hidden;
+      font-family: var(--mono);
+      font-size: .62rem;
+    }
+    .src-btn {
+      padding: 3px 10px;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      color: var(--dim2);
+      letter-spacing: 1px;
+      transition: all .2s;
+    }
+    .src-btn.active {
+      background: var(--accent2);
+      color: #fff;
+      text-shadow: 0 0 8px rgba(0,180,255,.8);
+    }
+
     .dot {
       width: 7px;
       height: 7px;
@@ -1032,6 +1056,10 @@
       </div>
     </div>
     <div class="hdr-right">
+      <div class="src-toggle">
+        <button class="src-btn active" id="btn-serial" onclick="setSource('serial')">SERIAL</button>
+        <button class="src-btn"        id="btn-cloud"  onclick="setSource('cloud')">CLOUD</button>
+      </div>
       <span><span class="dot" id="dot"></span><span id="conn-lbl">Connecting…</span></span>
       <span id="port-lbl">—</span>
       <span id="frames-lbl">0 frames</span>
@@ -2043,9 +2071,14 @@
     // ── WebSocket ─────────────────────────────────────────────────────────────
     const overlay = document.getElementById('overlay');
     let ws, retryMs = 1000;
+    let currentSource = 'serial';
+
+    function wsPath() {
+      return currentSource === 'cloud' ? '/ws/cloud' : '/ws';
+    }
 
     function connect() {
-      ws = new WebSocket(`ws://${location.host}/ws`);
+      ws = new WebSocket(`ws://${location.host}${wsPath()}`);
       ws.onopen = () => { overlay.classList.add('hidden'); retryMs = 1000; };
       ws.onmessage = e => { try { update(JSON.parse(e.data)); } catch (err) { } };
       ws.onclose = ws.onerror = () => {
@@ -2054,6 +2087,17 @@
         retryMs = Math.min(retryMs * 1.5, 8000);
       };
     }
+
+    function setSource(src) {
+      if (src === currentSource) return;
+      currentSource = src;
+      document.getElementById('btn-serial').classList.toggle('active', src === 'serial');
+      document.getElementById('btn-cloud').classList.toggle('active',  src === 'cloud');
+      if (ws) { ws.onclose = ws.onerror = null; ws.close(); }
+      retryMs = 1000;
+      connect();
+    }
+
     connect();
 
     // Clock
