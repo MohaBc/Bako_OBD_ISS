@@ -456,11 +456,12 @@ Open **http://localhost:8765**
 
 | Panel | Contents |
 |-------|----------|
-| SOC ring | Animated state-of-charge gauge, colour-coded |
-| Pack KPIs | Voltage, discharge limit, capacity, SOH |
-| Cell grid | All 19 cells — voltage bars, colour-coded status, spread indicator |
-| Temperature | Up to 4 probes with real-time bars |
+| SOC ring | Animated state-of-charge gauge; BMS + coulomb sub-values shown below |
+| Pack KPIs | Pack voltage · Discharge limit (A) · Charge request (A) · Cell count |
+| Cell grid | All 19 cells — voltage bars, colour-coded status, min/max/avg/spread |
+| Temperature | Up to 4 probes with real-time bars and chart history |
 | Serial monitor | Raw CAN frame log with export to TXT / XLSX |
+| **Cloud log** | Real-time cloud communication events (RECV · POLL · WS · ERR) — independent of source toggle |
 
 ---
 
@@ -534,6 +535,7 @@ index.html (CLOUD mode)
 | `POST` | `/api/ingest` | Receive BMS JSON from ESP32 (requires `X-Api-Key` header) |
 | `GET` | `/api/latest` | Most recent cloud snapshot |
 | `GET` | `/api/history?limit=N` | Last N snapshots from SQLite (default 100) |
+| `GET` | `/api/cloud-log` | Last 100 cloud communication events (polled by Cloud Log panel every 2 s) |
 
 ---
 
@@ -637,6 +639,26 @@ Connect from JS: `new WebSocket("ws://localhost:8765/ws/cloud")`
 
 Sends the same JSON structure as `/api/latest` every 2 seconds. If `FIREBASE_URL` is set, the data comes from Firebase; otherwise from the last `/api/ingest` POST.
 
+### GET `/api/cloud-log`
+
+Returns a JSON array of the last 100 timestamped cloud communication events. The Cloud Log panel in the dashboard polls this endpoint every 2 seconds independently of the SERIAL/CLOUD source toggle.
+
+```json
+[
+  "[08:20:38] [POLL] Firebase OK — 19 cells, SOC 93.0%",
+  "[08:20:39] [RECV] POST /api/ingest from 192.168.1.x — device=esp32-bms-001 cells=19 SOC=87.4% pack=62.31V",
+  "[08:20:40] [WS]   Browser connected to /ws/cloud from 127.0.0.1",
+  "[08:20:41] [ERR]  Firebase HTTP 401: Unauthorized"
+]
+```
+
+| Level | Colour | Meaning |
+|-------|--------|---------|
+| `RECV` | Green | BMS snapshot received via `POST /api/ingest` |
+| `POLL` | Blue | Firebase REST poll completed (deduplicated, max 1 per 5 s) |
+| `WS` | Yellow | Browser tab connected or disconnected from `/ws/cloud` |
+| `ERR` | Red | HTTP error or network failure |
+
 ---
 
 ## 14. Sample Data
@@ -727,7 +749,7 @@ Never:  commit secrets.h or .env  always in .gitignore
 | MINOR | New backward-compatible feature |
 | PATCH | Bug fix |
 
-Current version: **v0.2.0** — 2026-04-15 — Cloud pipeline + Firebase integration
+Current version: **v0.3.0** — 2026-04-15 — Cloud log panel + dashboard data fixes
 
 ---
 
@@ -738,6 +760,10 @@ Current version: **v0.2.0** — 2026-04-15 — Cloud pipeline + Firebase integra
 **APN varies by carrier** — The default APN is `"internet"`. Maroc Telecom uses `"iam"`, Inwi uses `"inwi"`. Set yours in `include/secrets.h`.
 
 **Firebase legacy token deprecation** — Firebase database secrets (legacy tokens) are deprecated but still functional. For new projects prefer Firebase service account + short-lived tokens. The current implementation uses the legacy token for simplicity.
+
+**Firebase cells array format** — When the ESP32 firmware pushes cells, Firebase may store them as a JSON array (`[null, {mv,status}, ...]`) instead of a dict. The backend's `_firebase_fetch()` automatically normalises this to the standard `{"1": {…}, "2": {…}}` dict format so the dashboard always receives consistent data.
+
+**Port already in use on server restart** — If `server.py` fails with `address already in use`, run: `lsof -ti :8765 | xargs kill -9`
 
 **Report content** — all 22 section files in `report/Section Files/` contain only `% Content placeholder`. The LaTeX structure compiles but written content has not been added.
 

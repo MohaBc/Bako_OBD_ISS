@@ -686,9 +686,14 @@
       transition: width .5s ease
     }
 
-    /* ── Bottom: Serial log (full width) ── */
+    /* ── Bottom row: Serial log + Cloud log ── */
     .log-panel {
-      grid-column: 1/-1;
+      grid-column: 1 / 3;
+      grid-row: 2
+    }
+
+    .cloud-log-panel {
+      grid-column: 3 / -1;
       grid-row: 2
     }
 
@@ -739,6 +744,15 @@
     .log-line.error {
       color: var(--red)
     }
+
+    /* Cloud log level colors */
+    .cl-recv  { color: #00ff88 }
+    .cl-poll  { color: #4488bb }
+    .cl-ws    { color: #ffcc00 }
+    .cl-ok    { color: #00d4ff }
+    .cl-err   { color: var(--red) }
+    .cl-info  { color: var(--dim2) }
+    .cl-new   { animation: logFade 3s forwards }
 
     @keyframes logFade {
       0% {
@@ -1085,6 +1099,10 @@
               <div class="soc-lbl">SOC</div>
             </div>
           </div>
+          <div style="display:flex;gap:10px;justify-content:center;margin-top:4px;font-family:var(--mono);font-size:.58rem;color:var(--dim2)">
+            <span>BMS <span id="soc-bms" style="color:var(--dim)">—</span></span>
+            <span>Coul <span id="soc-coul" style="color:var(--dim)">—</span></span>
+          </div>
         </div>
         <div class="stat-grid">
           <div class="stat">
@@ -1092,15 +1110,15 @@
             <span class="stat-val" id="pack-v">—<span class="stat-unit">V</span></span>
           </div>
           <div class="stat">
-            <span class="stat-lbl">Courant</span>
+            <span class="stat-lbl">Disch. Lim</span>
             <span class="stat-val" id="disch-i">—<span class="stat-unit">A</span></span>
           </div>
           <div class="stat">
-            <span class="stat-lbl">Capacité</span>
-            <span class="stat-val" id="chg-i">—<span class="stat-unit">AH</span></span>
+            <span class="stat-lbl">Chg. Req</span>
+            <span class="stat-val" id="chg-i">—<span class="stat-unit">A</span></span>
           </div>
           <div class="stat">
-            <span class="stat-lbl">Cycles</span>
+            <span class="stat-lbl">Cells</span>
             <span class="stat-val" id="cell-count-hdr">—</span>
           </div>
         </div>
@@ -1292,7 +1310,7 @@
       </div>
     </div>
 
-    <!-- Bottom: Serial log -->
+    <!-- Bottom-left: Serial log -->
     <div class="card log-panel">
       <div class="card-hdr">
         <span class="card-title">Serial Monitor</span>
@@ -1303,6 +1321,22 @@
         </div>
       </div>
       <div class="log-body" id="log-body"></div>
+    </div>
+
+    <!-- Bottom-right: Cloud communication log -->
+    <div class="card cloud-log-panel">
+      <div class="card-hdr">
+        <span class="card-title">Cloud Log</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="cl-count" style="font-family:var(--mono);font-size:.58rem;color:var(--dim2)">0 events</span>
+          <button onclick="clearCloudLog()" class="exp-btn">✕ Clear</button>
+        </div>
+      </div>
+      <div class="log-body" id="cloud-log-body">
+        <div style="font-family:var(--mono);font-size:.65rem;color:var(--dim2);padding:20px 0;text-align:center">
+          Waiting for cloud events…
+        </div>
+      </div>
     </div>
 
   </main>
@@ -1804,6 +1838,51 @@
       });
     }
 
+    // ── Cloud communication log ────────────────────────────────────────────────
+    let lastCloudLogLen = 0;
+    let lastCloudLogTail = '';
+
+    function levelClass(line) {
+      if (line.includes('] [RECV]'))  return 'cl-recv';
+      if (line.includes('] [POLL]'))  return 'cl-poll';
+      if (line.includes('] [WS]'))    return 'cl-ws';
+      if (line.includes('] [OK]'))    return 'cl-ok';
+      if (line.includes('] [ERR]'))   return 'cl-err';
+      return 'cl-info';
+    }
+
+    function updateCloudLog(lines) {
+      if (!lines || !lines.length) return;
+      const tail = lines[lines.length - 1];
+      if (lines.length === lastCloudLogLen && tail === lastCloudLogTail) return;
+
+      const newLines = lines.slice(lastCloudLogLen);
+      lastCloudLogLen  = lines.length;
+      lastCloudLogTail = tail;
+
+      const box = document.getElementById('cloud-log-body');
+      if (box.querySelector('div[style]')) box.innerHTML = '';   // remove placeholder
+
+      newLines.forEach(line => {
+        const el = document.createElement('div');
+        el.className = `log-line ${levelClass(line)} cl-new`;
+        el.textContent = line;
+        box.appendChild(el);
+        setTimeout(() => el.classList.remove('cl-new'), 3100);
+      });
+
+      while (box.children.length > 120) box.removeChild(box.firstChild);
+      requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+      document.getElementById('cl-count').textContent = lastCloudLogLen + ' events';
+    }
+
+    function clearCloudLog() {
+      document.getElementById('cloud-log-body').innerHTML = '';
+      lastCloudLogLen  = 0;
+      lastCloudLogTail = '';
+      document.getElementById('cl-count').textContent = '0 events';
+    }
+
     // ── Serial log ─────────────────────────────────────────────────────────────
     function updateLog(lines) {
       if (!lines || !lines.length) return;
@@ -1966,9 +2045,17 @@
 
       // Pack stats
       setVal('pack-v', d.pack_v, 1, 'V');
-      setVal('disch-i', 0.0, 1, 'A');
-      setVal('chg-i', d.capacity_ah || 44.7, 1, 'AH');
-      document.getElementById('cell-count-hdr').innerHTML = '1<span class="stat-unit">Num</span>';
+      setVal('disch-i', d.disch_i_lim, 1, 'A');
+      setVal('chg-i', d.chg_i_req, 1, 'A');
+      if (d.cell_count != null)
+        document.getElementById('cell-count-hdr').innerHTML =
+          `${d.cell_count}<span class="stat-unit"> cells</span>`;
+
+      // SOC sub-values (BMS + coulomb)
+      const socBmsEl   = document.getElementById('soc-bms');
+      const socCoulEl  = document.getElementById('soc-coul');
+      if (socBmsEl  && d.soc_bms   != null) socBmsEl.textContent  = d.soc_bms.toFixed(1)  + '%';
+      if (socCoulEl && d.soc_coulomb != null) socCoulEl.textContent = d.soc_coulomb.toFixed(1) + '%';
 
       // Cell summary
       if (d.cell_min_mv) {
@@ -2060,6 +2147,8 @@
 
       // Serial log
       if (d.log) updateLog(d.log);
+
+      // (cloud log is polled independently — see setInterval below)
     }
 
     function setVal(id, val, dec, unit) {
@@ -2099,6 +2188,16 @@
     }
 
     connect();
+
+    // ── Cloud log independent poll (works in both SERIAL and CLOUD mode) ───────
+    async function pollCloudLog() {
+      try {
+        const r = await fetch('/api/cloud-log');
+        if (r.ok) updateCloudLog(await r.json());
+      } catch (_) {}
+    }
+    pollCloudLog();
+    setInterval(pollCloudLog, 2000);
 
     // Clock
     setInterval(() => {

@@ -75,6 +75,7 @@ try:
     from fastapi import FastAPI, WebSocket, WebSocketDisconnect, Header, HTTPException, Request
     from fastapi.responses import HTMLResponse
     from fastapi.middleware.cors import CORSMiddleware
+    from contextlib import asynccontextmanager
     import uvicorn
 except ImportError:
     print("ERROR: pip install fastapi uvicorn"); sys.exit(1)
@@ -387,7 +388,12 @@ def serial_reader(port, baud, state, stop):
 # FastAPI
 # ---------------------------------------------------------------------------
 
-app = FastAPI(title="Bako OBD Dashboard")
+@asynccontextmanager
+async def _lifespan(app):
+    _db_init()
+    yield
+
+app = FastAPI(title="Bako OBD Dashboard", lifespan=_lifespan)
 app.add_middleware(CORSMiddleware, allow_origins=["*"],
                    allow_methods=["*"], allow_headers=["*"])
 
@@ -400,6 +406,23 @@ _stop = threading.Event()
 
 _cloud_state: dict = {"connected": False, "source": "cloud"}
 _cloud_lock  = threading.Lock()
+_cloud_log        = deque(maxlen=200)   # timestamped cloud communication events
+_last_poll_msg    = ""                  # deduplicate consecutive identical POLL lines
+_last_poll_time   = 0.0
+
+
+def _clog(level: str, msg: str):
+    """Append a timestamped entry to the cloud communication log.
+    POLL messages are deduplicated: identical consecutive polls within 5 s are dropped."""
+    global _last_poll_msg, _last_poll_time
+    now = time.time()
+    if level == "POLL":
+        if msg == _last_poll_msg and now - _last_poll_time < 5.0:
+            return
+        _last_poll_msg  = msg
+        _last_poll_time = now
+    ts = datetime.now().strftime("%H:%M:%S.%f")[:-3]
+    _cloud_log.append(f"[{ts}] [{level}] {msg}")
 
 
 def _db_init():
@@ -446,25 +469,31 @@ def _firebase_fetch() -> dict | None:
     try:
         with urllib.request.urlopen(url, timeout=4) as resp:
             data = json.loads(resp.read())
-            if isinstance(data, dict):
-                data["source"] = "firebase"
-                return data
-    except Exception:
-        pass
+            if not isinstance(data, dict):
+                return None
+            # Normalise cells: ESP32 firmware may push a 1-based array
+            # [null, {mv,status}, ...] → {"1": {mv,status}, ...}
+            raw_cells = data.get("cells")
+            if isinstance(raw_cells, list):
+                data["cells"] = {
+                    str(i): v
+                    for i, v in enumerate(raw_cells)
+                    if v is not None and isinstance(v, dict)
+                }
+            data["source"] = "firebase"
+            cells = len(data.get("cells") or {})
+            soc   = data.get("soc")
+            _clog("POLL", f"Firebase OK — {cells} cells, SOC {soc}%")
+            return data
+    except urllib.error.HTTPError as e:
+        _clog("ERR", f"Firebase HTTP {e.code}: {e.reason}")
+    except Exception as e:
+        _clog("ERR", f"Firebase fetch failed: {e}")
     return None
 
 
 # ---------------------------------------------------------------------------
-# FastAPI startup
-# ---------------------------------------------------------------------------
-
-@app.on_event("startup")
-async def _startup():
-    _db_init()
-
-
-# ---------------------------------------------------------------------------
-# Existing routes — serial dashboard
+# Routes — serial dashboard
 # ---------------------------------------------------------------------------
 
 @app.get("/", response_class=HTMLResponse)
@@ -497,11 +526,16 @@ async def api_ingest(request: Request, x_api_key: str = Header(None)):
     Body:    same JSON structure as BMSState.to_dict()
     """
     if x_api_key != _API_KEY:
+        _clog("ERR", f"Rejected ingest — bad API key from {request.client.host}")
         raise HTTPException(status_code=401, detail="Invalid API key")
 
     data = await request.json()
     ts        = data.get("timestamp") or datetime.now().isoformat()
     device_id = data.get("device_id", "esp32")
+    cells     = len(data.get("cells") or {})
+    soc       = data.get("soc")
+    pack_v    = data.get("pack_v")
+    src       = request.client.host
 
     loop = asyncio.get_event_loop()
     await loop.run_in_executor(None, _db_insert, ts, device_id, json.dumps(data))
@@ -512,6 +546,9 @@ async def api_ingest(request: Request, x_api_key: str = Header(None)):
         _cloud_state["connected"] = True
         _cloud_state["source"]    = "cloud"
 
+    _clog("RECV", f"POST /api/ingest from {src} — device={device_id} "
+                  f"cells={cells} SOC={soc}% pack={pack_v}V")
+
     return {"status": "ok", "ts": ts}
 
 
@@ -520,6 +557,12 @@ async def api_latest():
     """Return the most recent snapshot pushed by the ESP32."""
     with _cloud_lock:
         return dict(_cloud_state)
+
+
+@app.get("/api/cloud-log")
+async def api_cloud_log():
+    """Return the current cloud communication log (last 100 entries)."""
+    return list(_cloud_log)[-100:]
 
 
 @app.get("/api/history")
@@ -537,6 +580,8 @@ async def ws_cloud(ws: WebSocket):
     Set FIREBASE_URL + FIREBASE_TOKEN env vars to enable Firebase mode.
     """
     await ws.accept()
+    client = getattr(ws.client, "host", "?")
+    _clog("WS", f"Browser connected to /ws/cloud from {client}")
     loop = asyncio.get_event_loop()
     try:
         while True:
@@ -549,6 +594,7 @@ async def ws_cloud(ws: WebSocket):
             await ws.send_json(state)
             await asyncio.sleep(2.0)   # Firebase REST is rate-limited; 2 s is safe
     except (WebSocketDisconnect, Exception):
+        _clog("WS", f"Browser disconnected from /ws/cloud ({client})")
         pass
 
 
