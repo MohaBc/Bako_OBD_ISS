@@ -1,11 +1,11 @@
 /*
- * ESP32 BMS Firebase Publisher
- * ============================
+ * ESP32 BMS Cloud Publisher
+ * =========================
  * Reads O'CELL IFS60.8-500 BMS CAN frames via MCP2515 (250 kbps),
- * decodes SAE J1939 data, and PUTs a live JSON snapshot to Firebase
- * Realtime Database every PUBLISH_INTERVAL ms via SIM800L GPRS.
+ * decodes SAE J1939 data, and POSTs a live JSON snapshot to a Railway
+ * backend every PUBLISH_INTERVAL ms via SIM800L GPRS.
  *
- * Uses the SIM800L AT+HTTP* service (no TinyGSM needed on ESP32) and
+ * Uses the SIM800L AT+HTTP* service over plain HTTP (no SSL).
  * HardwareSerial UART1 for reliable high-speed AT communication.
  *
  * Wiring
@@ -30,15 +30,13 @@
  *
  * Config — edit secrets.h
  * ────────────────────────
- *   FIREBASE_HOST  → https://<project>-default-rtdb.firebaseio.com
- *   FIREBASE_AUTH  → database secret (Firebase console → Project settings →
- *                    Service accounts → Database secrets)
- *   APN            → your SIM carrier APN  (e.g. "internet", "iam", "maroctel")
+ *   RAILWAY_URL  → http://<your-app>.up.railway.app/api/ingest
+ *   API_KEY      → must match BMS_API_KEY env var on Railway
+ *   APN          → your SIM carrier APN  (e.g. "internet", "iam", "maroctel")
  *
- * Firebase data paths
- * ───────────────────
- *   PUT  /bms/live.json          ← overwrites latest snapshot (dashboard)
- *   POST /bms/history.json       ← appends timestamped entry   (log)
+ * Cloud endpoint
+ * ──────────────
+ *   POST  RAILWAY_URL          ← bearer: X-Api-Key header
  */
 
 #include <Arduino.h>
@@ -78,20 +76,46 @@ static constexpr uint16_t SOC_CAR_TOP_MV = 3387;   // mV → 100% (car-calibrate
 
 // ─── BMS state ────────────────────────────────────────────────────────────────
 struct BMSData {
-    uint16_t cell_mv[19] = {};
-    uint8_t  cell_count  = 0;
-    float    temp_c[4]   = {};
-    uint8_t  temp_count  = 0;
-    float    soc         = -1.0f;
-    float    pack_v      = 0.0f;
-    uint16_t cell_max    = 0;
-    uint16_t cell_min    = 0xFFFF;
-    uint16_t cell_avg    = 0;
-    uint32_t frame_count = 0;
+    // Cell voltages (0x18C8-CC28F4)
+    uint16_t cell_mv[19]  = {};
+    uint8_t  cell_count   = 0;     // highest cell index seen + 1
+    uint8_t  valid_cells  = 0;     // non-zero cells actually decoded
+    uint16_t cell_max     = 0;
+    uint16_t cell_min     = 0xFFFF;
+    uint16_t cell_avg     = 0;
+
+    // Temperatures (0x18B428F4 — up to 8 probes)
+    float    temp_c[8]    = {};
+    uint8_t  temp_count   = 0;
+
+    // Derived
+    float    soc          = -1.0f;
+    float    pack_v       = 0.0f;  // summed from cells (may be partial)
+    uint32_t frame_count  = 0;
+
+    // 0x18FF28F4 — BMS Basic Message 1 (100 ms)
+    uint8_t  status_flags = 0;     // byte 0 bit-field
+    uint8_t  soc_bms      = 0xFF;  // byte 1: coulomb-counter SOC 0–100, 0xFF=unknown
+    float    pack_current = 0.0f;  // bytes 2–3: + = discharging, − = charging (A)
+    float    pack_v_bms   = 0.0f;  // bytes 4–5: direct BMS pack voltage (V)
+    uint8_t  fault_level  = 0;     // byte 6: 0=OK, 1=serious fault
+    uint8_t  error_code   = 0;     // byte 7: fault code (see doc section 4)
+
+    // 0x18FE28F4 — BMS Basic Message 2 (100 ms, extended)
+    float    temp_max_c   = -99.0f;
+    float    temp_min_c   = -99.0f;
+    float    max_disch_a  = 0.0f;
+
+    // 0x18FFE5F4 — BMS Charging Request (1000 ms, to on-board charger)
+    float    charge_max_v  = 0.0f;   // max allowable charge terminal voltage (V)
+    float    charge_max_a  = 0.0f;   // max allowable charge current (A)
+    bool     charger_start = false;  // byte 5 bit 1: 0 = charger start charging
+    uint8_t  charge_prot   = 0;      // byte 6 protection window flags
 };
 
 static BMSData       bms;
 static unsigned long lastPublish = 0;
+static bool          g_moduleRebooted = false;   // set when "Call Ready" URC detected
 
 MCP_CAN CAN0(CAN_CS);
 char    responseBuf[512];
@@ -100,8 +124,7 @@ char    responseBuf[512];
 bool   connectGPRS();
 bool   openBearer();
 void   closeBearer();
-bool   publishToFirebase();
-bool   httpPut(const char* path, const char* body, size_t bodyLen);
+bool   publishToCloud();
 bool   httpPost(const char* path, const char* body, size_t bodyLen);
 void   sendAT(const char* cmd, int waitMs = 1000);
 bool   sendATExpect(const char* cmd, const char* expected, int waitMs = 5000);
@@ -115,6 +138,21 @@ static inline uint16_t u16be(const uint8_t* d, int o) {
 }
 static inline uint16_t u16le(const uint8_t* d, int o) {
     return d[o] | ((uint16_t)d[o + 1] << 8);
+}
+
+// ─── Fault code lookup (section 4 of BAKO CAN Protocol doc) ──────────────────
+// Prefix 0xx = BMS fault; 1xx prefix = motor controller fault (not on this bus)
+static const char* faultCodeName(uint8_t code) {
+    switch (code) {
+        case 0x00: return "ok";
+        case 0x01: return "over_temp_severe";          // Batt max temp > protection limit
+        case 0x02: return "total_voltage_high";        // > total volt protection limit
+        case 0x03: return "total_voltage_low";         // < lower limit
+        case 0x04: return "discharge_overcurrent";     // > discharge protection (may be short)
+        case 0x05: return "cell_voltage_high";         // max cell > single cell high protection
+        case 0x06: return "cell_voltage_low";          // min cell < low volt protection
+        default:   return "unknown";
+    }
 }
 
 static const char* cellStatus(uint16_t mv) {
@@ -132,48 +170,96 @@ void decodeFrame(uint32_t can_id, uint8_t len, uint8_t* data) {
     uint8_t sub  = (can_id >>  8) & 0xFF;
     bms.frame_count++;
 
-    // Cell voltages: func 0xC8–0xCC, big-endian uint16 mV, 4 cells/frame
+    // ── 0x18C8–CC28F4  Cell voltages (500 ms) ─────────────────────────────────
+    // Big-endian uint16 pairs, 4 cells per frame, group = PF − 0xC8
     if (func >= 0xC8 && func <= 0xCC && len == 8) {
-        uint8_t group = func - 0xC8;
-        uint8_t base  = group * 4;    // 0-indexed
+        uint8_t base = (func - 0xC8) * 4;
         for (int i = 0; i < 4; i++) {
-            int o = i * 2;
-            if (o + 1 < len) {
-                uint16_t mv = u16be(data, o);
-                if (mv != 0 && (base + i) < 19) {
-                    bms.cell_mv[base + i] = mv;
-                    if (base + i + 1 > bms.cell_count)
-                        bms.cell_count = base + i + 1;
-                }
+            uint16_t mv = u16be(data, i * 2);
+            if (mv != 0 && (base + i) < 19) {
+                bms.cell_mv[base + i] = mv;
+                if (base + i + 1 > bms.cell_count)
+                    bms.cell_count = base + i + 1;
             }
         }
-        // Recompute derived stats
+        // Recompute stats using only valid (non-zero) cells
         uint32_t sum = 0;
+        uint8_t  valid = 0;
         bms.cell_max = 0;
         bms.cell_min = 0xFFFF;
         for (int i = 0; i < bms.cell_count; i++) {
             if (!bms.cell_mv[i]) continue;
             sum += bms.cell_mv[i];
+            valid++;
             if (bms.cell_mv[i] > bms.cell_max) bms.cell_max = bms.cell_mv[i];
             if (bms.cell_mv[i] < bms.cell_min) bms.cell_min = bms.cell_mv[i];
         }
-        bms.cell_avg = bms.cell_count ? (uint16_t)(sum / bms.cell_count) : 0;
-        bms.pack_v   = sum / 1000.0f;
+        bms.valid_cells = valid;
+        bms.cell_avg    = valid ? (uint16_t)(sum / valid) : 0;
+        bms.pack_v      = sum / 1000.0f;   // sum of decoded cells in V
         float s = (bms.cell_avg - CELL_UV) / (float)(SOC_CAR_TOP_MV - CELL_UV) * 100.0f;
         bms.soc = max(0.0f, min(100.0f, s));
     }
-    // Temperatures: func 0xB4, raw − 40 = °C, 0xFF = absent
-    else if (func == 0xB4 && len >= 4) {
+
+    // ── 0x18B428F4  Temperature probes (500 ms) ────────────────────────────────
+    // Up to 8 probes, uint8 raw − 40 = °C, 0xFF = not connected
+    else if (func == 0xB4 && len >= 1) {
         bms.temp_count = 0;
-        for (int i = 0; i < 4 && i < len; i++) {
+        for (int i = 0; i < (int)len && i < 8; i++) {
             if (data[i] != 0xFF && data[i] != 0x00)
                 bms.temp_c[bms.temp_count++] = (float)data[i] - 40.0f;
         }
     }
-    // Min/Max summary: func 0xFE sub 0x28, little-endian
-    else if (func == 0xFE && sub == 0x28 && len >= 4) {
+
+    // ── 0x18FF28F4  BMS Basic Message 1 (100 ms) ───────────────────────────────
+    // Byte 0: status flags | Byte 1: SOC% | Bytes 2–3: current | Bytes 4–5: voltage
+    // Byte 6: fault level | Byte 7: error code
+    else if (func == 0xFF && sub == 0x28 && len >= 8) {
+        bms.status_flags = data[0];
+        bms.soc_bms      = data[1];   // 0–100, direct from BMS coulomb counter
+
+        // Pack current: LE uint16, offset −5000, scale 0.1 A/bit
+        // 5000 = 0 A; >5000 = discharging (+); <5000 = charging (−)
+        bms.pack_current = (int16_t)(u16le(data, 2) - 5000) * 0.1f;
+
+        // Pack voltage: LE uint16, scale 0.1 V/bit
+        bms.pack_v_bms = u16le(data, 4) * 0.1f;
+
+        bms.fault_level = data[6];
+        bms.error_code  = data[7];
+    }
+
+    // ── 0x18FFE5F4  BMS Charging Request (1000 ms) ────────────────────────────
+    // SA=0xF4(BMS) → PS=0xE5(on-board charger). Tells charger the allowed limits.
+    // Bytes 0–1: max charge terminal voltage  LE uint16, 0.1 V/bit
+    // Bytes 2–3: max charge current           LE uint16, 0.1 A/bit
+    // Byte 4 bit 0: charger start signal      0 = start charging, 1 = stop
+    // Bytes 5–7: protection window flags
+    else if (func == 0xFF && sub == 0xE5 && len >= 5) {
+        bms.charge_max_v  = u16le(data, 0) * 0.1f;
+        bms.charge_max_a  = u16le(data, 2) * 0.1f;
+        bms.charger_start = !(data[4] & 0x01);   // 0 = charger should start
+        if (len >= 6) bms.charge_prot = data[5];
+    }
+
+    // ── 0x18FE28F4  BMS Basic Message 2 (100 ms) ───────────────────────────────
+    // Bytes 0–1: max cell mV | Bytes 2–3: min cell mV
+    // Byte 4: temp_max | Byte 5: temp_min | Bytes 6–7: max discharge current
+    else if (func == 0xFE && sub == 0x28 && len >= 8) {
         bms.cell_max = u16le(data, 0);
         bms.cell_min = u16le(data, 2);
+
+        if (data[4] != 0xFF) bms.temp_max_c  = (float)data[4] - 40.0f;
+        if (data[5] != 0xFF) bms.temp_min_c  = (float)data[5] - 40.0f;
+        bms.max_disch_a = u16le(data, 6) * 0.1f;
+
+        // Fallback SOC/pack_v when cell voltage frames haven't arrived yet
+        if (bms.cell_count == 0 && bms.cell_max > 0) {
+            uint16_t avg = (bms.cell_max + bms.cell_min) / 2;
+            bms.pack_v = avg * 19 / 1000.0f;
+            float s = (avg - CELL_UV) / (float)(SOC_CAR_TOP_MV - CELL_UV) * 100.0f;
+            bms.soc = max(0.0f, min(100.0f, s));
+        }
     }
 }
 
@@ -191,71 +277,97 @@ String buildJSON(const char* timestamp) {
     else
         doc["uptime_ms"] = millis();
 
+    // ── SOC ────────────────────────────────────────────────────────────────────
     if (bms.soc >= 0)
-        doc["soc"]      = roundf(bms.soc * 10.0f)     / 10.0f;
-    if (bms.pack_v > 0)
-        doc["pack_v"]   = roundf(bms.pack_v * 100.0f)  / 100.0f;
+        doc["soc"]      = roundf(bms.soc * 10.0f) / 10.0f;     // voltage-derived
+    if (bms.soc_bms <= 100)
+        doc["soc_bms"]  = (int)bms.soc_bms;                     // BMS coulomb counter
 
-    doc["cell_max_mv"]  = (int)bms.cell_max;
-    doc["cell_min_mv"]  = (bms.cell_min < 0xFFFF) ? (int)bms.cell_min : 0;
-    doc["cell_avg_mv"]  = (int)bms.cell_avg;
-    doc["cell_count"]   = (int)bms.cell_count;
-    if (bms.cell_count > 1)
+    // ── Pack voltage & current ─────────────────────────────────────────────────
+    if (bms.pack_v_bms > 0)
+        doc["pack_v"]   = roundf(bms.pack_v_bms * 10.0f) / 10.0f;  // direct BMS reading
+    else if (bms.pack_v > 0)
+        doc["pack_v"]   = roundf(bms.pack_v * 10.0f) / 10.0f;      // cell-sum fallback
+    doc["pack_current_a"] = roundf(bms.pack_current * 10.0f) / 10.0f; // + discharge / − charge
+
+    // ── Cell stats ─────────────────────────────────────────────────────────────
+    doc["cell_count"]     = (int)bms.valid_cells;
+    doc["cell_max_mv"]    = (int)bms.cell_max;
+    doc["cell_min_mv"]    = (bms.cell_min < 0xFFFF) ? (int)bms.cell_min : 0;
+    doc["cell_avg_mv"]    = (int)bms.cell_avg;
+    if (bms.valid_cells > 1)
         doc["cell_spread_mv"] = (int)(bms.cell_max - bms.cell_min);
 
-    // Individual cells
-    JsonObject cells = doc["cells"].to<JsonObject>();
-    for (int i = 0; i < bms.cell_count; i++) {
-        if (!bms.cell_mv[i]) continue;
-        JsonObject c = cells[String(i + 1)].to<JsonObject>();
-        c["mv"]     = bms.cell_mv[i];
-        c["status"] = cellStatus(bms.cell_mv[i]);
+    // ── Individual cells ───────────────────────────────────────────────────────
+    if (bms.valid_cells > 0) {
+        JsonObject cells = doc["cells"].to<JsonObject>();
+        for (int i = 0; i < bms.cell_count; i++) {
+            if (!bms.cell_mv[i]) continue;
+            JsonObject c = cells[String(i + 1)].to<JsonObject>();
+            c["mv"]     = bms.cell_mv[i];
+            c["status"] = cellStatus(bms.cell_mv[i]);
+        }
     }
 
-    // Temperatures
-    JsonObject temps = doc["temps"].to<JsonObject>();
-    float tsum = 0.0f;
-    for (int i = 0; i < bms.temp_count; i++) {
-        temps[String(i + 1)] = roundf(bms.temp_c[i] * 10.0f) / 10.0f;
-        tsum += bms.temp_c[i];
-    }
-    if (bms.temp_count > 0)
+    // ── Temperatures ───────────────────────────────────────────────────────────
+    if (bms.temp_count > 0) {
+        JsonObject temps = doc["temps"].to<JsonObject>();
+        float tsum = 0.0f;
+        for (int i = 0; i < bms.temp_count; i++) {
+            temps[String(i + 1)] = roundf(bms.temp_c[i] * 10.0f) / 10.0f;
+            tsum += bms.temp_c[i];
+        }
         doc["avg_temp"] = roundf(tsum / bms.temp_count * 10.0f) / 10.0f;
+    }
+    if (bms.temp_max_c > -99.0f) doc["temp_max_c"] = bms.temp_max_c;
+    if (bms.temp_min_c > -99.0f) doc["temp_min_c"] = bms.temp_min_c;
+    if (bms.max_disch_a > 0)     doc["max_disch_a"] = bms.max_disch_a;
+
+    // ── Fault / status flags ───────────────────────────────────────────────────
+    doc["fault_level"] = (int)bms.fault_level;
+    doc["error_code"]  = (int)bms.error_code;
+    if (bms.error_code != 0)
+        doc["fault_name"] = faultCodeName(bms.error_code);   // human-readable name
+    JsonObject st = doc["status"].to<JsonObject>();
+    st["charge_cable"]     = (bool)(bms.status_flags & 0x01);
+    st["charging"]         = (bool)(bms.status_flags & 0x02);
+    st["discharging"]      = (bool)(bms.status_flags & 0x04);
+    st["ready"]            = (bool)(bms.status_flags & 0x08);
+    st["disch_contactor"]  = (bool)(bms.status_flags & 0x10);
+    st["charge_contactor"] = (bool)(bms.status_flags & 0x20);
+
+    // ── Charging request (0x18FFE5F4) ─────────────────────────────────────────
+    if (bms.charge_max_v > 0) {
+        JsonObject ch = doc["charger"].to<JsonObject>();
+        ch["max_charge_v"]  = roundf(bms.charge_max_v * 10.0f) / 10.0f;   // V
+        ch["max_charge_a"]  = roundf(bms.charge_max_a * 10.0f) / 10.0f;   // A
+        ch["start_signal"]  = bms.charger_start;   // true = BMS wants charger ON
+        if (bms.charge_prot != 0)
+            ch["prot_flags"] = (int)bms.charge_prot;
+    }
 
     String out;
     serializeJson(doc, out);
     return out;
 }
 
-// ─── Firebase publish (PUT /bms/live + POST /bms/history) ─────────────────────
-bool publishToFirebase() {
+// ─── Railway cloud publish (POST /api/ingest) ─────────────────────────────────
+bool publishToCloud() {
     char timestamp[32] = "";
     getNetworkTime(timestamp, sizeof(timestamp));
 
     String body = buildJSON(timestamp);
     Serial.printf("[JSON] %s\n", body.c_str());
 
-    // PUT → always overwrite live snapshot (dashboard view)
-    char livePath[128];
-    snprintf(livePath, sizeof(livePath), "%s/bms/live.json?auth=%s",
-             FIREBASE_HOST, FIREBASE_AUTH);
-
-    bool ok = httpPut(livePath, body.c_str(), body.length());
-
-    // POST → append to history log (creates auto-key entry)
-    if (ok) {
-        char histPath[128];
-        snprintf(histPath, sizeof(histPath), "%s/bms/history.json?auth=%s",
-                 FIREBASE_HOST, FIREBASE_AUTH);
-        httpPost(histPath, body.c_str(), body.length());   // best-effort, ignore failure
-    }
-
-    return ok;
+    return httpPost(RAILWAY_URL, body.c_str(), body.length());
 }
 
 // ─── SIM800L HTTP service — PUT ────────────────────────────────────────────────
 bool httpRequest(const char* method, int methodId,
                  const char* url, const char* body, size_t bodyLen) {
+
+    // Always close any lingering HTTP session before opening a new one
+    sendAT("AT+HTTPTERM", 1000);
 
     if (!sendATExpect("AT+HTTPINIT", "OK", 3000)) {
         Serial.println(F("[HTTP] HTTPINIT failed"));
@@ -268,7 +380,13 @@ bool httpRequest(const char* method, int methodId,
     sendAT(urlCmd, 1000);
 
     sendAT("AT+HTTPPARA=\"CONTENT\",\"application/json\"", 1000);
-    sendAT("AT+HTTPSSL=1", 1000);
+    // Plain HTTP — no SSL needed for Railway plain-HTTP endpoint.
+    // SIM800L AT+HTTPSSL=0 is the default; explicitly clear any leftover state.
+    sendAT("AT+HTTPSSL=0", 500);
+    // Add API key as a custom request header
+    char hdrCmd[128];
+    snprintf(hdrCmd, sizeof(hdrCmd), "AT+HTTPPARA=\"USERDATA\",\"X-Api-Key: %s\\r\\n\"", API_KEY);
+    sendAT(hdrCmd, 500);
 
     // Upload body
     char dataCmd[64];
@@ -282,27 +400,74 @@ bool httpRequest(const char* method, int methodId,
     delay(2000);
     readResponse(responseBuf, sizeof(responseBuf), 3000);
 
-    // Execute request (0=GET, 1=POST, 2=HEAD, 3=PUT)
+    // Execute request — SIM800L supports 0=GET 1=POST 2=HEAD only (no native PUT)
     Serial.printf("[HTTP] >> AT+HTTPACTION=%d\n", methodId);
     sim800l.printf("AT+HTTPACTION=%d\r\n", methodId);
 
-    // Wait for +HTTPACTION (SSL handshake can take 15–30 s)
-    char actionResp[128] = {};
+    // Wait for +HTTPACTION — plain HTTP to Railway typically resolves in < 5 s.
+    // Drain CAN bus in the same loop so no cell-voltage frames are lost while
+    // the modem is busy — the BMS struct will be fully populated before the
+    // next publish cycle starts.
+    char actionResp[256] = {};
     size_t actionLen = 0;
     unsigned long start = millis();
     while (millis() - start < 30000) {
-        while (sim800l.available() && actionLen < sizeof(actionResp) - 1)
-            actionResp[actionLen++] = sim800l.read();
-        if (strstr(actionResp, "+HTTPACTION:")) break;
-        delay(100);
+        // Keep reading CAN frames during the HTTP wait
+        while (!digitalRead(CAN_INT)) {
+            unsigned long rxId = 0;
+            uint8_t rxLen = 0;
+            uint8_t rxBuf[8] = {};
+            if (CAN0.readMsgBuf(&rxId, &rxLen, rxBuf) == CAN_OK) {
+                if (rxId & 0x80000000) rxId &= 0x1FFFFFFF;
+                decodeFrame(rxId, rxLen, rxBuf);
+            }
+        }
+
+        // Drain modem UART
+        while (sim800l.available()) {
+            char c = sim800l.read();
+            // Keep only the last 255 bytes so the URC is never pushed out
+            if (actionLen >= sizeof(actionResp) - 1) {
+                memmove(actionResp, actionResp + 1, sizeof(actionResp) - 2);
+                actionLen = sizeof(actionResp) - 2;
+            }
+            actionResp[actionLen++] = c;
+            actionResp[actionLen]   = '\0';
+        }
+        // Abort early if the module rebooted mid-transaction
+        if (strstr(actionResp, "Call Ready")) {
+            Serial.println(F("[HTTP] Module reboot detected during HTTPACTION — aborting"));
+            g_moduleRebooted = true;
+            break;
+        }
+        // Once we see +HTTPACTION: keep draining for 500 ms to collect the
+        // full "method,status,dataLen" line — SIM800L sometimes splits it
+        if (strstr(actionResp, "+HTTPACTION:")) {
+            unsigned long tail = millis();
+            while (millis() - tail < 500) {
+                while (sim800l.available()) {
+                    char c = sim800l.read();
+                    if (actionLen >= sizeof(actionResp) - 1) {
+                        memmove(actionResp, actionResp + 1, sizeof(actionResp) - 2);
+                        actionLen = sizeof(actionResp) - 2;
+                    }
+                    actionResp[actionLen++] = c;
+                    actionResp[actionLen]   = '\0';
+                }
+                delay(10);
+            }
+            break;
+        }
+        delay(10);   // tighter poll so CAN frames aren't delayed
     }
     Serial.println(actionResp);
 
     bool success = false;
     char* ptr = strstr(actionResp, "+HTTPACTION:");
     if (ptr) {
-        int m, statusCode, dataLen;
-        if (sscanf(ptr, "+HTTPACTION: %d,%d,%d", &m, &statusCode, &dataLen) == 3) {
+        int m, statusCode, dataLen = 0;
+        int parsed = sscanf(ptr, "+HTTPACTION: %d,%d,%d", &m, &statusCode, &dataLen);
+        if (parsed >= 2) {   // dataLen may arrive late — status code is enough
             Serial.printf("[HTTP] %s %d  (%d bytes)\n", method, statusCode, dataLen);
             success = (statusCode == 200);
             if (dataLen > 0) sendAT("AT+HTTPREAD", 3000);
@@ -311,10 +476,6 @@ bool httpRequest(const char* method, int methodId,
 
     sendAT("AT+HTTPTERM", 1000);
     return success;
-}
-
-bool httpPut(const char* url, const char* body, size_t bodyLen) {
-    return httpRequest("PUT", 3, url, body, bodyLen);
 }
 
 bool httpPost(const char* url, const char* body, size_t bodyLen) {
@@ -326,7 +487,17 @@ bool connectGPRS() {
     Serial.println(F("[GSM] Connecting GPRS..."));
     sendAT("AT", 1000);
 
-    if (!sendATExpect("AT+CPIN?", "READY", 5000)) {
+    // After a module reboot the SIM can take 15–20 s to initialise.
+    // Retry AT+CPIN? up to 6× (≈ 30 s total) before giving up.
+    bool simReady = false;
+    for (int attempt = 0; attempt < 6 && !simReady; attempt++) {
+        if (attempt > 0) {
+            Serial.printf("[GSM] SIM not ready yet — retry %d/5...\n", attempt);
+            delay(4000);
+        }
+        simReady = sendATExpect("AT+CPIN?", "READY", 5000);
+    }
+    if (!simReady) {
         Serial.println(F("[GSM] SIM not ready — check SIM card"));
         return false;
     }
@@ -360,7 +531,14 @@ bool openBearer() {
         sendAT(cmd, 1000);
     }
 
-    if (!sendATExpect("AT+SAPBR=1,1", "OK", 15000)) {
+    // SAPBR=1,1 can take up to 30 s on Ooredoo — retry once before giving up
+    bool bearerUp = sendATExpect("AT+SAPBR=1,1", "OK", 20000);
+    if (!bearerUp) {
+        Serial.println(F("[GSM] Bearer open slow — retrying..."));
+        sendAT("AT+SAPBR=0,1", 3000);
+        bearerUp = sendATExpect("AT+SAPBR=1,1", "OK", 25000);
+    }
+    if (!bearerUp) {
         Serial.println(F("[GSM] Bearer open failed"));
         return false;
     }
@@ -381,8 +559,16 @@ void sendAT(const char* cmd, int waitMs) {
     Serial.printf(">> %s\n", cmd);
     sim800l.println(cmd);
     delay(waitMs);
-    while (sim800l.available()) Serial.write(sim800l.read());
+    // Buffer the response so we can scan for the reboot URC
+    char tmp[256] = {}; size_t tl = 0;
+    while (sim800l.available() && tl < sizeof(tmp) - 1)
+        tmp[tl++] = sim800l.read();
+    Serial.print(tmp);
     Serial.println();
+    if (strstr(tmp, "Call Ready")) {
+        g_moduleRebooted = true;
+        Serial.println(F("[GSM] !! Module reboot detected (Call Ready) !!"));
+    }
 }
 
 bool sendATExpect(const char* cmd, const char* expected, int waitMs) {
@@ -397,6 +583,12 @@ bool sendATExpect(const char* cmd, const char* expected, int waitMs) {
         while (sim800l.available() && len < sizeof(buf) - 1)
             buf[len++] = sim800l.read();
         buf[len] = '\0';
+        if (strstr(buf, "Call Ready")) {
+            g_moduleRebooted = true;
+            Serial.println(F("[GSM] !! Module reboot detected (Call Ready) !!"));
+            Serial.println(buf);
+            return false;
+        }
         if (strstr(buf, expected)) { Serial.println(buf); return true; }
         delay(10);
     }
@@ -433,19 +625,24 @@ void checkSignal() {
 }
 
 void getNetworkTime(char* buf, size_t bufLen) {
+    // Flush any stale AT responses left in the RX buffer
+    while (sim800l.available()) sim800l.read();
+
     sim800l.println("AT+CCLK?");
-    delay(1000);
+    delay(1500);
     char resp[128] = {};
     size_t len = 0;
     while (sim800l.available() && len < sizeof(resp) - 1)
         resp[len++] = sim800l.read();
 
     // Format: +CCLK: "yy/MM/dd,HH:mm:ss±zz"
-    char* qs = strchr(resp, '"');
-    char* qe = qs ? strchr(qs + 1, '"') : nullptr;
-    if (qs && qe && (size_t)(qe - qs - 1) < bufLen) {
-        size_t n = qe - qs - 1;
-        strncpy(buf, qs + 1, n);
+    // Anchor on "+CCLK: \"" to avoid picking up stray quote bytes in UART noise
+    char* anchor = strstr(resp, "+CCLK: \"");
+    char* qs = anchor ? anchor + 8 : nullptr;   // skip past: +CCLK: "
+    char* qe = qs ? strchr(qs, '"') : nullptr;
+    if (qs && qe && (size_t)(qe - qs) < bufLen) {
+        size_t n = qe - qs;
+        strncpy(buf, qs, n);
         buf[n] = '\0';
     } else {
         buf[0] = '\0';
@@ -459,12 +656,12 @@ void setup() {
     delay(3000);
 
     Serial.println(F("\n========================================"));
-    Serial.println(F("   ESP32 BMS Firebase Publisher"));
+    Serial.println(F("   ESP32 BMS Cloud Publisher (Railway)"));
     Serial.println(F("========================================\n"));
 
     // ── MCP2515 CAN ──────────────────────────────────────────────────────────
     Serial.print(F("[CAN] Init MCP2515... "));
-    if (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_16MHZ) == CAN_OK) {
+    if (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK) {
         CAN0.setMode(MCP_NORMAL);
         pinMode(CAN_INT, INPUT);
         Serial.println(F("OK (250 kbps)"));
@@ -515,13 +712,20 @@ void loop() {
                       bms.frame_count, bms.soc, bms.pack_v,
                       bms.cell_count, bms.temp_count);
 
-        if (!publishToFirebase()) {
-            Serial.println(F("[FB] Failed — reconnecting bearer..."));
+        if (!publishToCloud()) {
+            Serial.println(F("[CLOUD] Failed — reconnecting bearer..."));
+            // If the module rebooted (power brownout), give it time to settle
+            // before issuing any AT commands — SIM needs 15-20 s after reset.
+            if (g_moduleRebooted) {
+                Serial.println(F("[GSM] Module reboot detected — waiting 20 s for SIM..."));
+                delay(20000);
+                g_moduleRebooted = false;
+            }
             closeBearer();
             delay(2000);
             if (connectGPRS() && openBearer()) {
-                if (!publishToFirebase())
-                    Serial.println(F("[FB] Retry also failed — skipping"));
+                if (!publishToCloud())
+                    Serial.println(F("[CLOUD] Retry also failed — skipping"));
             }
         }
     }
