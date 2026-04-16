@@ -342,10 +342,11 @@ class BMSState:
 
             "log": list(self.raw_log)[-80:],
         }
+        return result
 
 
 # ---------------------------------------------------------------------------
-# Normalise incoming text lines (same as before)
+# Normalise incoming text lines
 # ---------------------------------------------------------------------------
 
 _start_time = time.time()
@@ -370,12 +371,11 @@ def normalize_line(line):
 
 
 # ---------------------------------------------------------------------------
-# WiFi TCP reader  (replaces serial_reader)
+# WiFi TCP reader
 # ---------------------------------------------------------------------------
 
 def handle_client(conn, addr, state):
-    """Process one ESP32 TCP connection until it drops."""
-    state.connected  = True
+    state.connected   = True
     state.client_addr = f"{addr[0]}:{addr[1]}"
     state.raw_log.append(f"[INFO] ESP32 connected from {state.client_addr}")
     buf = b""
@@ -383,7 +383,7 @@ def handle_client(conn, addr, state):
         while True:
             chunk = conn.recv(4096)
             if not chunk:
-                break                       # ESP32 closed connection
+                break
             buf += chunk
             while b"\n" in buf:
                 raw_line, buf = buf.split(b"\n", 1)
@@ -401,19 +401,15 @@ def handle_client(conn, addr, state):
         conn.close()
         state.connected   = False
         state.client_addr = ""
-        state.raw_log.append(f"[INFO] ESP32 disconnected")
+        state.raw_log.append("[INFO] ESP32 disconnected")
 
 
 def tcp_reader(tcp_port, state, stop):
-    """
-    Listens on *tcp_port* and accepts one ESP32 at a time.
-    Reconnections are handled automatically.
-    """
     srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     srv.bind(("0.0.0.0", tcp_port))
     srv.listen(1)
-    srv.settimeout(1.0)             # so we can check stop event
+    srv.settimeout(1.0)
     state.raw_log.append(f"[INFO] Waiting for ESP32 on TCP port {tcp_port} …")
 
     while not stop.is_set():
@@ -425,10 +421,65 @@ def tcp_reader(tcp_port, state, stop):
             state.raw_log.append(f"[ERR] TCP accept: {e}")
             time.sleep(1)
             continue
-        # Handle the client in the same thread (one ESP32 at a time is enough)
         handle_client(conn, addr, state)
 
     srv.close()
+
+
+# ---------------------------------------------------------------------------
+# Log file replay
+# ---------------------------------------------------------------------------
+
+def replay_reader(log_path, speed, state, stop):
+    """
+    Replay a raw CAN log file into BMSState at real-time speed (×speed).
+    Loops the file so the dashboard keeps refreshing.
+    """
+    print(f"[REPLAY] Loading {log_path}  speed={speed}×")
+    state.connected   = True
+    state.client_addr = f"replay:{log_path}"
+
+    # Pre-parse all frames and timestamps
+    frames = []
+    with open(log_path, encoding="utf-8") as f:
+        for line in f:
+            line = line.strip()
+            if not line:
+                continue
+            state.raw_log.append(line)
+            result = parse_line(line)
+            if result:
+                frames.append(result)
+
+    if not frames:
+        print("[REPLAY] No parseable frames found in log file")
+        return
+
+    print(f"[REPLAY] {len(frames)} frames — starting playback …")
+    loop_count = 0
+
+    while not stop.is_set():
+        loop_count += 1
+        t0_log  = frames[0][0]          # first frame timestamp in log (ms)
+        t0_wall = time.time()
+
+        for ts, can_id, dlc, data in frames:
+            if stop.is_set():
+                break
+            # Sleep until the right wall-clock moment relative to log time
+            elapsed_log  = (ts - t0_log) / 1000.0 / speed
+            elapsed_wall = time.time() - t0_wall
+            sleep_s = elapsed_log - elapsed_wall
+            if sleep_s > 0:
+                time.sleep(sleep_s)
+
+            state.decode(ts, can_id, dlc, data)
+
+        print(f"[REPLAY] Loop {loop_count} complete — restarting …")
+        # Brief pause between loops so the dashboard doesn't freeze between cycles
+        time.sleep(1.0 / speed)
+
+    state.connected = False
 
 
 # ---------------------------------------------------------------------------
@@ -474,24 +525,38 @@ def main():
     parser.add_argument("--web-port",  "-w", type=int, default=8765,
                         dest="web_port",
                         help="HTTP/WebSocket port for the browser (default 8765)")
+    parser.add_argument("--replay",    "-r", type=str, default=None,
+                        help="Replay a raw CAN log file instead of waiting for ESP32")
+    parser.add_argument("--speed",     "-s", type=float, default=1.0,
+                        help="Replay speed multiplier (default 1.0 = real-time)")
     args = parser.parse_args()
 
     top_v = round(BMSState.SOC_CAR_TOP_MV * 19 / 1000, 2)
-    cap   = BMSState.CAP_ACTUAL_AH
-    soh   = round(cap / BMSState.CAP_RATED_AH * 100, 1)
 
-    print("-" * 50)
-    print("  O'CELL BMS Dashboard  (WiFi mode)")
-    print("-" * 50)
-    print(f"  ESP32 TCP  : 0.0.0.0:{args.esp_port}  ← point your ESP32 here")
+    print("-" * 55)
+    print("  O'CELL BMS Dashboard")
+    print("-" * 55)
+    if args.replay:
+        print(f"  Mode       : REPLAY  ({args.replay})")
+        print(f"  Speed      : {args.speed}×")
+    else:
+        print(f"  Mode       : WiFi TCP  (port {args.esp_port})")
     print(f"  Browser    : http://localhost:{args.web_port}")
     print(f"  SOC range  : {BMSState.PACK_EMPTY_V} V = 0%  ->  {top_v} V = 100%")
-    print(f"  Capacity   : {cap} Ah  (rated {BMSState.CAP_RATED_AH} Ah, SOH {soh}%)")
-    print("-" * 50)
+    print("-" * 55)
 
-    threading.Thread(target=tcp_reader,
-                     args=(args.esp_port, bms, _stop),
-                     daemon=True).start()
+    if args.replay:
+        threading.Thread(
+            target=replay_reader,
+            args=(args.replay, args.speed, bms, _stop),
+            daemon=True,
+        ).start()
+    else:
+        threading.Thread(
+            target=tcp_reader,
+            args=(args.esp_port, bms, _stop),
+            daemon=True,
+        ).start()
 
     uvicorn.run(app, host=args.host, port=args.web_port, log_level="warning")
 
