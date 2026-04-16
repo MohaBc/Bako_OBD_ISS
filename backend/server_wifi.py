@@ -11,56 +11,46 @@ CAN baud: 250 kbps
 Requirements:  pip install fastapi uvicorn
 
 Usage:
-    python server.py                        # listens on 0.0.0.0:9000 (ESP32 TCP)
-    python server.py --esp-port 9000        # default ESP32 TCP port
-    python server.py --web-port 8765        # default browser WebSocket port
-    python server.py --host 0.0.0.0        # default bind address
+    python server_wifi.py                        # listens on 0.0.0.0:9000 (ESP32 TCP)
+    python server_wifi.py --replay ../data/raw/bms_log_2026-03-10T10-20-02.txt
+    python server_wifi.py --replay <file> --speed 5   # 5× real-time
 
-ESP32 side: connect to <this PC's IP>:<esp-port> and send the same text
-lines it used to print over Serial, e.g.:
-    [1234ms] ID: 0x18C8C828F4 DLC: 8 Data: 0D 05 0D 06 0D 07 0D 08
-
-VERIFIED FRAME MAP  (confirmed from 3 real car logs + O'CELL spec)
--------------------------------------------------------------------
-0x18C8-CC28F4  Cell voltages — 5 frames, 4 cells each, big-endian uint16 mV
+VERIFIED FRAME MAP  (BAKO Motors CAN Protocol v1.0 — confirmed from captured logs)
+------------------------------------------------------------------------------------
+0x18C8-CC28F4  Cell voltages — 5 frames, 4 cells each, BIG-ENDIAN uint16 mV
                0xC8=cells 1-4  0xC9=cells 5-8  0xCA=cells 9-12
                0xCB=cells 13-16  0xCC=cells 17-19  (last slot padded 0x0000)
 
-0x18B428F4     Temperatures — up to 4 sensors
-               bytes 0-3: raw - 40 = deg C   0xFF = sensor not connected
+0x18B428F4     Temperatures — up to 8 probes, uint8 raw−40 = °C, 0xFF = not connected
 
-0x18FFE5F4     SOC + charge request  (every ~500 ms)
-               bytes 0-1 LE uint16 / 10  = SOC %  (BMS coulomb counter, can drift)
-               bytes 2-3 LE uint16 / 10  = charge current request A
+0x18FF28F4     BMS Basic Message 1 (100 ms)
+               byte  0       = status bit-field  (bit0=chg_cable, 1=charging, 2=discharging,
+                                                   3=ready, 4=disch_contactor, 5=chg_contactor)
+               byte  1       = SOC %  (BMS coulomb counter, 0-100 integer)
+               bytes 2-3 LE int16 offset-5000 × 0.1 A = pack current (+discharge/-charge)
+               bytes 4-5 LE uint16 × 0.1 V  = pack total voltage
+               byte  6       = fault level  (0=ok, 1=serious fault)
+               byte  7       = error code   (see FAULT_NAMES table)
 
-0x18FF28F4     Pack summary  (every ~100 ms)
-               bytes 0-1 LE uint16        = UNKNOWN — not decodable as pack voltage
-               bytes 2-3 LE uint16 / 100 = discharge current limit A
-               bytes 4-5 LE uint16 / 10  = BMS secondary SOC %
+0x18FE28F4     BMS Basic Message 2 (100 ms)
+               bytes 0-1 LE uint16 mV = max cell voltage
+               bytes 2-3 LE uint16 mV = min cell voltage
+               byte  4    uint8 −40   = max cell temperature (°C)
+               byte  5    uint8 −40   = min cell temperature (°C)
+               bytes 6-7 LE uint16 × 0.1 A = max allowable discharge current
 
-0x18FE28F4     Min/Max cell + temps + disch limit  (every ~100 ms)
-               bytes 0-1 LE uint16        = max cell voltage mV
-               bytes 2-3 LE uint16        = min cell voltage mV
-               byte  4                    = temp sensor 1, raw - 40 = deg C
-               byte  5                    = temp sensor 2, raw - 40 = deg C
-               bytes 6-7 LE uint16 / 10  = discharge current limit A (BMS internal)
+0x18FFE5F4     BMS Charging Request (1000 ms, to on-board charger)
+               bytes 0-1 LE uint16 × 0.1 V = max allowable charge terminal voltage
+               bytes 2-3 LE uint16 × 0.1 A = max allowable charge current
+               byte  4 bit0 = charger start signal (0 = start charging)
 
 SOC CALIBRATION — matched to car display
 -----------------------------------------
 Calibrated from 4 real car logs:
-  2026-03-31 10:06  avg=3301.6 mV  car=89.0%  solved_top=3400.7 mV
-  2026-03-31 10:57  avg=3306.2 mV  car=89.0%  solved_top=3405.8 mV
-  2026-04-01 13:03  avg=3284.8 mV  car=89.4%  solved_top=3377.9 mV
-  2026-04-01 16:04  avg=3285.0 mV  car=88.4%  solved_top=3387.4 mV  ← new
-  Average -> SOC_CAR_TOP_MV = 3387 mV  = 64.35 V pack
-
-Formula:  SOC = (avg_cell_mV - 2500) / (3387 - 2500) * 100
+  Formula:  SOC = (avg_cell_mV - 2500) / (3387 - 2500) × 100
   2500 mV/cell = 47.50 V pack = 0%
   3387 mV/cell = 64.35 V pack = 100%
   Values above 3387 mV (during charging) are clamped to 100%.
-
-Pack voltage: sum of 19 cell voltages / 1000 — matches car display to 0.01V.
-Battery capacity: 44.7 Ah actual / 50.0 Ah rated -> SOH 89.4%
 """
 
 import re, sys, time, asyncio, argparse, threading, socket
@@ -106,46 +96,75 @@ def u16le(d, o):
 
 
 # ---------------------------------------------------------------------------
+# Fault code lookup  (BAKO CAN Protocol doc — section 4)
+# ---------------------------------------------------------------------------
+
+FAULT_NAMES = {
+    0x00: "ok",
+    0x01: "over_temp_severe",
+    0x02: "total_voltage_high",
+    0x03: "total_voltage_low",
+    0x04: "discharge_overcurrent",
+    0x05: "cell_voltage_high",
+    0x06: "cell_voltage_low",
+}
+
+
+# ---------------------------------------------------------------------------
 # BMS State
 # ---------------------------------------------------------------------------
 
 class BMSState:
 
-    # Protection thresholds (O'CELL spec pages 3, 10-11)
-    CELL_OV        = 3750   # mV  over-voltage trigger (TYP)
+    # Protection thresholds (O'CELL spec)
+    CELL_OV        = 3750   # mV  over-voltage trigger
     CELL_OV_REL    = 3500   # mV  over-voltage release
-    CELL_FULL      = 3650   # mV  absolute charge cut-off
-    CELL_BAL_THR   = 3300   # mV  cell balancing start threshold
+    CELL_FULL      = 3650   # mV  charge cut-off
+    CELL_BAL_THR   = 3300   # mV  balancing start
     CELL_BAL_DELTA = 20     # mV  balancing delta
     CELL_NOMINAL   = 3200   # mV  nominal mid-charge voltage
-    CELL_UV        = 2500   # mV  under-voltage protection / SOC 0% reference
+    CELL_UV        = 2500   # mV  under-voltage / SOC 0% reference
     CELL_UV_REL    = 2800   # mV  under-voltage release
 
-    PACK_FULL_V    = 69.35  # V  = 3.65V x 19
-    PACK_EMPTY_V   = 47.50  # V  = 2.50V x 19  (SOC 0%)
+    PACK_FULL_V    = 69.35  # V  = 3.65 V × 19
+    PACK_EMPTY_V   = 47.50  # V  = 2.50 V × 19
     PACK_NOM_V     = 60.80  # V  nominal
 
-    # SOC calibration — matches car display
-    SOC_CAR_TOP_MV = 3387   # mV  = 64.35V pack = 100% on car display
-
-    # Battery capacity
-    CAP_RATED_AH   = 50.0   # Ah  spec rated
-    CAP_ACTUAL_AH  = 44.7   # Ah  measured  (SOH = 89.4%)
-
-    MAX_CHARGE_A   = 25.0   # A
-    MAX_DISCH_A    = 50.0   # A
+    SOC_CAR_TOP_MV = 3387   # mV  = 64.35 V pack = 100% on car display
+    CAP_RATED_AH   = 50.0
+    CAP_ACTUAL_AH  = 44.7
+    MAX_CHARGE_A   = 25.0
+    MAX_DISCH_A    = 50.0
     NUM_CELLS      = 19
 
     def __init__(self):
         self.lock         = threading.Lock()
-        self.cell_mv      = {}
-        self.temp_c       = {}
-        self.soc_coulomb  = None
-        self.soc_bms      = None
-        self.chg_i_req    = None
-        self.disch_i_lim  = None
+
+        # Cell voltages & temperatures
+        self.cell_mv      = {}          # {1..19: mV}
+        self.temp_c       = {}          # {1..8: °C}  from 0x18B428F4
+
+        # 0x18FF28F4 — BMS Basic Message 1
+        self.status_flags = 0           # bit-field byte 0
+        self.soc_bms      = None        # byte 1: coulomb-counter SOC 0-100
+        self.pack_current = None        # A (+discharge / -charge)
+        self.pack_v_bms   = None        # V  direct BMS reading
+        self.fault_level  = 0           # 0=ok, 1=serious
+        self.error_code   = 0           # fault code (0x00-0x06)
+
+        # 0x18FE28F4 — BMS Basic Message 2
         self.cell_max_mv  = None
         self.cell_min_mv  = None
+        self.temp_max_c   = None        # max cell temp from BMS
+        self.temp_min_c   = None        # min cell temp from BMS
+        self.max_disch_a  = None        # max allowable discharge current
+
+        # 0x18FFE5F4 — BMS Charging Request
+        self.charge_max_v = None        # max allowable charge terminal voltage (V)
+        self.charge_max_a = None        # max allowable charge current (A)
+        self.charger_start = False      # True = BMS commands charger ON
+
+        # Housekeeping
         self.frame_count  = 0
         self.connected    = False
         self.client_addr  = ""
@@ -160,6 +179,8 @@ class BMSState:
             self.frame_count += 1
             self.last_update  = datetime.now()
 
+            # ── 0x18C8-CC28F4  Cell voltages (500 ms) ──────────────────────
+            # Big-endian uint16 pairs, 4 cells per frame
             if 0xC8 <= func <= 0xCC and dlc == 8:
                 group = func - 0xC8
                 base  = group * 4 + 1
@@ -170,36 +191,49 @@ class BMSState:
                         if mv != 0:
                             self.cell_mv[base + i] = mv
 
-            elif func == 0xB4 and dlc == 8:
-                for i in range(4):
+            # ── 0x18B428F4  Temperature probes (500 ms) ────────────────────
+            # Up to 8 probes, uint8 raw−40 = °C, 0xFF = not connected
+            elif func == 0xB4 and dlc >= 1:
+                self.temp_c.clear()
+                for i in range(min(dlc, 8)):
                     raw = data[i]
                     if raw != 0xFF and raw != 0x00:
                         self.temp_c[i + 1] = float(raw) - 40.0
 
-            elif func == 0xFF and sub == 0xE5 and dlc == 8 and len(data) >= 4:
-                self.soc_coulomb = u16le(data, 0) / 10.0
-                self.chg_i_req   = u16le(data, 2) / 10.0
+            # ── 0x18FF28F4  BMS Basic Message 1 (100 ms) ───────────────────
+            elif func == 0xFF and sub == 0x28 and dlc >= 8:
+                self.status_flags = data[0]
+                self.soc_bms      = data[1]                           # 0-100 integer
+                raw_i = u16le(data, 2)
+                self.pack_current = round((raw_i - 5000) * 0.1, 1)   # +discharge/-charge
+                self.pack_v_bms   = round(u16le(data, 4) * 0.1, 1)   # V
+                self.fault_level  = data[6]
+                self.error_code   = data[7]
 
-            elif func == 0xFF and sub == 0x28 and dlc == 8 and len(data) >= 6:
-                self.disch_i_lim = u16le(data, 2) / 100.0
-                self.soc_bms     = u16le(data, 4) / 10.0
+            # ── 0x18FFE5F4  BMS Charging Request (1000 ms) ─────────────────
+            elif func == 0xFF and sub == 0xE5 and dlc >= 5:
+                self.charge_max_v  = round(u16le(data, 0) * 0.1, 1)
+                self.charge_max_a  = round(u16le(data, 2) * 0.1, 1)
+                self.charger_start = not bool(data[4] & 0x01)
 
-            elif func == 0xFE and sub == 0x28 and dlc == 8 and len(data) >= 8:
+            # ── 0x18FE28F4  BMS Basic Message 2 (100 ms) ───────────────────
+            elif func == 0xFE and sub == 0x28 and dlc >= 8:
                 self.cell_max_mv = u16le(data, 0)
                 self.cell_min_mv = u16le(data, 2)
-                for i in range(2):
-                    raw = data[4 + i]
-                    if raw != 0xFF and raw != 0x00:
-                        self.temp_c[i + 1] = float(raw) - 40.0
+                if data[4] != 0xFF:
+                    self.temp_max_c = float(data[4]) - 40.0
+                if data[5] != 0xFF:
+                    self.temp_min_c = float(data[5]) - 40.0
+                self.max_disch_a = round(u16le(data, 6) * 0.1, 1)
 
     def cell_status(self, mv):
-        if mv >= self.CELL_OV:        return "ov"
+        if mv >= self.CELL_OV:        return "overvoltage"
         if mv >= self.CELL_FULL:      return "full"
-        if mv >= self.CELL_BAL_THR:   return "bal"
-        if mv >= self.CELL_NOMINAL:   return "ok"
+        if mv >= self.CELL_BAL_THR:   return "good"
+        if mv >= self.CELL_NOMINAL:   return "normal"
         if mv >= self.CELL_UV_REL:    return "low"
         if mv >= self.CELL_UV:        return "uv_warn"
-        return "uv"
+        return "undervoltage"
 
     def _soc_display(self, cv):
         if not cv:
@@ -208,53 +242,87 @@ class BMSState:
         soc = (avg - self.CELL_UV) / (self.SOC_CAR_TOP_MV - self.CELL_UV) * 100.0
         return round(min(max(soc, 0.0), 100.0), 1)
 
-    def _remaining_ah(self, soc):
-        if soc is None:
-            return None
-        return round(self.CAP_ACTUAL_AH * soc / 100.0, 1)
-
     def to_dict(self):
         with self.lock:
             cv   = dict(self.cell_mv)
             temp = dict(self.temp_c)
 
-        pack_v   = round(sum(cv.values()) / 1000.0, 2) if cv else None
-        soc_disp = self._soc_display(cv)
+        pack_v_cells = round(sum(cv.values()) / 1000.0, 2) if cv else None
+        soc_disp     = self._soc_display(cv)
+
+        # Prefer direct BMS pack voltage when available
+        pack_v = self.pack_v_bms if self.pack_v_bms else pack_v_cells
 
         cells_out = {
             str(k): {"mv": cv[k], "status": self.cell_status(cv[k])}
             for k in sorted(cv)
         }
 
-        return {
+        # Compute spread / avg from live cell readings when available
+        cell_max = max(cv.values())         if cv else self.cell_max_mv
+        cell_min = min(cv.values())         if cv else self.cell_min_mv
+        cell_avg = round(sum(cv.values()) / len(cv)) if cv else None
+
+        result = {
             "connected":      self.connected,
             "client":         self.client_addr,
             "frame_count":    self.frame_count,
             "timestamp":      self.last_update.isoformat() if self.last_update else None,
 
+            # SOC
             "soc":            soc_disp,
-            "soc_coulomb":    round(self.soc_coulomb, 1) if self.soc_coulomb is not None else None,
-            "soc_bms":        round(self.soc_bms,     1) if self.soc_bms     is not None else None,
+            "soc_bms":        self.soc_bms,       # BMS coulomb counter (integer %)
 
-            "remaining_ah":   self._remaining_ah(soc_disp),
+            # Pack
+            "pack_v":         pack_v,
+            "pack_current_a": self.pack_current,  # +discharge / -charge
+
+            # Capacity
+            "remaining_ah":   round(self.CAP_ACTUAL_AH * soc_disp / 100.0, 1) if soc_disp is not None else None,
             "capacity_ah":    self.CAP_ACTUAL_AH,
             "capacity_rated": self.CAP_RATED_AH,
             "soh":            round(self.CAP_ACTUAL_AH / self.CAP_RATED_AH * 100, 1),
 
-            "pack_v":         pack_v,
-            "chg_i_req":      round(self.chg_i_req,   1) if self.chg_i_req   is not None else None,
-            "disch_i_lim":    round(self.disch_i_lim, 1) if self.disch_i_lim is not None else None,
-
+            # Cells
             "cells":          cells_out,
             "cell_count":     len(cv),
-            "cell_max_mv":    self.cell_max_mv,
-            "cell_min_mv":    self.cell_min_mv,
-            "cell_spread_mv": (max(cv.values()) - min(cv.values())) if len(cv) > 1 else None,
-            "cell_avg_mv":    round(sum(cv.values()) / len(cv))     if cv else None,
+            "cell_max_mv":    cell_max,
+            "cell_min_mv":    cell_min,
+            "cell_avg_mv":    cell_avg,
+            "cell_spread_mv": (cell_max - cell_min) if (cell_max is not None and cell_min is not None) else None,
 
+            # Temperatures
             "temps":          {str(k): round(v, 1) for k, v in sorted(temp.items())},
             "avg_temp":       round(sum(temp.values()) / len(temp), 1) if temp else None,
+            "temp_max_c":     self.temp_max_c,
+            "temp_min_c":     self.temp_min_c,
 
+            # Discharge limit
+            "max_disch_a":    self.max_disch_a,
+
+            # Fault
+            "fault_level":    self.fault_level,
+            "error_code":     self.error_code,
+            "fault_name":     FAULT_NAMES.get(self.error_code, "unknown") if self.error_code else None,
+
+            # Status bit-field (0x18FF28F4 byte 0)
+            "status": {
+                "charge_cable":     bool(self.status_flags & 0x01),
+                "charging":         bool(self.status_flags & 0x02),
+                "discharging":      bool(self.status_flags & 0x04),
+                "ready":            bool(self.status_flags & 0x08),
+                "disch_contactor":  bool(self.status_flags & 0x10),
+                "charge_contactor": bool(self.status_flags & 0x20),
+            },
+
+            # Charging request (0x18FFE5F4) — only present when frame seen
+            "charger": {
+                "max_charge_v":  self.charge_max_v,
+                "max_charge_a":  self.charge_max_a,
+                "start_signal":  self.charger_start,
+            } if self.charge_max_v is not None else None,
+
+            # Thresholds (for dashboard gauge rendering)
             "thresh": {
                 "cell_ov":      self.CELL_OV,
                 "cell_ov_rel":  self.CELL_OV_REL,
