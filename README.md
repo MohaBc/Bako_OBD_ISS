@@ -118,6 +118,7 @@ Bako_OBD_ISS/
 │
 ├── backend/
 │   ├── server.py                      # FastAPI server — serial + cloud endpoints
+│   ├── replay_to_cloud.py             # CAN log → decode → Firebase replay tool
 │   ├── requirements.txt               # Pinned pip dependencies
 │   └── bms_cloud.db                   # SQLite cloud snapshot store (auto-created)
 │
@@ -207,26 +208,60 @@ All frame IDs use `0x18_FUNC_SUB_F4` structure (29-bit extended J1939). The log 
 | `0x18CB28F4` | Cell voltages group 4 | 500 ms | Cells 13–16 |
 | `0x18CC28F4` | Cell voltages group 5 | 500 ms | Cells 17–19 (bytes 6–7 padded 0x0000) |
 | `0x18B428F4` | Temperatures | 500 ms | Bytes 0–3: probes 1–4, `raw − 40 = °C`, 0xFF = absent |
-| `0x18FFE5F4` | SOC + charge request | 500 ms | LE uint16: SOC ÷10 %, chg req ÷10 A |
-| `0x18FF28F4` | Pack summary | 100 ms | LE uint16: unknown, disch limit ÷100 A, SOC ÷10 % |
-| `0x18FE28F4` | Min/Max cell + temps | 100 ms | LE uint16: max/min cell mV; temp bytes; disch limit ÷10 A |
+| `0x18FFE5F4` | BMS Charging Request | 500 ms | LE uint16: max charge voltage ÷10 V, max charge current ÷10 A; byte 4 bit0: start signal |
+| `0x18FF28F4` | BMS Basic Message 1 | 100 ms | byte 0: status flags; byte 1: SOC %; bytes 2–3: pack current; bytes 4–5: pack voltage; byte 6: fault level; byte 7: error code |
+| `0x18FE28F4` | BMS Basic Message 2 | 100 ms | LE uint16: max/min cell mV; temp bytes; discharge limit ÷10 A |
 
 ### Byte Layouts
 
-**`0x18FE28F4` — Min/Max + temps (100 ms)**
+**`0x18FF28F4` — BMS Basic Message 1 (100 ms)**
+```
+Byte  0    uint8      Status flags (bit-field, see below)
+Byte  1    uint8      SOC 0–100 %
+Bytes 2–3  LE uint16  Pack current  (value − 5000) × 0.1  → A  (negative = charging)
+Bytes 4–5  LE uint16  Pack voltage  × 0.1                 → V
+Byte  6    uint8      Fault level
+Byte  7    uint8      Error code (see fault table below)
+```
+
+Status flags (byte 0 of 0x18FF28F4):
+
+| Bit | Mask | Meaning |
+|-----|------|---------|
+| 0 | 0x01 | Charge cable connected |
+| 1 | 0x02 | Charging in progress |
+| 2 | 0x04 | Discharging in progress |
+| 3 | 0x08 | BMS ready |
+| 4 | 0x10 | Discharge contactor closed |
+| 5 | 0x20 | Charge contactor closed |
+
+Fault codes (byte 7 of 0x18FF28F4):
+
+| Code | Name |
+|------|------|
+| 0x00 | ok |
+| 0x01 | over_temp_severe |
+| 0x02 | total_voltage_high |
+| 0x03 | total_voltage_low |
+| 0x04 | discharge_overcurrent |
+| 0x05 | cell_voltage_high |
+| 0x06 | cell_voltage_low |
+
+**`0x18FE28F4` — BMS Basic Message 2 (100 ms)**
 ```
 Bytes 0–1  LE uint16  Max cell voltage             → mV
 Bytes 2–3  LE uint16  Min cell voltage             → mV
-Byte  4    uint8      Temp probe 1  (raw − 40)     → °C
-Byte  5    uint8      Temp probe 2  (raw − 40)     → °C
-Bytes 6–7  LE uint16  Discharge current limit ÷10  → A
+Byte  4    uint8      Max temperature  (raw − 40)  → °C  (0xFF = absent)
+Byte  5    uint8      Min temperature  (raw − 40)  → °C  (0xFF = absent)
+Bytes 6–7  LE uint16  Max discharge current ÷ 10   → A
 ```
 
-**`0x18FFE5F4` — SOC + charge request (500 ms)**
+**`0x18FFE5F4` — BMS Charging Request (500 ms)**
 ```
-Bytes 0–1  LE uint16  SOC                ÷ 10  → %
-Bytes 2–3  LE uint16  Charge current req ÷ 10  → A
-Bytes 4–7  0x00       Reserved
+Bytes 0–1  LE uint16  Max charge voltage  × 0.1  → V
+Bytes 2–3  LE uint16  Max charge current  × 0.1  → A
+Byte  4    uint8      Bit 0 = 0 → charger start signal
+Byte  5    uint8      Protection flags (optional, DLC ≥ 6)
 ```
 
 **`0x18C8–CC28F4` — Cell voltage frames (500 ms)**
@@ -265,7 +300,7 @@ Values above 3387 mV (during active charging) are clamped to 100%.
 | Tool | File | Hardware needed | Description |
 |------|------|----------------|-------------|
 | CLI parser | `data/battery_can_parser.py` | No | Parse a log file, print report or CSV |
-| Log-to-cloud | `data/send_log_to_cloud.py` | No | Replay log → Firebase or local backend |
+| Log-to-cloud replay | `backend/replay_to_cloud.py` | No | Replay log → Firebase Realtime DB (direct PUT) |
 | Live dashboard | `frontend/index.html` + `backend/server.py` | ESP32 (or log replay) | Real-time SERIAL / CLOUD dashboard |
 | Cloud firmware | `firmware/esp32_cloud_publisher/` | ESP32 + MCP2515 + SIM800L | Reads CAN, publishes to Firebase via GPRS |
 
@@ -297,11 +332,7 @@ python3 backend/server.py --cloud-only
 
 **Terminal 2 — replay the log to Firebase:**
 ```bash
-python3 data/send_log_to_cloud.py \
-  --mode replay --speed 5 \
-  --target firebase \
-  --firebase-url https://<project>-default-rtdb.firebaseio.com \
-  --firebase-token <your-token>
+python3 backend/replay_to_cloud.py --speed 5 --interval 5000
 ```
 
 Open `http://localhost:8765` — click **CLOUD** in the header. The dashboard animates live as the log replays.
@@ -365,58 +396,54 @@ python3 data/battery_can_parser.py data/raw/bms_log_2026-03-10T10-20-02.txt --cs
 
 ## 9. Tool 2 — Log-to-Cloud Replay
 
-**File:** `data/send_log_to_cloud.py`
+**File:** `backend/replay_to_cloud.py`
 **Requirements:** Python 3.8+ — no external dependencies
 
-Parses a CAN log file and sends snapshots to Firebase Realtime Database and/or the local backend, simulating exactly what the ESP32 firmware does. Use this to test the full cloud pipeline without physical hardware.
+Reads a raw CAN log file, decodes every BMS frame using the same logic as the ESP32 firmware, builds a complete JSON snapshot, and PUTs it directly to Firebase Realtime Database. The local dashboard server (`server.py`) polls Firebase and pushes the data to the browser via `/ws/cloud`.
 
-### Modes
+Pipeline: `log file → decode frames → JSON → Firebase /bms/live → server.py → browser`
 
-| Mode | Behaviour |
-|------|-----------|
-| `snapshot` | Parse entire log → send one final state snapshot (default) |
-| `replay` | Stream snapshots frame by frame, preserving relative timing |
+### CLI Arguments
 
-### Targets
-
-| Target | Destination |
-|--------|-------------|
-| `local` | POST to `http://localhost:8765/api/ingest` (default) |
-| `firebase` | PUT to Firebase `/bms/live.json` + POST to `/bms/history.json` |
-| `both` | Both simultaneously |
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--log` / `-l` | `data/raw/bms_log_2026-03-10T10-20-02.txt` | Path to raw CAN log file |
+| `--speed` / `-s` | `1.0` | Replay speed multiplier (e.g. `5` = 5× real-time) |
+| `--interval` / `-i` | `5000` | Snapshot interval in log-time ms |
+| `--loop` | off | Loop file forever |
 
 ### Usage
 
 ```bash
-# Snapshot → local backend
-python3 data/send_log_to_cloud.py
+# Default — real-time replay, snapshot every 5 s of log time
+python3 backend/replay_to_cloud.py
 
-# Snapshot → Firebase
-python3 data/send_log_to_cloud.py --target firebase \
-  --firebase-url https://<project>-default-rtdb.firebaseio.com \
-  --firebase-token <token>
+# 5× speed
+python3 backend/replay_to_cloud.py --speed 5
 
-# Live replay at 5× speed → Firebase
-python3 data/send_log_to_cloud.py --mode replay --speed 5 \
-  --target firebase \
-  --firebase-url https://<project>-default-rtdb.firebaseio.com \
-  --firebase-token <token>
-
-# Specify a different log file
-python3 data/send_log_to_cloud.py data/raw/my_log.txt --mode replay --speed 10
+# Custom log file, 10× speed, loop forever
+python3 backend/replay_to_cloud.py --log data/raw/my_log.txt --speed 10 --loop
 ```
 
-### Terminal Output (replay mode)
+Firebase credentials are configured directly in the script (`FIREBASE_HOST`, `FIREBASE_AUTH`).
+
+### Terminal Output
 
 ```
-Replaying bms_log_2026-03-10T10-20-02.txt at 5× speed → [firebase]
+-------------------------------------------------------
+  BMS Log → Firebase → Interface
+-------------------------------------------------------
+  Log      : data/raw/bms_log_2026-03-10T10-20-02.txt
+  Firebase : https://esp32-connection-test-default-rtdb.firebaseio.com/bms/live
+  Speed    : 1.0×   interval: 5000 ms log-time
+-------------------------------------------------------
+  3197 frames  (11455–139267 ms)
 
-[11771ms]  snap #1    SOC 93.0%   Pack 63.17 V   Cells 19
-  [FIREBASE] PUT 200 → /bms/live
-[12269ms]  snap #2    SOC 93.0%   Pack 63.17 V   Cells 19
-  [FIREBASE] PUT 200 → /bms/live
-...
-Replay complete — 132 snapshots sent.
+  [OK  ] #01  cells=19  SOC=100.0%  pack=63.1V  I=-15.1A  temps=4  fault=0  ready=True  charger=yes
+  [OK  ] #02  cells=19  SOC=100.0%  pack=63.1V  I=-15.1A  temps=4  fault=0  ready=True  charger=yes
+  ...
+  Loop 1 done — 25 snapshots sent to Firebase.
+Replay complete.
 ```
 
 ---
@@ -498,17 +525,47 @@ index.html (CLOUD mode)
       "source": "esp32-sim800l",
       "device_id": "esp32-bms-001",
       "timestamp": "26/04/15,09:32:11+00",
+      "frame_count": 3840,
+
       "soc": 87.4,
+      "soc_bms": 85,
+
       "pack_v": 62.31,
+      "pack_current_a": -15.1,
+
       "cell_count": 19,
       "cell_avg_mv": 3280,
       "cell_max_mv": 3295,
       "cell_min_mv": 3265,
       "cell_spread_mv": 30,
       "cells": { "1": {"mv": 3280, "status": "good"}, "...": "..." },
-      "temps": { "1": 21.0, "2": 22.0 },
-      "avg_temp": 21.5,
-      "frame_count": 3840
+
+      "temps": { "1": 21.0, "2": 22.0, "3": 21.0, "4": 20.0 },
+      "avg_temp": 21.0,
+      "temp_max_c": 22.0,
+      "temp_min_c": 20.0,
+
+      "max_disch_a": 100.0,
+
+      "fault_level": 0,
+      "error_code": 0,
+      "fault_name": "ok",
+
+      "status": {
+        "charge_cable": true,
+        "charging": true,
+        "discharging": false,
+        "ready": true,
+        "disch_contactor": false,
+        "charge_contactor": true
+      },
+
+      "charger": {
+        "max_charge_v": 69.3,
+        "max_charge_a": 35.0,
+        "start_signal": true,
+        "prot_flags": null
+      }
     },
     "history": {
       "-NxAbCd...": { "...": "..." }
@@ -547,11 +604,17 @@ index.html (CLOUD mode)
 ### Features
 
 - Reads SAE J1939 CAN frames via MCP2515 at 250 kbps
-- Decodes all 19 cell voltages, 4 temperature sensors, SOC, pack voltage
+- Decodes all 5 BMS frame types: cell voltages (19 cells), temperatures, BMS Basic Message 1 & 2, Charging Request
+- Computes SOC from average cell voltage; also reads BMS coulomb counter and direct pack voltage
+- Decodes status bit-field (charging/discharging/ready/contactors) and fault level + error code with human-readable fault name
+- Decodes charger limits: max charge voltage, max charge current, charger start signal
 - Uses `HardwareSerial` UART1 for SIM800L — more reliable than SoftwareSerial
 - Uses SIM800L `AT+HTTP*` service with `AT+HTTPSSL=1` for HTTPS to Firebase
 - Reads real network time from `AT+CCLK?` and includes it in each snapshot
-- Auto-reconnects bearer on GPRS failure
+- Auto-reconnects bearer on GPRS failure with graceful brownout recovery:
+  - Detects `"Call Ready"` URC in all AT response buffers → sets `g_moduleRebooted` flag
+  - Aborts current HTTP transaction immediately on mid-transaction reboot detection
+  - Waits 20 s for SIM to initialize, then retries `AT+CPIN?` up to 6 times (4 s apart) before reconnecting
 - Publishes every 5 seconds — PUT to `/bms/live` and POST to `/bms/history`
 
 ### Dependencies (auto-installed by PlatformIO)
@@ -749,11 +812,13 @@ Never:  commit secrets.h or .env  always in .gitignore
 | MINOR | New backward-compatible feature |
 | PATCH | Bug fix |
 
-Current version: **v0.3.0** — 2026-04-15 — Cloud log panel + dashboard data fixes
+Current version: **v0.4.0** — 2026-04-16 — Full BAKO CAN protocol decoder + SIM800L brownout recovery + Firebase replay pipeline
 
 ---
 
 ## 17. Known Issues
+
+**SIM800L power brownout mid-transaction** — The SIM800L requires a stable 3.7–4.2 V supply capable of 2 A peak. If the supply droops during GPRS TX (peak ~1.5 A), the module resets and emits a `"Call Ready"` URC mid-transaction. The firmware detects this in all AT response loops, sets `g_moduleRebooted`, aborts the HTTP transaction, waits 20 s, then retries `AT+CPIN?` up to 6 times before reconnecting. Long-term fix: add a 1000 µF 10 V bulk capacitor close to the SIM800L VCC pin.
 
 **SIM800L HTTPS on older firmware** — `AT+HTTPSSL=1` requires SIM800L firmware ≥ R14.18. Check with `AT+GSV`. If your module does not support it, use an HTTP-only endpoint (change `FIREBASE_HOST` to `http://`) or upgrade to a SIM7000/A7670 module with native TLS.
 
@@ -779,4 +844,4 @@ Current version: **v0.3.0** — 2026-04-15 — Cloud log panel + dashboard data 
 
 ---
 
-*Last updated: April 2026 — Status: Active Development — Platforms: Linux, macOS, Windows*
+*Last updated: April 2026 — v0.4.0 — Status: Active Development — Platforms: Linux, macOS, Windows*
