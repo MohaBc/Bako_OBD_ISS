@@ -2,7 +2,7 @@
  * ESP32 BMS Cloud Publisher
  * =========================
  * Reads O'CELL IFS60.8-500 BMS CAN frames via MCP2515 (250 kbps),
- * decodes SAE J1939 data, and POSTs a live JSON snapshot to a Railway
+ * decodes SAE J1939 data, and POSTs a live JSON snapshot to a VPS
  * backend every PUBLISH_INTERVAL ms via SIM800L GPRS.
  *
  * Uses the SIM800L AT+HTTP* service over plain HTTP (no SSL).
@@ -30,13 +30,15 @@
  *
  * Config — edit secrets.h
  * ────────────────────────
- *   RAILWAY_URL  → http://<your-app>.up.railway.app/api/ingest
- *   API_KEY      → must match BMS_API_KEY env var on Railway
+ *   VPS_HOST     → IP or hostname of the VPS  (e.g. "203.0.113.42")
+ *   VPS_PORT     → port the server listens on (default "8765")
+ *   VPS_PATH     → ingest endpoint            (default "/api/ingest")
+ *   VPS_API_KEY  → must match BMS_API_KEY env var on the VPS
  *   APN          → your SIM carrier APN  (e.g. "internet", "iam", "maroctel")
  *
  * Cloud endpoint
  * ──────────────
- *   POST  RAILWAY_URL          ← bearer: X-Api-Key header
+ *   POST  http://VPS_HOST:VPS_PORT/VPS_PATH   ← bearer: X-Api-Key header
  */
 
 #include <Arduino.h>
@@ -263,95 +265,123 @@ void decodeFrame(uint32_t can_id, uint8_t len, uint8_t* data) {
     }
 }
 
-// ─── JSON builder ─────────────────────────────────────────────────────────────
+// ─── JSON builder — nested schema ─────────────────────────────────────────────
 String buildJSON(const char* timestamp) {
     JsonDocument doc;
 
-    doc["connected"]    = true;
-    doc["source"]       = "esp32-sim800l";
-    doc["device_id"]    = DEVICE_ID;
-    doc["frame_count"]  = bms.frame_count;
-
+    // ── Top-level metadata ─────────────────────────────────────────────────────
+    doc["device_id"]   = DEVICE_ID;
     if (strlen(timestamp) > 0)
         doc["timestamp"] = timestamp;
     else
         doc["uptime_ms"] = millis();
+    doc["source"]      = "esp32-sim800l";
+    doc["connected"]   = true;
+    doc["frame_count"] = bms.frame_count;
+    doc["fault_level"] = (int)bms.fault_level;
+    doc["error_code"]  = (int)bms.error_code;
 
-    // ── SOC ────────────────────────────────────────────────────────────────────
+    // ── solar (stub — sensor group reserved for future hardware) ──────────────
+    JsonObject solar       = doc["solar"].to<JsonObject>();
+    JsonObject solarPre    = solar["pre_mppt"].to<JsonObject>();
+    solarPre["voltage_v"]  = nullptr;
+    solarPre["current_a"]  = nullptr;
+    JsonObject solarPost   = solar["post_mppt"].to<JsonObject>();
+    solarPost["current_a"] = nullptr;
+
+    // ── dc_dc (stub) ───────────────────────────────────────────────────────────
+    JsonObject dcdc     = doc["dc_dc"].to<JsonObject>();
+    JsonObject dc64     = dcdc["output_64v"].to<JsonObject>();
+    dc64["voltage_v"]   = nullptr;
+    JsonObject dc12     = dcdc["output_12v"].to<JsonObject>();
+    dc12["voltage_v"]   = nullptr;
+
+    // ── battery ───────────────────────────────────────────────────────────────
+    JsonObject battery = doc["battery"].to<JsonObject>();
+
+    float pack_v = bms.pack_v_bms > 0 ? bms.pack_v_bms : bms.pack_v;
+    battery["pack_v"]         = roundf(pack_v * 10.0f) / 10.0f;
+    battery["pack_current_a"] = roundf(bms.pack_current * 10.0f) / 10.0f;
+
     if (bms.soc >= 0)
-        doc["soc"]      = roundf(bms.soc * 10.0f) / 10.0f;     // voltage-derived
+        battery["soc"]     = roundf(bms.soc * 10.0f) / 10.0f;
     if (bms.soc_bms <= 100)
-        doc["soc_bms"]  = (int)bms.soc_bms;                     // BMS coulomb counter
+        battery["soc_bms"] = (int)bms.soc_bms;
 
-    // ── Pack voltage & current ─────────────────────────────────────────────────
-    if (bms.pack_v_bms > 0)
-        doc["pack_v"]   = roundf(bms.pack_v_bms * 10.0f) / 10.0f;  // direct BMS reading
-    else if (bms.pack_v > 0)
-        doc["pack_v"]   = roundf(bms.pack_v * 10.0f) / 10.0f;      // cell-sum fallback
-    doc["pack_current_a"] = roundf(bms.pack_current * 10.0f) / 10.0f; // + discharge / − charge
+    battery["max_disch_a"]    = bms.max_disch_a > 0 ? bms.max_disch_a : (float)0;
+    battery["cell_count"]     = (int)bms.valid_cells;
+    battery["cell_avg_mv"]    = (int)bms.cell_avg;
+    battery["cell_min_mv"]    = (bms.cell_min < 0xFFFF) ? (int)bms.cell_min : 0;
+    battery["cell_max_mv"]    = (int)bms.cell_max;
+    battery["cell_spread_mv"] = (bms.valid_cells > 1)
+                                ? (int)(bms.cell_max - bms.cell_min) : 0;
 
-    // ── Cell stats ─────────────────────────────────────────────────────────────
-    doc["cell_count"]     = (int)bms.valid_cells;
-    doc["cell_max_mv"]    = (int)bms.cell_max;
-    doc["cell_min_mv"]    = (bms.cell_min < 0xFFFF) ? (int)bms.cell_min : 0;
-    doc["cell_avg_mv"]    = (int)bms.cell_avg;
-    if (bms.valid_cells > 1)
-        doc["cell_spread_mv"] = (int)(bms.cell_max - bms.cell_min);
-
-    // ── Individual cells ───────────────────────────────────────────────────────
-    if (bms.valid_cells > 0) {
-        JsonObject cells = doc["cells"].to<JsonObject>();
-        for (int i = 0; i < bms.cell_count; i++) {
-            if (!bms.cell_mv[i]) continue;
-            JsonObject c = cells[String(i + 1)].to<JsonObject>();
+    // cells: 1-based array — index 0 is null, indices 1-19 are cell objects
+    JsonArray cells = battery["cells"].to<JsonArray>();
+    cells.add(nullptr);
+    for (int i = 0; i < 19; i++) {
+        if (bms.cell_mv[i] == 0) {
+            cells.add(nullptr);
+        } else {
+            JsonObject c = cells.add<JsonObject>();
             c["mv"]     = bms.cell_mv[i];
             c["status"] = cellStatus(bms.cell_mv[i]);
         }
     }
 
-    // ── Temperatures ───────────────────────────────────────────────────────────
+    // charger request
+    JsonObject charger      = battery["charger"].to<JsonObject>();
+    charger["max_charge_v"] = roundf(bms.charge_max_v * 10.0f) / 10.0f;
+    charger["max_charge_a"] = roundf(bms.charge_max_a * 10.0f) / 10.0f;
+    charger["start_signal"] = bms.charger_start;
+
+    // status bit-field
+    JsonObject st            = battery["status"].to<JsonObject>();
+    st["charge_cable"]       = (bool)(bms.status_flags & 0x01);
+    st["charging"]           = (bool)(bms.status_flags & 0x02);
+    st["discharging"]        = (bool)(bms.status_flags & 0x04);
+    st["ready"]              = (bool)(bms.status_flags & 0x08);
+    st["disch_contactor"]    = (bool)(bms.status_flags & 0x10);
+    st["charge_contactor"]   = (bool)(bms.status_flags & 0x20);
+
+    // ── temperatures ──────────────────────────────────────────────────────────
+    JsonObject temperatures  = doc["temperatures"].to<JsonObject>();
+    temperatures["motor_c"]  = nullptr;
+    temperatures["mppt_c"]   = nullptr;
+    temperatures["cabin_c"]  = nullptr;
+
     if (bms.temp_count > 0) {
-        JsonObject temps = doc["temps"].to<JsonObject>();
         float tsum = 0.0f;
-        for (int i = 0; i < bms.temp_count; i++) {
-            temps[String(i + 1)] = roundf(bms.temp_c[i] * 10.0f) / 10.0f;
-            tsum += bms.temp_c[i];
-        }
-        doc["avg_temp"] = roundf(tsum / bms.temp_count * 10.0f) / 10.0f;
+        for (int i = 0; i < bms.temp_count; i++) tsum += bms.temp_c[i];
+        temperatures["battery_avg_c"] = roundf(tsum / bms.temp_count * 10.0f) / 10.0f;
+    } else {
+        temperatures["battery_avg_c"] = nullptr;
     }
-    if (bms.temp_max_c > -99.0f) doc["temp_max_c"] = bms.temp_max_c;
-    if (bms.temp_min_c > -99.0f) doc["temp_min_c"] = bms.temp_min_c;
-    if (bms.max_disch_a > 0)     doc["max_disch_a"] = bms.max_disch_a;
+    if (bms.temp_min_c > -99.0f) temperatures["battery_min_c"] = bms.temp_min_c;
+    else temperatures["battery_min_c"] = nullptr;
+    if (bms.temp_max_c > -99.0f) temperatures["battery_max_c"] = bms.temp_max_c;
+    else temperatures["battery_max_c"] = nullptr;
 
-    // ── Fault / status flags ───────────────────────────────────────────────────
-    doc["fault_level"] = (int)bms.fault_level;
-    doc["error_code"]  = (int)bms.error_code;
-    if (bms.error_code != 0)
-        doc["fault_name"] = faultCodeName(bms.error_code);   // human-readable name
-    JsonObject st = doc["status"].to<JsonObject>();
-    st["charge_cable"]     = (bool)(bms.status_flags & 0x01);
-    st["charging"]         = (bool)(bms.status_flags & 0x02);
-    st["discharging"]      = (bool)(bms.status_flags & 0x04);
-    st["ready"]            = (bool)(bms.status_flags & 0x08);
-    st["disch_contactor"]  = (bool)(bms.status_flags & 0x10);
-    st["charge_contactor"] = (bool)(bms.status_flags & 0x20);
-
-    // ── Charging request (0x18FFE5F4) ─────────────────────────────────────────
-    if (bms.charge_max_v > 0) {
-        JsonObject ch = doc["charger"].to<JsonObject>();
-        ch["max_charge_v"]  = roundf(bms.charge_max_v * 10.0f) / 10.0f;   // V
-        ch["max_charge_a"]  = roundf(bms.charge_max_a * 10.0f) / 10.0f;   // A
-        ch["start_signal"]  = bms.charger_start;   // true = BMS wants charger ON
-        if (bms.charge_prot != 0)
-            ch["prot_flags"] = (int)bms.charge_prot;
+    // battery_cells: 1-based array — index 0 null, indices 1-4 probe readings
+    JsonArray tempCells = temperatures["battery_cells"].to<JsonArray>();
+    tempCells.add(nullptr);
+    for (int i = 0; i < 4; i++) {
+        if (i < bms.temp_count)
+            tempCells.add(roundf(bms.temp_c[i] * 10.0f) / 10.0f);
+        else
+            tempCells.add(nullptr);
     }
+
+    // ── vehicle (stub) ────────────────────────────────────────────────────────
+    JsonObject vehicle   = doc["vehicle"].to<JsonObject>();
+    vehicle["handbrake"] = nullptr;
 
     String out;
     serializeJson(doc, out);
     return out;
 }
 
-// ─── Railway cloud publish (POST /api/ingest) ─────────────────────────────────
+// ─── VPS cloud publish (POST /api/ingest) ────────────────────────────────────
 bool publishToCloud() {
     char timestamp[32] = "";
     getNetworkTime(timestamp, sizeof(timestamp));
@@ -359,7 +389,11 @@ bool publishToCloud() {
     String body = buildJSON(timestamp);
     Serial.printf("[JSON] %s\n", body.c_str());
 
-    return httpPost(RAILWAY_URL, body.c_str(), body.length());
+    // Build full URL: http://VPS_HOST:VPS_PORT/VPS_PATH
+    char url[256];
+    snprintf(url, sizeof(url), "http://%s:%s%s", VPS_HOST, VPS_PORT, VPS_PATH);
+
+    return httpPost(url, body.c_str(), body.length());
 }
 
 // ─── SIM800L HTTP service — PUT ────────────────────────────────────────────────
@@ -380,12 +414,12 @@ bool httpRequest(const char* method, int methodId,
     sendAT(urlCmd, 1000);
 
     sendAT("AT+HTTPPARA=\"CONTENT\",\"application/json\"", 1000);
-    // Plain HTTP — no SSL needed for Railway plain-HTTP endpoint.
+    // Plain HTTP — no SSL.
     // SIM800L AT+HTTPSSL=0 is the default; explicitly clear any leftover state.
     sendAT("AT+HTTPSSL=0", 500);
     // Add API key as a custom request header
     char hdrCmd[128];
-    snprintf(hdrCmd, sizeof(hdrCmd), "AT+HTTPPARA=\"USERDATA\",\"X-Api-Key: %s\\r\\n\"", API_KEY);
+    snprintf(hdrCmd, sizeof(hdrCmd), "AT+HTTPPARA=\"USERDATA\",\"X-Api-Key: %s\\r\\n\"", VPS_API_KEY);
     sendAT(hdrCmd, 500);
 
     // Upload body
@@ -656,7 +690,7 @@ void setup() {
     delay(3000);
 
     Serial.println(F("\n========================================"));
-    Serial.println(F("   ESP32 BMS Cloud Publisher (Railway)"));
+    Serial.println(F("   ESP32 BMS Cloud Publisher (VPS)"));
     Serial.println(F("========================================\n"));
 
     // ── MCP2515 CAN ──────────────────────────────────────────────────────────

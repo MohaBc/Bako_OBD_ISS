@@ -163,6 +163,11 @@
       box-shadow: 0 0 6px var(--red)
     }
 
+    .dot.wait {
+      background: var(--yellow);
+      box-shadow: 0 0 6px var(--yellow)
+    }
+
     @keyframes blink {
 
       0%,
@@ -1378,7 +1383,11 @@
     };
 
     function sampleTemperature(d) {
-      if (!d.temps || Object.keys(d.temps).length === 0) return;
+      const tempData = (d.temperatures || {});
+      const tempCells = tempData.battery_cells || [];
+      const tempObj = {};
+      tempCells.forEach((val, i) => { if (i > 0 && val !== null && val !== undefined) tempObj[i] = val; });
+      if (!Object.keys(tempObj).length) return;
       const now = Date.now();
       if (now - lastTempSample < TEMP_SAMPLE_INTERVAL) return;
       lastTempSample = now;
@@ -1388,8 +1397,8 @@
 
       tempHistory.push({
         t: elapsed,
-        temps: { ...d.temps },
-        avg: d.avg_temp
+        temps: tempObj,
+        avg: tempData.battery_avg_c
       });
     }
 
@@ -2021,18 +2030,21 @@
 
     // ── Main update ────────────────────────────────────────────────────────────
     function update(d) {
-      // Header
-      document.getElementById('frames-lbl').textContent = d.frame_count + ' frames';
-      document.getElementById('port-lbl').textContent = d.port || '—';
+      const batt   = d.battery      || {};
+      const tempData = d.temperatures || {};
+      const veh    = d.vehicle      || {};
 
-      const dot = document.getElementById('dot');
-      const lbl = document.getElementById('conn-lbl');
-      if (d.connected) { dot.className = 'dot live'; lbl.textContent = 'Live'; }
-      else { dot.className = 'dot err'; lbl.textContent = 'Reconnecting…'; }
+      // Header
+      document.getElementById('frames-lbl').textContent = (d.frame_count || 0) + ' frames';
+      document.getElementById('port-lbl').textContent = d.port || d.source || '—';
+
+      if (d.connected) setDot('live');
+      else setDot('wait');
 
       // SOC ring
-      if (d.soc != null) {
-        const pct = Math.max(0, Math.min(100, d.soc));
+      const soc = batt.soc;
+      if (soc != null) {
+        const pct = Math.max(0, Math.min(100, soc));
         const circ = 314.2;
         const ring = document.getElementById('ring');
         ring.style.strokeDashoffset = circ * (1 - pct / 100);
@@ -2044,46 +2056,48 @@
       }
 
       // Pack stats
-      setVal('pack-v', d.pack_v, 1, 'V');
-      setVal('disch-i', d.disch_i_lim, 1, 'A');
-      setVal('chg-i', d.chg_i_req, 1, 'A');
-      if (d.cell_count != null)
+      setVal('pack-v', batt.pack_v, 1, 'V');
+      setVal('disch-i', batt.max_disch_a, 1, 'A');
+      setVal('chg-i', (batt.charger || {}).max_charge_a, 1, 'A');
+      if (batt.cell_count != null)
         document.getElementById('cell-count-hdr').innerHTML =
-          `${d.cell_count}<span class="stat-unit"> cells</span>`;
+          `${batt.cell_count}<span class="stat-unit"> cells</span>`;
 
-      // SOC sub-values (BMS + coulomb)
-      const socBmsEl   = document.getElementById('soc-bms');
-      const socCoulEl  = document.getElementById('soc-coul');
-      if (socBmsEl  && d.soc_bms   != null) socBmsEl.textContent  = d.soc_bms.toFixed(1)  + '%';
-      if (socCoulEl && d.soc_coulomb != null) socCoulEl.textContent = d.soc_coulomb.toFixed(1) + '%';
+      // SOC sub-values (BMS)
+      const socBmsEl  = document.getElementById('soc-bms');
+      const socCoulEl = document.getElementById('soc-coul');
+      if (socBmsEl  && batt.soc_bms  != null) socBmsEl.textContent  = Number(batt.soc_bms).toFixed(1) + '%';
+      if (socCoulEl) socCoulEl.textContent = '—';
 
       // Cell summary
-      if (d.cell_min_mv) {
+      if (batt.cell_min_mv) {
         const mn = document.getElementById('c-min');
-        mn.textContent = d.cell_min_mv + ' mV';
-        mn.style.color = cellColor(d.cell_min_mv);
+        mn.textContent = batt.cell_min_mv + ' mV';
+        mn.style.color = cellColor(batt.cell_min_mv);
       }
-      if (d.cell_max_mv) {
+      if (batt.cell_max_mv) {
         const mx = document.getElementById('c-max');
-        mx.textContent = d.cell_max_mv + ' mV';
-        mx.style.color = cellColor(d.cell_max_mv);
+        mx.textContent = batt.cell_max_mv + ' mV';
+        mx.style.color = cellColor(batt.cell_max_mv);
       }
-      if (d.cell_spread_mv != null) {
+      if (batt.cell_spread_mv != null) {
         const sp = document.getElementById('c-spread');
-        sp.textContent = (d.cell_spread_mv / 1000).toFixed(3) + ' V';
-        sp.style.color = d.cell_spread_mv < 20 ? 'var(--green)' :
-          d.cell_spread_mv < 50 ? 'var(--yellow)' : 'var(--red)';
+        sp.textContent = (batt.cell_spread_mv / 1000).toFixed(3) + ' V';
+        sp.style.color = batt.cell_spread_mv < 20 ? 'var(--green)' :
+          batt.cell_spread_mv < 50 ? 'var(--yellow)' : 'var(--red)';
       }
-      if (d.cell_avg_mv) document.getElementById('c-avg').textContent = d.cell_avg_mv + ' mV';
+      if (batt.cell_avg_mv) document.getElementById('c-avg').textContent = batt.cell_avg_mv + ' mV';
 
-      // Cell cards
-      const cells = d.cells || {};
-      const keys = Object.keys(cells).map(Number).sort((a, b) => a - b);
+      // Cell cards — cells is 1-based array: index 0=null, 1-19={mv,status}|null
+      const cellsArr = batt.cells || [];
+      const keys = [];
+      cellsArr.forEach((entry, i) => { if (i > 0 && entry) keys.push(i); });
       if (keys.length && JSON.stringify(keys) !== JSON.stringify(cellCardKeys)) {
         buildCellGrid(keys);
       }
       keys.forEach(k => {
-        const info = cells[k];
+        const info = cellsArr[k];
+        if (!info) return;
         const mv = info.mv;
         const vEl = document.getElementById(`cv-${k}`);
         const bEl = document.getElementById(`cb-${k}`);
@@ -2095,9 +2109,11 @@
         }
       });
 
-      // BMS Temperatures
-      const temps = d.temps || {};
-      const tKeys = Object.keys(temps).map(Number).sort((a, b) => a - b);
+      // BMS Temperatures — battery_cells is 1-based array: index 0=null, 1-4=°C|null
+      const tempCells = tempData.battery_cells || [];
+      const tKeys = [];
+      tempCells.forEach((val, i) => { if (i > 0 && val !== null && val !== undefined) tKeys.push(i); });
+      const avgTemp = tempData.battery_avg_c;
       if (tKeys.length) {
         const tl = document.getElementById('temp-list');
         const existing = tl.querySelectorAll('.temp-row');
@@ -2115,7 +2131,7 @@
           <div class="temp-track"><div class="temp-fill" id="tf-${k}"></div></div>`;
             tl.appendChild(row);
           });
-          if (d.avg_temp != null) {
+          if (avgTemp != null) {
             const avg = document.createElement('div');
             avg.className = 'temp-avg';
             avg.innerHTML = `<span class="temp-avg-lbl">AVG</span>
@@ -2124,7 +2140,7 @@
           }
         }
         tKeys.forEach(k => {
-          const t = temps[k];
+          const t = tempCells[k];
           const col = tempColor(t);
           const pct = Math.max(4, Math.min(100, ((t + 10) / 70) * 100));
           const tv = document.getElementById(`tv-${k}`);
@@ -2133,14 +2149,21 @@
           if (tf) { tf.style.width = pct + '%'; tf.style.background = col; tf.style.boxShadow = `0 0 5px ${col}66`; }
         });
         const avgEl = document.getElementById('tv-avg');
-        if (avgEl && d.avg_temp != null) {
-          avgEl.textContent = (d.avg_temp >= 0 ? '+' : '') + d.avg_temp.toFixed(1) + '°C';
-          avgEl.style.color = tempColor(d.avg_temp);
+        if (avgEl && avgTemp != null) {
+          avgEl.textContent = (avgTemp >= 0 ? '+' : '') + avgTemp.toFixed(1) + '°C';
+          avgEl.style.color = tempColor(avgTemp);
         }
       }
 
-      // Extra sensors
-      updateExt(d.ext, d.ext_thresh);
+      // Vehicle handbrake
+      const hb = document.getElementById('hb-badge');
+      if (hb && veh.handbrake !== null && veh.handbrake !== undefined) {
+        if (veh.handbrake === 1) {
+          hb.className = 'hb-badge engaged'; hb.textContent = '⬤ ENGAGED';
+        } else {
+          hb.className = 'hb-badge released'; hb.textContent = '⬤ RELEASED';
+        }
+      }
 
       // Sample temperature for chart
       sampleTemperature(d);
@@ -2158,22 +2181,36 @@
     }
 
     // ── WebSocket ─────────────────────────────────────────────────────────────
-    const overlay = document.getElementById('overlay');
-    let ws, retryMs = 1000;
+    const overlay    = document.getElementById('overlay');
+    const _dot       = document.getElementById('dot');
+    const _connLbl   = document.getElementById('conn-lbl');
+    let ws;
     let currentSource = 'serial';
 
-    function wsPath() {
-      return currentSource === 'cloud' ? '/ws/cloud' : '/ws';
+    function wsUrl() {
+      return currentSource === 'cloud'
+        ? `ws://${location.host}/ws/cloud`
+        : `ws://${location.host}/ws`;
+    }
+
+    function setDot(state) {
+      // state: 'live' | 'wait' | 'err'
+      const labels = { live: 'Live', wait: 'Waiting…', err: 'Disconnected' };
+      _dot.className = 'dot ' + state;
+      _connLbl.textContent = labels[state] || state;
     }
 
     function connect() {
-      ws = new WebSocket(`ws://${location.host}${wsPath()}`);
-      ws.onopen = () => { overlay.classList.add('hidden'); retryMs = 1000; };
+      ws = new WebSocket(wsUrl());
+      ws.onopen = () => {
+        overlay.classList.add('hidden');
+        setDot('wait');
+      };
       ws.onmessage = e => { try { update(JSON.parse(e.data)); } catch (err) { } };
       ws.onclose = ws.onerror = () => {
         overlay.classList.remove('hidden');
-        setTimeout(connect, retryMs);
-        retryMs = Math.min(retryMs * 1.5, 8000);
+        setDot('err');
+        setTimeout(connect, 5000);
       };
     }
 
@@ -2183,7 +2220,6 @@
       document.getElementById('btn-serial').classList.toggle('active', src === 'serial');
       document.getElementById('btn-cloud').classList.toggle('active',  src === 'cloud');
       if (ws) { ws.onclose = ws.onerror = null; ws.close(); }
-      retryMs = 1000;
       connect();
     }
 

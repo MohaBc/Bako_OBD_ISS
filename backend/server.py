@@ -61,7 +61,6 @@ Battery capacity: 44.7 Ah actual / 50.0 Ah rated -> SOH 89.4%
 """
 
 import re, sys, time, asyncio, argparse, threading, json, sqlite3, os
-import urllib.request, urllib.error
 from collections import deque
 from datetime import datetime
 from pathlib import Path
@@ -84,12 +83,6 @@ _HERE          = Path(__file__).parent
 _FRONTEND      = _HERE.parent / "frontend" / "index.html"
 _DB_PATH       = _HERE / "bms_cloud.db"
 _API_KEY       = os.environ.get("BMS_API_KEY", "bako-bms-2024")
-
-# Firebase — optional.  Set these env vars to let /ws/cloud pull from Firebase:
-#   FIREBASE_URL    https://<project>-default-rtdb.firebaseio.com
-#   FIREBASE_TOKEN  your database secret / legacy token
-_FIREBASE_URL   = os.environ.get("FIREBASE_URL", "").rstrip("/")
-_FIREBASE_TOKEN = os.environ.get("FIREBASE_TOKEN", "")
 
 
 # ---------------------------------------------------------------------------
@@ -459,39 +452,6 @@ def _db_fetch(limit: int) -> list:
     return [{"ts": r[0], "device_id": r[1], **json.loads(r[2])} for r in rows]
 
 
-def _firebase_fetch() -> dict | None:
-    """Pull the live BMS snapshot from Firebase REST API (blocking)."""
-    if not _FIREBASE_URL:
-        return None
-    url = f"{_FIREBASE_URL}/bms/live.json"
-    if _FIREBASE_TOKEN:
-        url += f"?auth={_FIREBASE_TOKEN}"
-    try:
-        with urllib.request.urlopen(url, timeout=4) as resp:
-            data = json.loads(resp.read())
-            if not isinstance(data, dict):
-                return None
-            # Normalise cells: ESP32 firmware may push a 1-based array
-            # [null, {mv,status}, ...] → {"1": {mv,status}, ...}
-            raw_cells = data.get("cells")
-            if isinstance(raw_cells, list):
-                data["cells"] = {
-                    str(i): v
-                    for i, v in enumerate(raw_cells)
-                    if v is not None and isinstance(v, dict)
-                }
-            data["source"] = "firebase"
-            cells = len(data.get("cells") or {})
-            soc   = data.get("soc")
-            _clog("POLL", f"Firebase OK — {cells} cells, SOC {soc}%")
-            return data
-    except urllib.error.HTTPError as e:
-        _clog("ERR", f"Firebase HTTP {e.code}: {e.reason}")
-    except Exception as e:
-        _clog("ERR", f"Firebase fetch failed: {e}")
-    return None
-
-
 # ---------------------------------------------------------------------------
 # Routes — serial dashboard
 # ---------------------------------------------------------------------------
@@ -532,9 +492,10 @@ async def api_ingest(request: Request, x_api_key: str = Header(None)):
     data = await request.json()
     ts        = data.get("timestamp") or datetime.now().isoformat()
     device_id = data.get("device_id", "esp32")
-    cells     = len(data.get("cells") or {})
-    soc       = data.get("soc")
-    pack_v    = data.get("pack_v")
+    batt      = data.get("battery", {})
+    cells     = batt.get("cell_count", "?")
+    soc       = batt.get("soc", "?")
+    pack_v    = batt.get("pack_v", "?")
     src       = request.client.host
 
     loop = asyncio.get_event_loop()
@@ -576,23 +537,18 @@ async def api_history(limit: int = 100):
 async def ws_cloud(ws: WebSocket):
     """
     Cloud stream — 2 Hz push.
-    Priority: Firebase Realtime DB  →  in-memory state (from /api/ingest)
-    Set FIREBASE_URL + FIREBASE_TOKEN env vars to enable Firebase mode.
+    Serves the latest in-memory snapshot updated by POST /api/ingest.
+    Sends {"connected": false} if no ESP32 data has arrived yet.
     """
     await ws.accept()
     client = getattr(ws.client, "host", "?")
     _clog("WS", f"Browser connected to /ws/cloud from {client}")
-    loop = asyncio.get_event_loop()
     try:
         while True:
-            if _FIREBASE_URL:
-                fb = await loop.run_in_executor(None, _firebase_fetch)
-                state = fb if fb else {"connected": False, "source": "firebase"}
-            else:
-                with _cloud_lock:
-                    state = dict(_cloud_state)
+            with _cloud_lock:
+                state = dict(_cloud_state)
             await ws.send_json(state)
-            await asyncio.sleep(2.0)   # Firebase REST is rate-limited; 2 s is safe
+            await asyncio.sleep(2.0)
     except (WebSocketDisconnect, Exception):
         _clog("WS", f"Browser disconnected from /ws/cloud ({client})")
         pass
@@ -609,7 +565,7 @@ def main():
     parser.add_argument("--host",           default="0.0.0.0")
     parser.add_argument("--web-port",       type=int, default=8765, dest="web_port")
     parser.add_argument("--cloud-only",     action="store_true",
-                        help="Start without serial (cloud-ingest only mode)")
+                        help="Start without opening a serial port (cloud-ingest only)")
     args = parser.parse_args()
 
     top_v = round(BMSState.SOC_CAR_TOP_MV * 19 / 1000, 2)

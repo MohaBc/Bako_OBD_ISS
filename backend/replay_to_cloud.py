@@ -1,22 +1,20 @@
 #!/usr/bin/env python3
 """
-BMS Log → Firebase → Interface
-================================
+BMS Log → VPS Cloud Pipeline
+=============================
 Reads a raw CAN log file, decodes every BMS frame (same logic as the ESP32
-firmware), builds a complete JSON snapshot, and PUTs it to Firebase Realtime
-Database — exactly what the real ESP32 does via SIM800L.
-
-The local dashboard server (server.py) polls Firebase and pushes the data
-to the browser via /ws/cloud.
+firmware), builds a complete JSON snapshot, and POSTs it to the VPS backend
+at POST /api/ingest — exactly what the real ESP32 does via SIM800L.
 
 Pipeline:
-    log file → decode frames → JSON → Firebase /bms/live → server.py → browser
+    log file → decode frames → JSON → POST /api/ingest → server.py → browser
 
 Usage:
-    python replay_to_cloud.py                     # default log, default Firebase
+    python replay_to_cloud.py                     # default log, localhost
     python replay_to_cloud.py --speed 5            # 5× real-time
     python replay_to_cloud.py --interval 5000      # POST every 5 s of log time
     python replay_to_cloud.py --loop               # loop file forever
+    python replay_to_cloud.py --host 1.2.3.4 --port 8765
 """
 
 import re, sys, time, json, argparse
@@ -24,10 +22,12 @@ import urllib.request, urllib.error
 from datetime import datetime
 from pathlib import Path
 
-# ─── Firebase credentials (from secrets.h) ───────────────────────────────────
-FIREBASE_HOST  = "https://esp32-connection-test-default-rtdb.firebaseio.com"
-FIREBASE_AUTH  = "YXfWfAQ6LkMK7fDqU2RQvuBPpqwfFeBsFyt5Ybhgd"
-DEVICE_ID      = "esp32-bms-001"
+# ─── VPS credentials ─────────────────────────────────────────────────────────
+VPS_HOST   = "localhost"
+VPS_PORT   = 8765
+VPS_PATH   = "/api/ingest"
+VPS_API_KEY = "bako-bms-2024"
+DEVICE_ID  = "esp32-bms-001"
 
 # ─── CAN decode constants (mirrors firmware) ─────────────────────────────────
 CELL_UV     = 2500
@@ -108,7 +108,6 @@ class BMSDecoder:
         self.charge_max_v = 0.0
         self.charge_max_a = 0.0
         self.charger_start = False
-        self.charge_prot  = 0
 
         self.frame_count  = 0
 
@@ -119,15 +118,14 @@ class BMSDecoder:
 
         # ── 0x18C8-CC28F4  Cell voltages ────────────────────────────────────
         if 0xC8 <= func <= 0xCC and dlc == 8:
-            base = (func - 0xC8) * 4  # 0-indexed base
+            base = (func - 0xC8) * 4
             for i in range(4):
                 mv = u16be(data, i * 2)
                 if mv != 0 and (base + i) < 19:
-                    self.cell_mv[base + i + 1] = mv          # 1-indexed key
+                    self.cell_mv[base + i + 1] = mv
                     if base + i + 1 > self.cell_count:
                         self.cell_count = base + i + 1
 
-            # Recompute stats
             valid = 0; total = 0
             mx = 0; mn = 0xFFFF
             for mv in self.cell_mv.values():
@@ -165,12 +163,9 @@ class BMSDecoder:
             self.charge_max_v  = round(u16le(data, 0) * 0.1, 1)
             self.charge_max_a  = round(u16le(data, 2) * 0.1, 1)
             self.charger_start = not bool(data[4] & 0x01)
-            if dlc >= 6:
-                self.charge_prot = data[5]
 
         # ── 0x18FE28F4  BMS Basic Message 2 ─────────────────────────────────
         elif func == 0xFE and sub == 0x28 and dlc >= 8:
-            # Only use FE28 cell_max/min when individual cell frames not seen yet
             if self.cell_count == 0:
                 self.cell_max = u16le(data, 0)
                 self.cell_min = u16le(data, 2)
@@ -185,110 +180,122 @@ class BMSDecoder:
             self.max_disch_a = round(u16le(data, 6) * 0.1, 1)
 
     def build_json(self, timestamp: str = "") -> dict:
-        """Build a complete JSON snapshot — identical structure to firmware buildJSON()."""
+        """Build nested JSON snapshot — mirrors firmware buildJSON() schema."""
 
-        # Pack voltage: prefer direct BMS reading
-        pack_v = self.pack_v_bms if self.pack_v_bms > 0 else round(self.pack_v, 2)
-
-        # Cell stats: prefer live computed values
+        pack_v   = self.pack_v_bms if self.pack_v_bms > 0 else round(self.pack_v, 2)
         cell_max = self.cell_max if self.cell_max > 0 else None
         cell_min = self.cell_min if self.cell_min < 0xFFFF else None
 
-        payload = {
-            "connected":       True,
-            "source":          "replay",
-            "device_id":       DEVICE_ID,
-            "frame_count":     self.frame_count,
-            "timestamp":       timestamp or datetime.now().isoformat(),
+        # cells array: index 0 = null, indices 1-19 = {mv, status} or null
+        cells_arr = [None]
+        for i in range(1, 20):
+            mv = self.cell_mv.get(i)
+            if mv:
+                cells_arr.append({"mv": mv, "status": cell_status(mv)})
+            else:
+                cells_arr.append(None)
 
-            # SOC
-            "soc":             self.soc if self.soc >= 0 else None,
-            "soc_bms":         int(self.soc_bms) if self.soc_bms <= 100 else None,
+        # battery_cells array: index 0 = null, indices 1-4 = probe readings or null
+        temp_arr = [None]
+        for i in range(1, 5):
+            t = self.temp_c.get(i)
+            temp_arr.append(round(t, 1) if t is not None else None)
 
-            # Pack
-            "pack_v":          pack_v,
-            "pack_current_a":  self.pack_current,
+        avg_temp = None
+        if self.temp_c:
+            avg_temp = round(sum(self.temp_c.values()) / len(self.temp_c), 1)
 
-            # Cell statistics
-            "cell_count":      self.valid_cells,
-            "cell_max_mv":     cell_max,
-            "cell_min_mv":     cell_min,
-            "cell_avg_mv":     self.cell_avg if self.cell_avg > 0 else None,
-            "cell_spread_mv":  (cell_max - cell_min) if (cell_max and cell_min) else None,
-
-            # Individual cell voltages and status
-            "cells": {
-                str(k): {"mv": v, "status": cell_status(v)}
-                for k, v in sorted(self.cell_mv.items())
-            } if self.cell_mv else None,
-
-            # Temperatures (from 0x18B428F4)
-            "temps": {
-                str(k): round(v, 1) for k, v in sorted(self.temp_c.items())
-            } if self.temp_c else None,
-            "avg_temp": round(
-                sum(self.temp_c.values()) / len(self.temp_c), 1
-            ) if self.temp_c else None,
-            "temp_max_c": self.temp_max_c,   # from 0x18FE28F4
-            "temp_min_c": self.temp_min_c,
-
-            # Discharge limit (from 0x18FE28F4)
-            "max_disch_a": self.max_disch_a if self.max_disch_a > 0 else None,
-
-            # Fault info (from 0x18FF28F4 bytes 6-7)
+        return {
+            "device_id":   DEVICE_ID,
+            "timestamp":   timestamp or datetime.now().isoformat(),
+            "source":      "replay",
+            "connected":   True,
+            "frame_count": self.frame_count,
             "fault_level": int(self.fault_level),
             "error_code":  int(self.error_code),
-            "fault_name":  FAULT_NAMES.get(self.error_code, "unknown") if self.error_code else None,
 
-            # Status bit-field (from 0x18FF28F4 byte 0)
-            "status": {
-                "charge_cable":     bool(self.status_flags & 0x01),
-                "charging":         bool(self.status_flags & 0x02),
-                "discharging":      bool(self.status_flags & 0x04),
-                "ready":            bool(self.status_flags & 0x08),
-                "disch_contactor":  bool(self.status_flags & 0x10),
-                "charge_contactor": bool(self.status_flags & 0x20),
+            "solar": {
+                "pre_mppt":  {"voltage_v": None, "current_a": None},
+                "post_mppt": {"current_a": None},
+            },
+            "dc_dc": {
+                "output_64v": {"voltage_v": None},
+                "output_12v": {"voltage_v": None},
             },
 
-            # Charging request (from 0x18FFE5F4)
-            "charger": {
-                "max_charge_v":  self.charge_max_v,
-                "max_charge_a":  self.charge_max_a,
-                "start_signal":  self.charger_start,
-                "prot_flags":    self.charge_prot if self.charge_prot else None,
-            } if self.charge_max_v > 0 else None,
+            "battery": {
+                "pack_v":         pack_v,
+                "pack_current_a": self.pack_current,
+                "soc":            self.soc if self.soc >= 0 else None,
+                "soc_bms":        int(self.soc_bms) if self.soc_bms <= 100 else None,
+                "max_disch_a":    self.max_disch_a if self.max_disch_a > 0 else 0,
+                "cell_count":     self.valid_cells,
+                "cell_avg_mv":    self.cell_avg if self.cell_avg > 0 else None,
+                "cell_min_mv":    cell_min,
+                "cell_max_mv":    cell_max,
+                "cell_spread_mv": (cell_max - cell_min) if (cell_max and cell_min) else None,
+                "cells":          cells_arr,
+                "charger": {
+                    "max_charge_v": self.charge_max_v,
+                    "max_charge_a": self.charge_max_a,
+                    "start_signal": self.charger_start,
+                },
+                "status": {
+                    "charge_cable":     bool(self.status_flags & 0x01),
+                    "charging":         bool(self.status_flags & 0x02),
+                    "discharging":      bool(self.status_flags & 0x04),
+                    "ready":            bool(self.status_flags & 0x08),
+                    "disch_contactor":  bool(self.status_flags & 0x10),
+                    "charge_contactor": bool(self.status_flags & 0x20),
+                },
+            },
+
+            "temperatures": {
+                "motor_c":       None,
+                "mppt_c":        None,
+                "cabin_c":       None,
+                "battery_avg_c": avg_temp,
+                "battery_min_c": self.temp_min_c,
+                "battery_max_c": self.temp_max_c,
+                "battery_cells": temp_arr,
+            },
+
+            "vehicle": {"handbrake": None},
         }
-        return payload
 
 
-# ─── Firebase PUT ─────────────────────────────────────────────────────────────
+# ─── VPS POST ─────────────────────────────────────────────────────────────────
 
-def firebase_put(path: str, payload: dict) -> bool:
-    """PUT a JSON payload to Firebase Realtime Database."""
-    url  = f"{FIREBASE_HOST}{path}?auth={FIREBASE_AUTH}"
+def vps_post(payload: dict, host: str, port: int) -> bool:
+    """POST a JSON snapshot to the VPS /api/ingest endpoint."""
+    url  = f"http://{host}:{port}{VPS_PATH}"
     body = json.dumps(payload).encode()
     req  = urllib.request.Request(
         url, data=body,
-        headers={"Content-Type": "application/json"},
-        method="PUT",
+        headers={
+            "Content-Type": "application/json",
+            "X-Api-Key":    VPS_API_KEY,
+        },
+        method="POST",
     )
     try:
         with urllib.request.urlopen(req, timeout=10) as resp:
             resp.read()
             return True
     except urllib.error.HTTPError as e:
-        print(f"  [ERR] Firebase HTTP {e.code}: {e.reason}")
+        print(f"  [ERR] HTTP {e.code}: {e.reason}")
     except Exception as e:
-        print(f"  [ERR] Firebase PUT failed: {e}")
+        print(f"  [ERR] POST failed: {e}")
     return False
 
 
 # ─── Replay loop ──────────────────────────────────────────────────────────────
 
-def replay(log_path: str, speed: float, interval_ms: int, loop_forever: bool):
+def replay(log_path: str, speed: float, interval_ms: int, loop_forever: bool,
+           host: str, port: int):
 
     print(f"  Log      : {log_path}")
-    print(f"  Firebase : {FIREBASE_HOST}/bms/live")
+    print(f"  Endpoint : http://{host}:{port}{VPS_PATH}")
     print(f"  Speed    : {speed}×   interval: {interval_ms} ms log-time")
     print("-" * 55)
 
@@ -315,7 +322,6 @@ def replay(log_path: str, speed: float, interval_ms: int, loop_forever: bool):
         post_n = 0
 
         for ts, can_id, dlc, data in frames:
-            # Pace playback to real-time (scaled by speed)
             elapsed_log  = (ts - t0_log) / 1000.0 / speed
             elapsed_wall = time.time() - t0_wall
             sleep_s = elapsed_log - elapsed_wall
@@ -328,26 +334,24 @@ def replay(log_path: str, speed: float, interval_ms: int, loop_forever: bool):
                 post_n += 1
                 payload = dec.build_json(datetime.now().isoformat())
 
-                # Show summary of every field group
-                cells   = payload.get("cell_count", 0)
-                soc     = payload.get("soc")
-                pack    = payload.get("pack_v")
-                current = payload.get("pack_current_a")
-                temps   = len(payload.get("temps") or {})
+                batt    = payload.get("battery", {})
+                cells   = batt.get("cell_count", 0)
+                soc     = batt.get("soc")
+                pack    = batt.get("pack_v")
+                current = batt.get("pack_current_a")
+                temps   = payload.get("temperatures", {})
+                avg_t   = temps.get("battery_avg_c")
                 fault   = payload.get("fault_level")
-                flags   = payload.get("status", {})
-                charger = payload.get("charger")
+                ready   = batt.get("status", {}).get("ready")
 
-                ok = firebase_put("/bms/live.json", payload)
+                ok  = vps_post(payload, host, port)
                 tag = "OK  " if ok else "FAIL"
                 print(f"  [{tag}] #{post_n:02d}  "
                       f"cells={cells}  SOC={soc}%  pack={pack}V  I={current}A  "
-                      f"temps={temps}  fault={fault}  "
-                      f"ready={flags.get('ready')}  "
-                      f"charger={'yes' if charger else 'no'}")
+                      f"temp={avg_t}°C  fault={fault}  ready={ready}")
                 next_post_ms = ts + interval_ms
 
-        print(f"\n  Loop {loop_n} done — {post_n} snapshots sent to Firebase.")
+        print(f"\n  Loop {loop_n} done — {post_n} snapshots posted to VPS.")
         if not loop_forever:
             break
         print("  Restarting …\n")
@@ -365,7 +369,7 @@ DEFAULT_LOG = str(
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Replay BMS log → Firebase → dashboard interface"
+        description="Replay BMS CAN log → POST /api/ingest → dashboard"
     )
     parser.add_argument("--log",      "-l", default=DEFAULT_LOG,
                         help="Path to raw CAN log file")
@@ -375,16 +379,22 @@ def main():
                         help="Snapshot interval in log-time ms (default 5000)")
     parser.add_argument("--loop",          action="store_true",
                         help="Loop file forever")
+    parser.add_argument("--host",          default=VPS_HOST,
+                        help=f"VPS host (default {VPS_HOST})")
+    parser.add_argument("--port",     "-p", type=int, default=VPS_PORT,
+                        help=f"VPS port (default {VPS_PORT})")
     args = parser.parse_args()
 
     print("-" * 55)
-    print("  BMS Log → Firebase → Interface")
+    print("  BMS Log → VPS Cloud Pipeline")
     print("-" * 55)
     replay(
         log_path    = args.log,
         speed       = args.speed,
         interval_ms = args.interval,
         loop_forever= args.loop,
+        host        = args.host,
+        port        = args.port,
     )
 
 if __name__ == "__main__":

@@ -150,7 +150,9 @@ Table~\ref{tab:soc-cal} shows the four calibration sessions used to arrive at th
 
 \subsubsection{Cloud Publishing via SIM800L}
 
-At every 5-second publish interval, the firmware calls \texttt{buildJSON()} to serialize the current \texttt{BMSData} struct into a JSON string, then calls \texttt{httpPost()} to deliver it to the VPS backend via SIM800L GPRS.
+At every 5-second publish interval, the firmware calls \texttt{buildJSON()} to serialize the current \texttt{BMSData} struct into a nested JSON document using the ArduinoJson v7 library, then calls \texttt{httpPost()} to deliver it to the VPS backend via SIM800L GPRS.
+
+The payload uses a five-section nested schema: a top-level envelope wraps \texttt{battery}, \texttt{temperatures}, \texttt{solar}, \texttt{dc\_dc}, and \texttt{vehicle} sub-objects. Individual cell voltages are encoded as a 1-based JSON array (\texttt{cells[0] = null}, \texttt{cells[1]\ldots cells[19] = \{mv, status\}}). Temperature probes follow the same convention in \texttt{temperatures.battery\_cells}. Sensors not yet instrumented (solar, DC/DC, vehicle) appear as \texttt{null}-valued fields so the schema remains stable as additional sensors are commissioned.
 
 The HTTP transaction uses the SIM800L's native \textbf{AT+HTTP*} command set over plain HTTP (AT+HTTPSSL=0). The sequence is:
 

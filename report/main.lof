@@ -1,0 +1,4 @@
+\contentsline {figure}{\numberline {1}{\ignorespaces ESP32 embedded software layer diagram}}{5}{figure.caption.5}%
+\contentsline {figure}{\numberline {2}{\ignorespaces End-to-end cloud connectivity architecture}}{7}{figure.caption.6}%
+\contentsline {figure}{\numberline {3}{\ignorespaces Firmware main-loop execution model: CAN drain $\rightarrow $ publish every 5 s}}{14}{figure.caption.7}%
+\contentsline {figure}{\numberline {4}{\ignorespaces Complete data pipeline from CAN bus to browser}}{24}{figure.caption.13}%

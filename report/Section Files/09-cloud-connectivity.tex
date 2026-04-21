@@ -186,7 +186,7 @@ Table~\ref{tab:dashboard-panels} summarizes the information panels displayed by 
         \toprule
         \textbf{Panel} & \textbf{Contents} \\
         \midrule
-        SOC ring        & Animated circular gauge showing voltage-derived SOC. BMS coulomb-counter and secondary SOC values are displayed below. \\
+        SOC ring        & Animated circular gauge showing voltage-derived SOC (\texttt{battery.soc}). BMS coulomb-counter SOC (\texttt{battery.soc\_bms}) is displayed below. \\
         Pack KPIs       & Pack voltage, current, discharge limit, charge request, and cell count in a card grid. \\
         Cell grid       & All 19 cells — individual voltage bars color-coded by threshold (overvoltage / full / good / normal / low / undervoltage), with min/max/avg/spread statistics. \\
         Temperature     & Up to 4 temperature probe readings with color-coded bars and a rolling time-series chart. \\
@@ -261,61 +261,84 @@ The FastAPI backend exposes the following endpoints, summarized in Table~\ref{ta
 
 \subsubsection{Ingest Payload Schema}
 
-The JSON body sent by the ESP32 to \texttt{POST /api/ingest} contains the fields listed in Table~\ref{tab:json-schema}. All fields are optional in the sense that the server accepts partial payloads, but the firmware always sends a complete snapshot.
+The JSON body sent by the ESP32 to \texttt{POST /api/ingest} uses a \textbf{nested object structure} organized into five top-level sections. This design allows each subsystem (battery, thermal, solar, DC/DC, vehicle) to be extended independently without changing the ingest endpoint. Table~\ref{tab:json-schema-top} describes the top-level envelope, and Table~\ref{tab:json-schema-battery} expands the \texttt{battery} object.
 
 \begin{table}[h]
     \centering
-    \caption{ESP32 JSON Payload Fields}
-    \label{tab:json-schema}
+    \caption{ESP32 JSON Payload — Top-Level Envelope}
+    \label{tab:json-schema-top}
     \begin{tabular}{lll}
         \toprule
         \textbf{Field} & \textbf{Type} & \textbf{Description} \\
         \midrule
-        \texttt{connected}      & bool   & Always \texttt{true} when sent by the ESP32 \\
-        \texttt{source}         & string & Always \texttt{"esp32-sim800l"} \\
-        \texttt{device\_id}     & string & Configurable in \texttt{secrets.h} \\
-        \texttt{timestamp}      & string & Network time from \texttt{AT+CCLK?} \\
-        \texttt{frame\_count}   & int    & Cumulative CAN frames decoded since boot \\
-        \texttt{soc}            & float  & Voltage-derived SOC [\%] \\
-        \texttt{soc\_bms}       & int    & BMS coulomb-counter SOC [\%] \\
-        \texttt{pack\_v}        & float  & Pack voltage [V] \\
-        \texttt{pack\_current\_a} & float & Pack current [A], + = discharge, $-$ = charge \\
-        \texttt{cell\_count}    & int    & Number of non-zero cells decoded \\
-        \texttt{cell\_avg\_mv}  & int    & Average cell voltage [mV] \\
-        \texttt{cell\_max\_mv}  & int    & Maximum cell voltage [mV] \\
-        \texttt{cell\_min\_mv}  & int    & Minimum cell voltage [mV] \\
-        \texttt{cell\_spread\_mv} & int  & Max $-$ min cell voltage [mV] \\
-        \texttt{cells}          & object & Per-cell \texttt{\{"mv": int, "status": string\}} map \\
-        \texttt{temps}          & object & Per-probe temperature map [°C] \\
-        \texttt{avg\_temp}      & float  & Average across active probes [°C] \\
-        \texttt{fault\_level}   & int    & 0 = normal, 1 = fault \\
-        \texttt{error\_code}    & int    & BMS fault code (see Table~\ref{tab:fault-codes}) \\
-        \texttt{fault\_name}    & string & Human-readable fault description \\
-        \texttt{status}         & object & Bit-field flags (charging, discharging, ready, etc.) \\
-        \texttt{charger}        & object & Charging request limits (V, A, start signal) \\
+        \texttt{device\_id}   & string & Configurable in \texttt{secrets.h} \\
+        \texttt{timestamp}    & string & Network time from \texttt{AT+CCLK?} (or \texttt{uptime\_ms} fallback) \\
+        \texttt{source}       & string & Always \texttt{"esp32-sim800l"} \\
+        \texttt{connected}    & bool   & Always \texttt{true} when sent by the ESP32 \\
+        \texttt{frame\_count} & int    & Cumulative CAN frames decoded since boot \\
+        \texttt{fault\_level} & int    & 0 = normal, 1 = serious fault \\
+        \texttt{error\_code}  & int    & BMS fault code (see Table~\ref{tab:fault-codes}) \\
+        \texttt{battery}      & object & Battery pack data — see Table~\ref{tab:json-schema-battery} \\
+        \texttt{temperatures} & object & Thermal data from all probes \\
+        \texttt{solar}        & object & Solar MPPT data (pre/post converter) \\
+        \texttt{dc\_dc}       & object & DC/DC converter outputs (64 V and 12 V rails) \\
+        \texttt{vehicle}      & object & Vehicle-level status (handbrake, etc.) \\
         \bottomrule
     \end{tabular}
 \end{table}
 
+\begin{table}[h]
+    \centering
+    \caption{ESP32 JSON Payload — \texttt{battery} Object Fields}
+    \label{tab:json-schema-battery}
+    \begin{tabular}{lll}
+        \toprule
+        \textbf{Field} & \textbf{Type} & \textbf{Description} \\
+        \midrule
+        \texttt{pack\_v}          & float  & Pack voltage [V], 0.1 V resolution \\
+        \texttt{pack\_current\_a} & float  & Pack current [A], + = discharge, $-$ = charge \\
+        \texttt{soc}              & float  & Voltage-derived SOC [\%] \\
+        \texttt{soc\_bms}         & int    & BMS coulomb-counter SOC [\%] \\
+        \texttt{max\_disch\_a}    & float  & Maximum discharge current limit [A] \\
+        \texttt{cell\_count}      & int    & Number of active cells decoded \\
+        \texttt{cell\_avg\_mv}    & int    & Average cell voltage [mV] \\
+        \texttt{cell\_min\_mv}    & int    & Minimum cell voltage [mV] \\
+        \texttt{cell\_max\_mv}    & int    & Maximum cell voltage [mV] \\
+        \texttt{cell\_spread\_mv} & int    & Max $-$ min cell voltage [mV] \\
+        \texttt{cells}            & array  & 1-based array of \texttt{\{"mv", "status"\}} objects; index 0 = \texttt{null} \\
+        \texttt{charger}          & object & \texttt{max\_charge\_v}, \texttt{max\_charge\_a}, \texttt{start\_signal} \\
+        \texttt{status}           & object & Bit-field flags: charging, discharging, ready, contactors \\
+        \bottomrule
+    \end{tabular}
+\end{table}
+
+The \texttt{temperatures} object contains \texttt{battery\_avg\_c}, \texttt{battery\_min\_c}, \texttt{battery\_max\_c}, and a 1-based \texttt{battery\_cells} array (index 0 = \texttt{null}, indices 1--4 = probe readings in \textdegree C). Fields for sensors not yet instrumented (\texttt{motor\_c}, \texttt{mppt\_c}, \texttt{cabin\_c}) are present with value \texttt{null}, enabling the dashboard to display placeholders without schema changes when those sensors are added. The same pattern applies to \texttt{solar} and \texttt{dc\_dc} sub-objects.
+
 \subsubsection{Example API Interaction}
 
-The following \texttt{curl} command simulates an ESP32 posting a minimal snapshot to the server during testing:
+The following \texttt{curl} command simulates an ESP32 posting a snapshot to the server during testing:
 
 \begin{verbatim}
 curl -X POST http://YOUR_VPS_IP:8765/api/ingest \
   -H "Content-Type: application/json"           \
   -H "X-Api-Key: bako-bms-2024"                \
   -d '{
+    "device_id": "esp32-bms-001",
     "connected": true,
-    "soc": 87.4,
-    "pack_v": 62.31,
-    "cell_count": 19
+    "fault_level": 0,
+    "battery": {
+      "soc": 87.4, "pack_v": 62.3,
+      "cell_count": 19,
+      "cells": [null, {"mv": 3280, "status": "good"}]
+    },
+    "temperatures": { "battery_avg_c": 21.0,
+                      "battery_cells": [null, 21.0, 22.0, null, null] }
   }'
 \end{verbatim}
 
 Response:
 \begin{verbatim}
-{"status": "ok", "ts": "2026-04-17T09:32:11.123456"}
+{"status": "ok", "ts": "2026-04-18T09:32:11.123456"}
 \end{verbatim}
 
 The server then pushes this payload to any browser connected to \texttt{/ws/cloud} within 2 seconds.
