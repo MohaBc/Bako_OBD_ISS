@@ -65,4 +65,11 @@ data/processed/*
 # IDE
 .vscode/
 .idea/
+*.code-workspace
+
+# Secrets — never commit credentials
+secrets.h
+
+# Local DB / runtime
+backend/bms_cloud.db
 

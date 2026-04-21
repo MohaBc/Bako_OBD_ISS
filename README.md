@@ -1,9 +1,9 @@
 # Bako OBD ISS
 
-**SAE J1939 Battery Management System Diagnostic & Monitoring Platform**
+**SAE J1939 Battery Management System — Diagnostic, Monitoring & Cloud Platform**
 
 ISS Senior Project 2026 — MEDTECH
-Real-time CAN bus decoding, live dashboard, and diagnostic tooling for the O'CELL IFS60.8-500-F-E3 LiFePO₄ battery pack.
+Real-time CAN bus decoding, live dashboard, cloud telemetry, and diagnostic tooling for the O'CELL IFS60.8-500-F-E3 LiFePO₄ battery pack.
 
 ---
 
@@ -17,57 +17,82 @@ Real-time CAN bus decoding, live dashboard, and diagnostic tooling for the O'CEL
 6. [Tools Overview](#6-tools-overview)
 7. [Quick Start](#7-quick-start)
 8. [Tool 1 — Python CLI Parser](#8-tool-1--python-cli-parser)
-9. [Tool 2 — Standalone Web Analyzer](#9-tool-2--standalone-web-analyzer)
+9. [Tool 2 — Log-to-Cloud Replay](#9-tool-2--log-to-cloud-replay)
 10. [Tool 3 — Live Dashboard](#10-tool-3--live-dashboard)
-11. [ESP32 BMS Simulator](#11-esp32-bms-simulator)
-12. [Sample Data](#12-sample-data)
-13. [Contributing & Team Workflow](#13-contributing--team-workflow)
-14. [Versioning](#14-versioning)
-15. [Known Issues](#15-known-issues)
-16. [License & Credits](#16-license--credits)
+11. [Cloud Pipeline](#11-cloud-pipeline)
+12. [ESP32 Cloud Publisher Firmware](#12-esp32-cloud-publisher-firmware)
+13. [Backend API Reference](#13-backend-api-reference)
+14. [Sample Data](#14-sample-data)
+15. [Contributing & Team Workflow](#15-contributing--team-workflow)
+16. [Versioning](#16-versioning)
+17. [Known Issues](#17-known-issues)
+18. [License & Credits](#18-license--credits)
 
 ---
 
 ## 1. What This Project Is
 
-Bako OBD ISS is a complete battery diagnostic system built around the SAE J1939 CAN bus protocol. It decodes raw CAN frames from a LiFePO₄ battery management system and presents the data in three ways: a terminal output, a standalone browser dashboard, and a real-time live monitoring interface fed directly from an ESP32 connected over USB serial.
+Bako OBD ISS is a complete battery diagnostic and cloud monitoring system built around the SAE J1939 CAN bus protocol. It decodes raw CAN frames from a LiFePO₄ battery management system and presents the data in multiple ways: a terminal report, a live serial dashboard, and a cloud-connected real-time interface fed from an ESP32 over cellular (SIM800L GPRS).
 
-The system was designed for three real-world use cases:
+The system supports four real-world use cases:
 
-- **Field diagnostics** — connect a laptop to the battery via ESP32, open the live dashboard, and immediately see pack voltage, cell balance, temperatures, and fault status in real time.
-- **Log analysis** — take a captured `.txt` CAN log from any session and analyze it offline using either the Python CLI or the web UI without needing any hardware present.
-- **Development & testing** — use the ESP32 simulator to develop and test dashboard features without requiring the physical battery pack.
+- **Field diagnostics** — connect a laptop to the battery via ESP32 USB, open the live dashboard, and immediately see pack voltage, cell balance, temperatures, and fault status in real time.
+- **Cloud monitoring** — the ESP32 reads CAN data and POSTs JSON to a VPS backend over cellular (SIM800L GPRS). The dashboard connects via WebSocket and can be viewed from any browser pointed at the VPS.
+- **Log analysis** — take a captured `.txt` CAN log from any session and analyze it offline, or replay it through the VPS pipeline to test the full cloud path without hardware.
+- **Development & testing** — replay a real car log through the cloud pipeline to verify dashboard behavior before connecting live hardware.
 
 ---
 
 ## 2. System Architecture
 
+### Serial Mode (local, USB)
+
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Physical Layer                          │
-│                                                             │
-│   O'CELL BMS  ──CAN bus──  ESP32 CAN Logger  ──USB──  PC   │
-│  (19S1P LFP)   250 kbps    (Arduino sketch)  115200 baud   │
-└─────────────────────────────────────────────────────────────┘
-                                  │
-                    ┌─────────────┴──────────────┐
-                    │         Software Layer      │
-                    │                             │
-              ┌─────▼──────┐             ┌────────▼────────┐
-              │  server.py  │             │  battery_       │
-              │  (FastAPI)  │             │  can_parser.py  │
-              │  pyserial   │             │  (CLI, offline) │
-              └─────┬───────┘             └─────────────────┘
-                    │ WebSocket
-                    │ 10 Hz JSON
-              ┌─────▼───────┐             ┌─────────────────┐
-              │  index.html  │             │  battery_       │
-              │  (live HUD)  │             │  analyzer.html  │
-              └──────────────┘             │  (offline UI)   │
-                                           └─────────────────┘
+┌───────────────────────────────────────────────────────────────────┐
+│  O'CELL BMS  ──CAN 250kbps──  ESP32 + MCP2515  ──USB 115200──  PC │
+└───────────────────────────────────────────────────────────────────┘
+                                                         │
+                                                  server.py (FastAPI)
+                                                  pyserial reader
+                                                  J1939 frame decoder
+                                                         │ WebSocket /ws
+                                                         │ 10 Hz JSON push
+                                                  index.html (browser)
+                                                  SERIAL mode
 ```
 
-The live path (left side) is the primary workflow for real hardware. The offline path (right side) works from saved `.txt` CAN log files with no hardware required.
+### Cloud Mode (cellular, VPS)
+
+```
+┌──────────────────────────────────────────────────────────────────────┐
+│  O'CELL BMS  ──CAN 250kbps──  ESP32 + MCP2515                        │
+│                                     │                                │
+│                               SIM800L (GPRS)                         │
+│                               AT+HTTP* service                       │
+└──────────────────────────────────────────────────────────────────────┘
+                                      │ HTTP POST every 5 s
+                                      ▼
+                          VPS  server.py  POST /api/ingest
+                          SQLite bms_cloud.db  (history)
+                          in-memory _cloud_state (live)
+                                      │ WebSocket /ws/cloud
+                                      │ 2 Hz JSON push
+                              index.html (browser)
+                              CLOUD mode
+```
+
+### Log Replay (no hardware needed)
+
+```
+data/raw/bms_log_*.txt
+        │
+  replay_to_cloud.py
+  (parses J1939 frames,
+   streams JSON snapshots)
+        │ HTTP POST /api/ingest
+        ▼
+  VPS server.py  ──→  /ws/cloud  ──→  browser CLOUD mode
+```
 
 ---
 
@@ -76,58 +101,42 @@ The live path (left side) is the primary workflow for real hardware. The offline
 ```
 Bako_OBD_ISS/
 │
-├── firmware/                          # ESP32 Arduino sketches
-│   ├── esp32_can_logger/              # Real CAN bus logger — flash to hardware
-│   │   └── esp32_can_logger.ino
-│   ├── esp32_bms_simulator/           # Simulator — no hardware needed
-│   │   └── esp32_bms_simulator.ino
-│   └── README.md
+├── firmware/
+│   ├── esp32_cloud_publisher/         # Cloud publisher — MCP2515 CAN + SIM800L GPRS
+│   │   └── esp32_cloud_publisher/     # PlatformIO project
+│   │       ├── src/main.cpp           # Main firmware (CAN read → JSON → VPS POST)
+│   │       ├── include/secrets.h      # VPS address + API key + APN (NOT committed)
+│   │       └── platformio.ini         # Board config + library deps
+│   ├── CAN_receive/                   # Basic MCP2515 CAN frame receiver sketch
+│   │   └── CAN_receive.ino
+│   ├── CAN_simulation_7_phases/       # 7-phase BMS cycle simulator
+│   │   └── CAN_simulation_7_phases.ino
+│   └── CAN_simulation_7_phases_wifi/  # WiFi variant of simulator
+│       └── CAN_simulation_7_phases_wifi.ino
 │
-├── hardware/                          # Circuit, PCB, and mechanical design
-│   ├── schematics/                    # KiCad / EasyEDA schematic source files
-│   ├── pcb/                           # PCB layout + exported Gerber files
-│   ├── casing/                        # 3D design files (.step / .stl / .f3d)
-│   └── README.md
-│
-├── backend/                           # Python FastAPI server
-│   ├── server.py                      # Main server — serial reader + WebSocket
+├── backend/
+│   ├── server.py                      # FastAPI server — serial + cloud endpoints
+│   ├── replay_to_cloud.py             # CAN log → decode → POST /api/ingest replay tool
 │   ├── requirements.txt               # Pinned pip dependencies
-│   ├── .env.example                   # Environment variable template
+│   └── bms_cloud.db                   # SQLite cloud snapshot store (auto-created)
+│
+├── frontend/
+│   └── index.html                     # Live dashboard (SERIAL / CLOUD toggle)
+│
+├── data/
+│   ├── raw/
+│   │   └── bms_log_2026-03-10T10-20-02.txt   # Real car CAN capture (3196 frames)
+│   ├── battery_can_parser.py          # Offline CLI log parser
+│   ├── send_log_to_cloud.py           # Log-to-VPS replay tool (POST /api/ingest)
 │   └── README.md
 │
-├── frontend/                          # Web interfaces
-│   ├── index.html                     # Live dashboard (served by backend)
-│   ├── battery_analyzer.html          # Standalone offline analyzer
-│   └── README.md
-│
-├── data/                              # CAN logs and analysis tools
-│   ├── raw/                           # Unmodified captured logs (.txt)
-│   │   └── batterie.txt               # Real hardware capture session
-│   ├── processed/                     # Parsed exports (.xlsx, .csv)
-│   │   └── bms_log_2026-03-10.xlsx
-│   ├── battery_can_parser.py          # CLI parser tool
-│   └── README.md
-│
+├── hardware/                          # Schematics, PCB, mechanical design
 ├── report/                            # LaTeX ISS academic report
-│   ├── main.tex                       # Entry point
-│   ├── main.pdf                       # Compiled output (tracked)
-│   ├── preamble.tex
-│   ├── references.bib
-│   ├── Preliminary Files/
-│   ├── Section Files/                 # 22 sections (00–21)
-│   ├── images/
-│   └── README.md
-│
-├── docs/                              # Project documentation
-│   ├── CONTRIBUTING.md                # Branch strategy, commit rules, governance
-│   ├── CHANGELOG.md                   # Version history
-│   └── ARCHITECTURE.md               # Deep-dive technical architecture
-│
-├── .github/
-│   └── PULL_REQUEST_TEMPLATE.md       # PR checklist auto-filled on every PR
+├── docs/
+│   └── CONTRIBUTING.md                # Branch strategy, commit rules
 │
 ├── .gitignore
-└── README.md                          # This file
+└── README.md
 ```
 
 ---
@@ -142,7 +151,7 @@ Bako_OBD_ISS/
 | Chemistry | LiFePO₄ (LFP) |
 | Configuration | 19S1P — 19 cells in series, 1 parallel |
 | Nominal voltage | 60.8 V |
-| Capacity | 50 Ah |
+| Capacity | 50 Ah (actual measured: 44.7 Ah, SOH 89.4%) |
 | Cell nominal voltage | 3.2 V |
 | Cell full voltage | 3.65 V |
 | Cell min voltage | 2.5 V |
@@ -158,149 +167,176 @@ Bako_OBD_ISS/
 | Baud rate | 250 kbps |
 | Physical layer | CAN high / CAN low differential pair |
 
-### ESP32 Logger
+### ESP32 + MCP2515 Wiring
 
-The ESP32 sits between the CAN bus and the PC. It reads raw CAN frames using a MCP2515 or SN65HVD230 CAN transceiver and outputs them to USB serial in the following format:
+| MCP2515 Pin | ESP32 GPIO |
+|-------------|------------|
+| CS | 15 |
+| INT | 4 |
+| SCK | 18 (VSPI) |
+| MISO | 19 (VSPI) |
+| MOSI | 23 (VSPI) |
+| VCC | 3.3 V |
 
-```
-[1849ms] ID: 0x98C828F4 DLC: 8 Data: 0C DE 0C E1 0C DF 0C DE
-```
+### SIM800L Wiring
 
-Serial baud rate: **115200**
+| SIM800L Pin | ESP32 GPIO |
+|-------------|------------|
+| TXD | 16 (UART1 RX) |
+| RXD | 17 (UART1 TX) |
+| RST | 5 |
+| VCC | 4.0 V external (≥ 2 A) |
+| GND | GND (shared) |
+
+> The SIM800L requires a separate 4 V supply capable of 2 A peak. Powering it from the ESP32 3.3 V rail will cause random resets.
 
 ---
 
 ## 5. CAN Protocol Reference
 
-All frame IDs use the structure `0x98_FUNC_SUB_F4` (29-bit extended J1939).
-
-> **ID prefix note:** Protocol documentation sometimes references `0x18...` IDs. The real hardware outputs `0x98...` IDs — the top 3 bits encode J1939 priority. Both refer to the same PGN. Always use `0x98...` as the authoritative format.
+All frame IDs use `0x18_FUNC_SUB_F4` structure (29-bit extended J1939). The log files may show `0x98...` — this is the same PGN with J1939 priority bits set.
 
 ### Supported Frame Types
 
 | CAN ID | Name | Tx rate | Description |
 |--------|------|---------|-------------|
-| `0x98C828F4` | Cell voltages group 1 | 500 ms | Cells 1–4, big-endian uint16, 1 mV/bit |
-| `0x98C928F4` | Cell voltages group 2 | 500 ms | Cells 5–8 |
-| `0x98CA28F4` | Cell voltages group 3 | 500 ms | Cells 9–12 |
-| `0x98CB28F4` | Cell voltages group 4 | 500 ms | Cells 13–16 |
-| `0x98CC28F4` | Cell voltages group 5 | 500 ms | Cells 17–19 (bytes 6–7 = 0x0000 pad) |
-| `0x98B428F4` | Temperature detail | 500 ms | Bytes 0–2: probes 1–3, `raw − 40 = °C` |
-| `0x98FFE5F4` | SOC + charge request | 500 ms | LE uint16: SOC ×10, charge current req ×10 |
-| `0x98FF28F4` | Pack summary | 100 ms | LE uint16: pack V ×100, disch limit ×100, SOC ×10 |
-| `0x98FE28F4` | Min/max cell + temps | 100 ms | LE uint16: max/min cell mV; temp bytes; disch limit ×10 |
+| `0x18C828F4` | Cell voltages group 1 | 500 ms | Cells 1–4, **big-endian** uint16, 1 mV/bit |
+| `0x18C928F4` | Cell voltages group 2 | 500 ms | Cells 5–8 |
+| `0x18CA28F4` | Cell voltages group 3 | 500 ms | Cells 9–12 |
+| `0x18CB28F4` | Cell voltages group 4 | 500 ms | Cells 13–16 |
+| `0x18CC28F4` | Cell voltages group 5 | 500 ms | Cells 17–19 (bytes 6–7 padded 0x0000) |
+| `0x18B428F4` | Temperatures | 500 ms | Bytes 0–3: probes 1–4, `raw − 40 = °C`, 0xFF = absent |
+| `0x18FFE5F4` | BMS Charging Request | 500 ms | LE uint16: max charge voltage ÷10 V, max charge current ÷10 A; byte 4 bit0: start signal |
+| `0x18FF28F4` | BMS Basic Message 1 | 100 ms | byte 0: status flags; byte 1: SOC %; bytes 2–3: pack current; bytes 4–5: pack voltage; byte 6: fault level; byte 7: error code |
+| `0x18FE28F4` | BMS Basic Message 2 | 100 ms | LE uint16: max/min cell mV; temp bytes; discharge limit ÷10 A |
 
 ### Byte Layouts
 
-**`0x98FF28F4` — Pack summary (100 ms)**
+**`0x18FF28F4` — BMS Basic Message 1 (100 ms)**
 ```
-Bytes 0–1  LE uint16  Pack voltage       ÷ 100  → V
-Bytes 2–3  LE uint16  Discharge limit    ÷ 100  → A
-Bytes 4–5  LE uint16  SOC                ÷ 10   → %
-Bytes 6–7  0x0000     Reserved
-```
-
-**`0x98FFE5F4` — SOC + charge request (500 ms)**
-```
-Bytes 0–1  LE uint16  SOC                ÷ 10   → %
-Bytes 2–3  LE uint16  Charge current req ÷ 10   → A
-Bytes 4–7  0x00       Reserved
+Byte  0    uint8      Status flags (bit-field, see below)
+Byte  1    uint8      SOC 0–100 %
+Bytes 2–3  LE uint16  Pack current  (value − 5000) × 0.1  → A  (negative = charging)
+Bytes 4–5  LE uint16  Pack voltage  × 0.1                 → V
+Byte  6    uint8      Fault level
+Byte  7    uint8      Error code (see fault table below)
 ```
 
-**`0x98FE28F4` — Min/max cell + temps (100 ms)**
+Status flags (byte 0 of 0x18FF28F4):
+
+| Bit | Mask | Meaning |
+|-----|------|---------|
+| 0 | 0x01 | Charge cable connected |
+| 1 | 0x02 | Charging in progress |
+| 2 | 0x04 | Discharging in progress |
+| 3 | 0x08 | BMS ready |
+| 4 | 0x10 | Discharge contactor closed |
+| 5 | 0x20 | Charge contactor closed |
+
+Fault codes (byte 7 of 0x18FF28F4):
+
+| Code | Name |
+|------|------|
+| 0x00 | ok |
+| 0x01 | over_temp_severe |
+| 0x02 | total_voltage_high |
+| 0x03 | total_voltage_low |
+| 0x04 | discharge_overcurrent |
+| 0x05 | cell_voltage_high |
+| 0x06 | cell_voltage_low |
+
+**`0x18FE28F4` — BMS Basic Message 2 (100 ms)**
 ```
-Bytes 0–1  LE uint16  Max cell voltage            → mV
-Bytes 2–3  LE uint16  Min cell voltage            → mV
-Byte  4    uint8      Temp probe 1  (raw − 40)    → °C
-Byte  5    uint8      Temp probe 2  (raw − 40)    → °C
-Bytes 6–7  LE uint16  Discharge current limit ÷ 10 → A
+Bytes 0–1  LE uint16  Max cell voltage             → mV
+Bytes 2–3  LE uint16  Min cell voltage             → mV
+Byte  4    uint8      Max temperature  (raw − 40)  → °C  (0xFF = absent)
+Byte  5    uint8      Min temperature  (raw − 40)  → °C  (0xFF = absent)
+Bytes 6–7  LE uint16  Max discharge current ÷ 10   → A
 ```
 
-**`0x98C8–CC28F4` — Cell voltage frames (500 ms)**
+**`0x18FFE5F4` — BMS Charging Request (500 ms)**
 ```
-Each frame: 4 cells × 2 bytes, big-endian uint16, unit = 1 mV
-Cells beyond 19 are padded with 0x0000
+Bytes 0–1  LE uint16  Max charge voltage  × 0.1  → V
+Bytes 2–3  LE uint16  Max charge current  × 0.1  → A
+Byte  4    uint8      Bit 0 = 0 → charger start signal
+Byte  5    uint8      Protection flags (optional, DLC ≥ 6)
 ```
+
+**`0x18C8–CC28F4` — Cell voltage frames (500 ms)**
+```
+4 cells × 2 bytes each, big-endian uint16, 1 mV/bit
+Last frame (0xCC): bytes 6–7 = 0x0000 (cell 20 does not exist)
+```
+
+### SOC Calibration
+
+Calibrated from 4 real car sessions against the vehicle's onboard display:
+
+```
+Formula:  SOC% = (avg_cell_mV − 2500) / (3387 − 2500) × 100
+  2500 mV/cell = 47.50 V pack = 0%
+  3387 mV/cell = 64.35 V pack = 100%  (car-display calibrated)
+```
+
+Values above 3387 mV (during active charging) are clamped to 100%.
 
 ### Voltage Thresholds
 
 | Threshold | Value | Status |
 |-----------|-------|--------|
-| Cell overvoltage | ≥ 3750 mV | Critical |
-| Cell full | ≥ 3650 mV | Full |
-| Cell good | ≥ 3300 mV | Good |
-| Cell nominal | ≥ 3200 mV | Normal |
-| Cell low | ≥ 2500 mV | Low |
-| Cell undervoltage | < 2500 mV | Critical |
-| Pack full | 69.35 V | — |
-| Pack empty | 47.50 V | — |
-
-### Temperature Thresholds
-
-| Range | Status | Indicator |
-|-------|--------|-----------|
-| < 35 °C | Normal | Cyan |
-| 35–50 °C | Caution | Yellow |
-| > 50 °C | Critical | Red |
+| Overvoltage | ≥ 3750 mV | Critical |
+| Full | ≥ 3650 mV | Full |
+| Good | ≥ 3300 mV | Good |
+| Normal | ≥ 3200 mV | Normal |
+| Low | ≥ 2500 mV | Low |
+| Undervoltage | < 2500 mV | Critical |
 
 ---
 
 ## 6. Tools Overview
 
-| Tool | File | Needs hardware? | Needs server? |
-|------|------|-----------------|---------------|
-| CLI parser | `data/battery_can_parser.py` | No — reads `.txt` log | No |
-| Standalone web UI | `frontend/battery_analyzer.html` | No — upload `.txt` log | No |
-| Live dashboard | `frontend/index.html` + `backend/server.py` | Yes (or simulator) | Yes |
-| ESP32 simulator | `firmware/esp32_bms_simulator/` | ESP32 board only | No |
+| Tool | File | Hardware needed | Description |
+|------|------|----------------|-------------|
+| CLI parser | `data/battery_can_parser.py` | No | Parse a log file, print report or CSV |
+| Log-to-cloud replay | `backend/replay_to_cloud.py` | No | Replay log → POST /api/ingest → browser dashboard |
+| Live dashboard | `frontend/index.html` + `backend/server.py` | ESP32 (or log replay) | Real-time SERIAL / CLOUD dashboard |
+| Cloud firmware | `firmware/esp32_cloud_publisher/` | ESP32 + MCP2515 + SIM800L | Reads CAN, POSTs JSON to VPS via SIM800L GPRS |
 
 ---
 
 ## 7. Quick Start
 
-### I have real hardware and want live monitoring
+### Live monitoring over USB (SERIAL mode)
 
 ```bash
-# 1. Install backend dependencies
 cd backend
 pip install -r requirements.txt
-
-# 2. Connect your ESP32 (CAN logger flashed) via USB
-
-# 3. Start the server
-python server.py                        # auto-detects USB port
-python server.py --port COM3            # Windows — specify port
-python server.py --port /dev/ttyUSB0   # Linux/macOS — specify port
-
-# 4. Open http://localhost:8765 in your browser
+python3 server.py                        # auto-detects USB port
+python3 server.py --port /dev/ttyUSB0   # or specify port
 ```
 
-### I have a CAN log file and want terminal output
+Open `http://localhost:8765` — click **SERIAL** in the header.
+
+### Cloud dashboard from a real log file (no ESP32 needed)
+
+**Terminal 1 — start backend:**
+```bash
+cd /path/to/Bako_OBD_ISS
+python3 backend/server.py --cloud-only
+```
+
+**Terminal 2 — replay the log to the backend:**
+```bash
+python3 backend/replay_to_cloud.py --speed 5 --interval 5000
+```
+
+Open `http://localhost:8765` — click **CLOUD** in the header. The dashboard animates live as the log replays.
+
+### Offline log analysis (no server, no internet)
 
 ```bash
-# Edit FILE_PATH at line 6 of the script first (see section 8)
-cd data
-python battery_can_parser.py
-```
-
-### I have a CAN log file and want a visual dashboard
-
-```
-Open frontend/battery_analyzer.html in any modern browser
-→ Click "Upload File" and select your .txt log
-```
-
-### I have no hardware and want to test the live dashboard
-
-```bash
-# 1. Flash firmware/esp32_bms_simulator/esp32_bms_simulator.ino
-#    to any ESP32 board using Arduino IDE (board: ESP32 Dev Module)
-
-# 2. Start the backend server
-cd backend
-python server.py
-
-# 3. Open http://localhost:8765
+python3 data/battery_can_parser.py raw/bms_log_2026-03-10T10-20-02.txt
+python3 data/battery_can_parser.py raw/bms_log_2026-03-10T10-20-02.txt --csv
 ```
 
 ---
@@ -308,302 +344,501 @@ python server.py
 ## 8. Tool 1 — Python CLI Parser
 
 **File:** `data/battery_can_parser.py`
-**Requirements:** Python 3.6+ — no external dependencies
+**Requirements:** Python 3.8+ — no external dependencies
 
-Reads a `.txt` CAN log file and prints a fully formatted battery analysis to the terminal.
+Reads any `.txt` CAN log file and prints a formatted battery analysis report to the terminal, or outputs CSV.
 
-### Configuration
-
-Before running, update the file path at **line 6**:
-
-```python
-FILE_PATH = "raw/batterie.txt"       # relative path — recommended
-# or absolute:
-FILE_PATH = "/absolute/path/to/your/log.txt"
-```
-
-The default value is a hardcoded developer path and will fail on any other machine.
-
-### Running
+### Usage
 
 ```bash
-cd data
-python battery_can_parser.py
+# Default report (uses bms_log_2026-03-10T10-20-02.txt)
+python3 data/battery_can_parser.py
+
+# Specify a log file
+python3 data/battery_can_parser.py data/raw/bms_log_2026-03-10T10-20-02.txt
+
+# CSV output
+python3 data/battery_can_parser.py data/raw/bms_log_2026-03-10T10-20-02.txt --csv
 ```
 
 ### Example Output
 
 ```
-═════════════════════════════════════════════════════════════════
-  SAE J1939 BATTERY ANALYSIS  —  Based on Manufacturer Protocol
-═════════════════════════════════════════════════════════════════
+============================================================
+  O'CELL BMS — Offline CAN Log Analysis
+  File   : bms_log_2026-03-10T10-20-02.txt
+  Frames : 3197
+============================================================
 
-📊  PACK STATUS (last known values)
+  PACK SUMMARY
+  ├─ Pack voltage   : 63.17 V
+  ├─ SOC (voltage)  : 93.0 %
+  ├─ SOC (coulomb)  : 69.3 %
+  ├─ SOC (BMS)      : 63.1 %
+  ├─ Avg cell       : 3325 mV
+  ├─ Max cell       : 3327 mV
+  ├─ Min cell       : 3322 mV
+  ├─ Cell spread    : 5 mV
+  └─ Disch limit    : 50.0 A
 
-  Pack Voltage          : 62.6 V
-  Pack Current          : 0.0 A  (neg = charging)
-  State of Charge (SOC) : 26 %
-  Charge Status         : IDLE / STANDBY
-  Charge Cable          : Not connected
-  Pack Ready            : Yes
-  Fault                 : No Fault
-
-🌡  TEMPERATURE
-
-  Max cell temperature  : 28 °C
-  Min cell temperature  : 28 °C
-  Probe 1               : 28 °C
-  Probe 2               : 28 °C
-  Probe 3               : 28 °C
-
-⚡  CELL VOLTAGES
-
-  Max cell voltage      : 3.297 V
-  Min cell voltage      : 3.294 V
-  Spread                : 3 mV  (excellent balance)
-
-  Cell  1  3294 mV  |████████████████████|
-  Cell  2  3297 mV  |████████████████████|
+  CELL VOLTAGES (19 cells decoded)
+  C01  3325 mV  [████████████████████████]  GOOD
+  C02  3326 mV  [████████████████████████]  GOOD
   ...
-  Cell 19  3295 mV  |████████████████████|
-
-🔋  CHARGE REQUEST (BMS → Charger)
-
-  Max charge voltage    : 71.7 V
-  Max charge current    : 25.0 A
-  Charge permission     : Charging ALLOWED
 ```
 
 ---
 
-## 9. Tool 2 — Standalone Web Analyzer
+## 9. Tool 2 — Log-to-Cloud Replay
 
-**File:** `frontend/battery_analyzer.html`
-**Requirements:** Any modern browser — no install, no server
+**File:** `backend/replay_to_cloud.py`
+**Requirements:** Python 3.8+ — no external dependencies
 
-### Opening
+Reads a raw CAN log file, decodes every BMS frame using the same logic as the ESP32 firmware, builds a nested JSON snapshot, and POSTs it to `POST /api/ingest` on the backend — exactly what the real ESP32 does via SIM800L.
 
-Double-click `battery_analyzer.html` in your file explorer, or drag it into a browser window.
+Pipeline: `log file → decode frames → nested JSON → POST /api/ingest → server.py → /ws/cloud → browser`
+
+### CLI Arguments
+
+| Argument | Default | Description |
+|----------|---------|-------------|
+| `--log` / `-l` | `data/raw/bms_log_2026-03-10T10-20-02.txt` | Path to raw CAN log file |
+| `--speed` / `-s` | `1.0` | Replay speed multiplier (e.g. `5` = 5× real-time) |
+| `--interval` / `-i` | `5000` | Snapshot interval in log-time ms |
+| `--loop` | off | Loop file forever |
+| `--host` | `localhost` | VPS host |
+| `--port` / `-p` | `8765` | VPS port |
 
 ### Usage
 
-1. Click **Upload File** and select a `.txt` CAN log
-2. Click **Analyze**
+```bash
+# Default — real-time replay, snapshot every 5 s of log time
+python3 backend/replay_to_cloud.py
 
-### Dashboard Panels
+# 5× speed
+python3 backend/replay_to_cloud.py --speed 5
 
-| Panel | Contents |
-|-------|----------|
-| Pack overview | Voltage, current, charge status — 3 KPI cards |
-| SOC bar | Visual 0–100% state of charge |
-| Temperature | Min/max cell temps + up to 8 individual probe readings |
-| Charge request | Max charge voltage, current, and permission status |
-| Cell voltage grid | All 19 cells with color-coded health bars and spread indicator |
-| Raw frame log | Every decoded frame: timestamp, CAN ID, hex payload |
+# Remote VPS
+python3 backend/replay_to_cloud.py --host 1.2.3.4 --port 8765
 
-Click **Save as .txt** to export the full analysis as a text report.
+# Custom log file, 10× speed, loop forever
+python3 backend/replay_to_cloud.py --log data/raw/my_log.txt --speed 10 --loop
+```
+
+### Terminal Output
+
+```
+-------------------------------------------------------
+  BMS Log → VPS Cloud Pipeline
+-------------------------------------------------------
+  Log      : data/raw/bms_log_2026-03-10T10-20-02.txt
+  Endpoint : http://localhost:8765/api/ingest
+  Speed    : 1.0×   interval: 5000 ms log-time
+-------------------------------------------------------
+  3197 frames  (11455–139267 ms)
+
+  [OK  ] #01  cells=19  SOC=100.0%  pack=63.1V  I=-15.1A  temp=21.0°C  fault=0  ready=True
+  [OK  ] #02  cells=19  SOC=100.0%  pack=63.1V  I=-15.1A  temp=21.0°C  fault=0  ready=True
+  ...
+  Loop 1 done — 25 snapshots posted to VPS.
+Replay complete.
+```
 
 ---
 
 ## 10. Tool 3 — Live Dashboard
 
 **Files:** `backend/server.py` + `frontend/index.html`
-**Requirements:** Python 3.8+, pip packages, ESP32 connected via USB
+**Requirements:** Python 3.8+, `pip install -r backend/requirements.txt`
 
-### How It Works
+### Source Toggle
 
-```
-ESP32 (CAN logger)
-    │  USB serial @ 115200 baud
-    ▼
-server.py  ←  FastAPI + pyserial
-    │  decodes CAN frames in real time (BMSState thread-safe object)
-    │  WebSocket /ws  →  pushes full state JSON at 10 Hz
-    ▼
-index.html  ←  browser dashboard
-    live cell grid, pack KPIs, temperature panel, raw log
-```
+The dashboard header has a **SERIAL / CLOUD** toggle:
 
-### Installation
-
-```bash
-cd backend
-pip install -r requirements.txt
-```
+| Mode | Data source | WebSocket |
+|------|-------------|-----------|
+| SERIAL | ESP32 USB serial port | `/ws` — 10 Hz push |
+| CLOUD | Latest `/api/ingest` POST (in-memory) | `/ws/cloud` — 2 Hz push |
 
 ### Running
 
 ```bash
-python server.py                          # auto-detect USB port
-python server.py --port COM3             # Windows
-python server.py --port /dev/ttyUSB0    # Linux / macOS
-python server.py --baud 115200           # default
-python server.py --web-port 8765         # default
+# Serial mode (ESP32 connected via USB)
+python3 backend/server.py
+
+# Cloud-only mode (no serial port required)
+python3 backend/server.py --cloud-only
 ```
 
 Open **http://localhost:8765**
 
-### Auto Port Detection
+### Dashboard Panels
 
-The server scans connected USB devices for these chip identifiers: `CP210x`, `CH340`, `FTDI`, `Silicon Labs`, `ESP32`. To list all available ports manually:
+| Panel | Contents |
+|-------|----------|
+| SOC ring | Animated state-of-charge gauge; BMS + coulomb sub-values shown below |
+| Pack KPIs | Pack voltage · Discharge limit (A) · Charge request (A) · Cell count |
+| Cell grid | All 19 cells — voltage bars, colour-coded status, min/max/avg/spread |
+| Temperature | Up to 4 probes with real-time bars and chart history |
+| Serial monitor | Raw CAN frame log with export to TXT / XLSX |
+| **Cloud log** | Real-time cloud communication events (RECV · POLL · WS · ERR) — independent of source toggle |
+
+---
+
+## 11. Cloud Pipeline
+
+### Overview
+
+```
+ESP32 firmware (main.cpp)
+    ├─ MCP2515 reads CAN frames at 250 kbps
+    ├─ Decodes J1939: cell voltages, temps, SOC
+    ├─ Builds JSON snapshot every 5 s
+    └─ SIM800L HTTP POST → VPS POST /api/ingest
+
+backend/server.py  (running on VPS)
+    ├─ POST /api/ingest  stores to SQLite + updates in-memory state
+    └─ /ws/cloud WebSocket pushes in-memory state to browser every 2 s
+
+index.html (CLOUD mode)
+    └─ Receives and renders live BMS data
+```
+
+### JSON Snapshot Structure
+
+The ESP32 POSTs this JSON body to `/api/ingest` and the browser receives it unchanged via `/ws/cloud`:
+
+```json
+{
+  "device_id": "esp32-bms-001",
+  "timestamp": "2026-04-15T09:32:11.123456",
+  "source": "esp32-sim800l",
+  "connected": true,
+  "frame_count": 3840,
+  "fault_level": 0,
+  "error_code": 0,
+
+  "solar": {
+    "pre_mppt":  { "voltage_v": null, "current_a": null },
+    "post_mppt": { "current_a": null }
+  },
+  "dc_dc": {
+    "output_64v": { "voltage_v": null },
+    "output_12v": { "voltage_v": null }
+  },
+
+  "battery": {
+    "pack_v": 62.3,
+    "pack_current_a": -15.1,
+    "soc": 87.4,
+    "soc_bms": 85,
+    "max_disch_a": 100.0,
+    "cell_count": 19,
+    "cell_avg_mv": 3280,
+    "cell_min_mv": 3265,
+    "cell_max_mv": 3295,
+    "cell_spread_mv": 30,
+    "cells": [null, {"mv": 3280, "status": "good"}, {"mv": 3295, "status": "good"}, "..."],
+    "charger": {
+      "max_charge_v": 69.3,
+      "max_charge_a": 35.0,
+      "start_signal": true
+    },
+    "status": {
+      "charge_cable": true,
+      "charging": true,
+      "discharging": false,
+      "ready": true,
+      "disch_contactor": false,
+      "charge_contactor": true
+    }
+  },
+
+  "temperatures": {
+    "motor_c": null,
+    "mppt_c": null,
+    "cabin_c": null,
+    "battery_avg_c": 21.0,
+    "battery_min_c": 20.0,
+    "battery_max_c": 22.0,
+    "battery_cells": [null, 21.0, 22.0, 21.0, 20.0]
+  },
+
+  "vehicle": { "handbrake": null }
+}
+```
+
+> `cells` and `battery_cells` are 1-based arrays: index 0 is always `null`, indices 1–19 / 1–4 hold data.
+
+### Environment Variables
+
+| Variable | Default | Purpose |
+|----------|---------|---------|
+| `BMS_API_KEY` | `bako-bms-2024` | API key for ESP32 → `/api/ingest` POST |
+| `HOST` | `0.0.0.0` | Bind address for the VPS server |
+| `PORT` | `8765` | TCP port the server listens on |
+
+### Backend REST Endpoints
+
+| Method | Path | Description |
+|--------|------|-------------|
+| `GET` | `/` | Serve dashboard HTML |
+| `WS` | `/ws` | Serial stream — 10 Hz |
+| `WS` | `/ws/cloud` | Cloud stream — in-memory state, 2 Hz |
+| `POST` | `/api/ingest` | Receive BMS JSON from ESP32 (requires `X-Api-Key` header) |
+| `GET` | `/api/latest` | Most recent cloud snapshot |
+| `GET` | `/api/history?limit=N` | Last N snapshots from SQLite (default 100) |
+| `GET` | `/api/cloud-log` | Last 100 cloud communication events (polled by Cloud Log panel every 2 s) |
+
+---
+
+## 12. ESP32 Cloud Publisher Firmware
+
+**Path:** `firmware/esp32_cloud_publisher/esp32_cloud_publisher/`
+**Framework:** PlatformIO (ESP32 Arduino)
+
+### Features
+
+- Reads SAE J1939 CAN frames via MCP2515 at 250 kbps
+- Decodes all 5 BMS frame types: cell voltages (19 cells), temperatures, BMS Basic Message 1 & 2, Charging Request
+- Computes SOC from average cell voltage; also reads BMS coulomb counter and direct pack voltage
+- Decodes status bit-field (charging/discharging/ready/contactors) and fault level + error code with human-readable fault name
+- Decodes charger limits: max charge voltage, max charge current, charger start signal
+- Uses `HardwareSerial` UART1 for SIM800L — more reliable than SoftwareSerial
+- Uses SIM800L `AT+HTTP*` service over plain HTTP (`AT+HTTPSSL=0`) to the VPS
+- Reads real network time from `AT+CCLK?` and includes it in each snapshot
+- Auto-reconnects bearer on GPRS failure with graceful brownout recovery:
+  - Detects `"Call Ready"` URC in all AT response buffers → sets `g_moduleRebooted` flag
+  - Aborts current HTTP transaction immediately on mid-transaction reboot detection
+  - Waits 20 s for SIM to initialize, then retries `AT+CPIN?` up to 6 times (4 s apart) before reconnecting
+- Publishes every 5 seconds — single HTTP POST to `/api/ingest`
+
+### Dependencies (auto-installed by PlatformIO)
+
+```ini
+lib_deps =
+    coryjfowler/MCP_CAN@^1.5.1
+    bblanchon/ArduinoJson@^7.0.0
+```
+
+### Configuration — `include/secrets.h`
+
+```cpp
+const char VPS_HOST[]    = "YOUR_VPS_IP";   // IP or hostname of the VPS
+const char VPS_PORT[]    = "8765";
+const char VPS_PATH[]    = "/api/ingest";
+const char VPS_API_KEY[] = "bako-bms-2024"; // must match BMS_API_KEY on the VPS
+const char DEVICE_ID[]   = "esp32-bms-001";
+
+// Optional APN override (default: "internet.ooredoo.tn")
+// #define APN  "iam"
+```
+
+> `secrets.h` is in `.gitignore` — credentials are never committed.
+
+### Flashing
 
 ```bash
-python -c "import serial.tools.list_ports; [print(p.device, p.description) for p in serial.tools.list_ports.comports()]"
+cd firmware/esp32_cloud_publisher/esp32_cloud_publisher
+pio run --target upload
+pio device monitor   # 115200 baud
+```
+
+### Expected Serial Output
+
+```
+=== BMS Cloud Publisher (VPS) ===
+[CAN] Init MCP2515... OK (250 kbps)
+[GSM] Attempt 1/3
+[GSM] SIM ready
+[GSM] Good signal
+[GSM] Bearer OK
+=== Ready — reading CAN bus ===
+
+[CAN] Frames: 120  SOC: 87.4%  Pack: 62.31 V  Cells: 19  Temps: 2
+[HTTP] >> AT+HTTPACTION=1
+[HTTP] POST 200  (19 bytes)
 ```
 
 ---
 
-## 11. ESP32 BMS Simulator
+## 13. Backend API Reference
 
-**File:** `firmware/esp32_bms_simulator/esp32_bms_simulator.ino`
-**Board:** Any ESP32 variant — **baud rate: 115200**
+### POST `/api/ingest`
 
-Simulates the exact CAN frame output of the real O'CELL BMS over USB serial. Use this to develop and test the dashboard without needing physical hardware.
+Receives a nested BMS snapshot from the ESP32. Stores in SQLite and updates the in-memory cloud state for `/ws/cloud`.
 
-### Uploading
+```bash
+curl -X POST http://localhost:8765/api/ingest \
+  -H "Content-Type: application/json" \
+  -H "X-Api-Key: bako-bms-2024" \
+  -d '{
+    "device_id": "esp32-bms-001",
+    "connected": true,
+    "battery": {
+      "soc": 87.4,
+      "pack_v": 62.3,
+      "cell_count": 19,
+      "cells": [null, {"mv": 3280, "status": "good"}]
+    },
+    "temperatures": { "battery_avg_c": 21.0, "battery_cells": [null, 21.0] }
+  }'
+```
 
-1. Open the `.ino` file in Arduino IDE
-2. Select **Tools → Board → ESP32 Dev Module**
-3. Select your COM port and click Upload
+Response: `{"status": "ok", "ts": "2026-04-15T09:32:11.123456"}`
 
-### Simulated Behaviour
+### GET `/api/latest`
 
-| Parameter | Simulation |
-|-----------|------------|
-| SOC | Ramps 70% → 20% (discharge) then 20% → 90% (charge), repeating |
-| Pack voltage | Linear between 47.5 V (0%) and 69.35 V (100%) with ±50 mV noise |
-| Cell voltages | 19 cells tracking SOC with ±8 mV individual drift |
-| Temperatures | 3 probes — rise during discharge, fall during charge |
-| Current | +8 A discharge, −15 A charge |
-| Frame timing | Full set every 500 ms; FF28 + FE28 fast-update every 100 ms |
+Returns the most recent cloud snapshot.
+
+### GET `/api/history?limit=100`
+
+Returns the last N snapshots from SQLite, newest first.
+
+### WebSocket `/ws/cloud`
+
+Connect from JS: `new WebSocket("ws://localhost:8765/ws/cloud")`
+
+Sends the same nested JSON structure as `/api/latest` every 2 seconds, sourced from the last `/api/ingest` POST.
+
+### GET `/api/cloud-log`
+
+Returns a JSON array of the last 100 timestamped cloud communication events. The Cloud Log panel in the dashboard polls this endpoint every 2 seconds independently of the SERIAL/CLOUD source toggle.
+
+```json
+[
+  "[08:20:39] [RECV] POST /api/ingest from 192.168.1.x — device=esp32-bms-001 cells=19 SOC=87.4% pack=62.3V",
+  "[08:20:40] [WS]   Browser connected to /ws/cloud from 127.0.0.1",
+  "[08:20:41] [ERR]  HTTP 401: Invalid API key"
+]
+```
+
+| Level | Colour | Meaning |
+|-------|--------|---------|
+| `RECV` | Green | BMS snapshot received via `POST /api/ingest` |
+| `WS` | Yellow | Browser tab connected or disconnected from `/ws/cloud` |
+| `ERR` | Red | HTTP error or bad API key |
 
 ---
 
-## 12. Sample Data
+## 14. Sample Data
 
-### `data/raw/batterie.txt`
+### `data/raw/bms_log_2026-03-10T10-20-02.txt`
 
-A real CAN capture from the physical battery hardware (638 lines, ~10 seconds of idle operation).
+Real CAN capture from the physical vehicle — 3196 frames, ~4 minutes of operation.
 
 | Parameter | Value |
 |-----------|-------|
-| Pack voltage | 62.6 V |
-| Pack current | 0.0 A (idle) |
-| SOC | 26% |
-| Cell voltages | 3294–3297 mV across all 19 cells |
-| Cell spread | 3 mV — excellent balance |
-| Temperatures (all 3 probes) | 28 °C |
-| Fault | None |
-| Charge permission | Allowed |
-| Max charge voltage | 71.7 V |
-| Max charge current | 25.0 A |
+| Pack voltage | 63.17 V |
+| SOC (voltage-based) | 93.0 % |
+| SOC (coulomb counter) | 69.3 % |
+| SOC (BMS internal) | 63.1 % |
+| Cell avg | 3325 mV |
+| Cell spread | 5 mV (excellent balance) |
+| Temperatures | 20 / 20 / 21 / 21 °C |
+| Discharge limit | 50 A |
+| Frames | 3197 |
 
 ### Decoding a Frame by Hand
 
 ```
-Raw:  [1889ms] ID: 0x98FF28F4 DLC: 8 Data: 38 1A 88 13 72 02 00 00
+[11771ms] ID: 0x18CB28F4  DLC: 8  Data: 0D 3F 0D 38 0D 3A 0D 39
 
-Frame 0x98FF28F4 — Pack summary
+Frame 0x18CB28F4 — Cell voltages group 4  (cells 13–16)
+func = (0x18CB28F4 >> 16) & 0xFF = 0xCB → group = 0xCB - 0xC8 = 3
 
-Bytes 0–1  0x38 0x1A  →  LE = 0x1A38 = 6712  →  6712 ÷ 100 = 62.6 V
-Bytes 2–3  0x88 0x13  →  LE = 0x1388 = 5000  →  5000 ÷ 100 = 50.0 A (disch limit)
-Bytes 4–5  0x72 0x02  →  LE = 0x0272 = 626   →  626  ÷ 10  = 62.6 %  (secondary SOC)
-Bytes 6–7  0x00 0x00  →  reserved
+  Bytes 0–1  0x0D 0x3F  → big-endian = 0x0D3F = 3391 mV  → Cell 13
+  Bytes 2–3  0x0D 0x38  → big-endian = 0x0D38 = 3384 mV  → Cell 14
+  Bytes 4–5  0x0D 0x3A  → big-endian = 0x0D3A = 3386 mV  → Cell 15
+  Bytes 6–7  0x0D 0x39  → big-endian = 0x0D39 = 3385 mV  → Cell 16
 ```
 
 ---
 
-## 13. Contributing & Team Workflow
+## 15. Contributing & Team Workflow
 
-Full rules are in `docs/CONTRIBUTING.md`. Every collaborator must read it before their first commit.
+Full rules in `docs/CONTRIBUTING.md`.
 
 ### Branch Naming
 
-```
-feature/<domain>/<description>
-bugfix/<domain>/<description>
-hotfix/<domain>/<description>
-release/v<MAJOR>.<MINOR>.<PATCH>
-```
+| Type | Pattern | Example |
+|------|---------|---------|
+| Feature | `feature/<short-desc>` | `feature/cloud-ingest` |
+| Bug fix | `fix/<short-desc>` | `fix/can-endianness` |
+| Firmware | `firmware/<short-desc>` | `firmware/sim800l-gprs` |
+| Docs | `docs/<short-desc>` | `docs/report-section-3` |
 
-Domain tokens: `firmware` `hardware` `backend` `frontend` `data` `report` `docs`
+All branches cut from `main`.
 
 ### Commit Format
 
 ```
-<type>(<domain>): <short description>
+<type>: <short summary>
 
-feat(backend): add WebSocket reconnect with exponential backoff
-fix(data): correct cell voltage byte order to big-endian
-docs(report): complete section 06 circuit design content
-hw(hardware): update PCB rev2 with CAN transceiver decoupling caps
+feat: add Firebase cloud ingest endpoint
+fix: correct cell voltage big-endian decoding
+firmware: rewrite SIM800L publisher with AT+HTTP service
+docs: update README with cloud pipeline
 ```
 
 ### Domain Ownership
 
 | Domain | Folder | Owner |
 |--------|--------|-------|
-| Firmware | `firmware/` | TBD |
-| Hardware | `hardware/` | TBD |
-| Backend | `backend/` | TBD |
-| Frontend | `frontend/` | TBD |
-| Data | `data/` | TBD |
-| Report | `report/` | TBD |
+| Firmware | `firmware/` | Embedded team |
+| Backend | `backend/` | Backend team |
+| Frontend | `frontend/` | Frontend team |
+| Data | `data/` | Data / analysis |
+| Report | `report/` | Academic report |
 
 ### Hard Rules
 
 ```
 Never:  git push --force         on any shared branch
 Never:  push directly to main    always use a PR
-Never:  commit myenv/ or .env    always in .gitignore
+Never:  commit secrets.h or .env  always in .gitignore
 ```
-
-Branch protection (force push disabled) must be configured in **GitHub → Settings → Branches** for both `main` and `develop` immediately after the repo is created.
 
 ---
 
-## 14. Versioning
-
-Semantic versioning: `vMAJOR.MINOR.PATCH`
+## 16. Versioning
 
 | Increment | When |
 |-----------|------|
-| MAJOR | Breaking change to CAN protocol format, API, or hardware interface |
+| MAJOR | Breaking change to CAN protocol, API, or hardware interface |
 | MINOR | New backward-compatible feature |
 | PATCH | Bug fix |
 
-Current version: **v0.1.0** — 2026-03-24 — Initial structured rebuild
+Current version: **v0.6.0** — 2026-04-18 — Nested JSON schema migration
 
-### Tagging a Release
-
-```bash
-git checkout main && git pull origin main
-git tag -a v1.0.0 -m "Release v1.0.0 — description"
-git push origin v1.0.0
-```
+| Version | Date | Notes |
+|---------|------|-------|
+| v0.6.0 | 2026-04-18 | Nested JSON schema: battery{}, temperatures{}, solar{}, dc_dc{}, vehicle{}; 1-based cells/battery_cells arrays; all tools and frontend updated |
+| v0.5.0 | 2026-04-17 | Removed Firebase, direct VPS pipeline (ESP32 → POST /api/ingest → SQLite → WebSocket → browser) |
+| v0.4.0 | 2026-04-16 | Full BAKO CAN protocol decoder + SIM800L brownout recovery |
 
 ---
 
-## 15. Known Issues
+## 17. Known Issues
 
-**Cell voltage endianness in CLI parser** — `data/battery_can_parser.py` uses little-endian byte order for cell voltage frames. The actual hardware outputs cell voltages in big-endian. This produces wrong readings when the high and low bytes differ significantly. The backend server is correct. Fix: replace `le16(data[i*2], data[i*2+1])` with `(data[i*2] << 8) | data[i*2+1]` in `decode_cell_voltages()`.
+**SIM800L power brownout mid-transaction** — The SIM800L requires a stable 3.7–4.2 V supply capable of 2 A peak. If the supply droops during GPRS TX (peak ~1.5 A), the module resets and emits a `"Call Ready"` URC mid-transaction. The firmware detects this in all AT response loops, sets `g_moduleRebooted`, aborts the HTTP transaction, waits 20 s, then retries `AT+CPIN?` up to 6 times before reconnecting. Long-term fix: add a 1000 µF 10 V bulk capacitor close to the SIM800L VCC pin.
 
-**Hardcoded file path** — `FILE_PATH` at line 6 of `data/battery_can_parser.py` points to a developer's local machine. Always update before running.
+**APN varies by carrier** — The default APN is `"internet.ooredoo.tn"`. Maroc Telecom uses `"iam"`, Inwi uses `"inwi"`. Set yours in `include/secrets.h`.
 
-**Virtual environment in original repo** — the original repository committed the full `myenv/` Python virtual environment. The `.gitignore` in this repo excludes all `venv/` folders. Never commit them.
+**Port already in use on server restart** — If `server.py` fails with `address already in use`, run: `lsof -ti :8765 | xargs kill -9`
 
-**ISS report content** — all 22 section files in `report/Section Files/` contain only `% Content placeholder`. The LaTeX structure compiles but written content has not yet been added.
+**Report content** — sections §04, §08, §09 are written. The remaining section files contain `% Content placeholder` for other teams to fill.
 
 ---
 
-## 16. License & Credits
+## 18. License & Credits
 
 - **Project:** Bako OBD ISS — ISS Senior Project 2026
 - **Institution:** MEDTECH
 - **Protocol:** SAE J1939 (Society of Automotive Engineers)
-- **Battery system:** O'CELL IFS60.8-500-F-E3 / Bat72 230Ah BMS
+- **Battery:** O'CELL IFS60.8-500-F-E3 LiFePO₄
 - **Repository:** [github.com/MohaBc/Bako_OBD_ISS](https://github.com/MohaBc/Bako_OBD_ISS)
 
 ---
 
-*Last updated: March 2026 — Status: Active Development — Platforms: Windows, macOS, Linux*
+*Last updated: April 2026 — v0.6.0 — Status: Active Development — Platforms: Linux, macOS, Windows*
