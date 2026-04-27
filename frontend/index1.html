@@ -118,6 +118,30 @@
       color: var(--dim2)
     }
 
+    .src-toggle {
+      display: flex;
+      background: #0d1820;
+      border: 1px solid var(--border2);
+      border-radius: 3px;
+      overflow: hidden;
+      font-family: var(--mono);
+      font-size: .62rem;
+    }
+    .src-btn {
+      padding: 3px 10px;
+      cursor: pointer;
+      background: transparent;
+      border: none;
+      color: var(--dim2);
+      letter-spacing: 1px;
+      transition: all .2s;
+    }
+    .src-btn.active {
+      background: var(--accent2);
+      color: #fff;
+      text-shadow: 0 0 8px rgba(0,180,255,.8);
+    }
+
     .dot {
       width: 7px;
       height: 7px;
@@ -139,6 +163,11 @@
       box-shadow: 0 0 6px var(--red)
     }
 
+    .dot.wait {
+      background: var(--yellow);
+      box-shadow: 0 0 6px var(--yellow)
+    }
+
     @keyframes blink {
 
       0%,
@@ -149,212 +178,6 @@
       50% {
         opacity: .3
       }
-    }
-
-    /* ── Mode switcher in header ── */
-    .mode-pill {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
-      border: 1px solid var(--border2);
-      border-radius: 12px;
-      background: rgba(0, 153, 187, .08);
-      cursor: pointer;
-      transition: all .2s;
-      font-family: var(--mono);
-      font-size: .68rem;
-      letter-spacing: 1px;
-      text-transform: uppercase;
-      color: var(--accent);
-      user-select: none;
-    }
-
-    .mode-pill:hover {
-      background: rgba(0, 153, 187, .18);
-      border-color: var(--accent2);
-    }
-
-    .mode-pill .mode-icon {
-      font-size: .85rem;
-      line-height: 1;
-    }
-
-    .mode-pill .mode-name {
-      font-weight: 600;
-    }
-
-    .mode-modal {
-      position: fixed;
-      inset: 0;
-      z-index: 200;
-      background: rgba(0, 0, 0, .65);
-      backdrop-filter: blur(4px);
-      display: none;
-      align-items: center;
-      justify-content: center;
-      animation: fadein .2s;
-    }
-
-    .mode-modal.open {
-      display: flex;
-    }
-
-    @keyframes fadein {
-      from {
-        opacity: 0
-      }
-
-      to {
-        opacity: 1
-      }
-    }
-
-    .mode-dialog {
-      width: 380px;
-      max-width: 92vw;
-      background: var(--card);
-      border: 1px solid var(--border2);
-      border-radius: 8px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, .6),
-        0 0 0 1px rgba(0, 153, 187, .15);
-      padding: 18px 20px 20px;
-      font-family: var(--ui);
-    }
-
-    .mode-dialog h3 {
-      font-family: var(--ui);
-      font-weight: 800;
-      font-size: .9rem;
-      letter-spacing: 3px;
-      text-transform: uppercase;
-      color: var(--accent);
-      margin-bottom: 12px;
-      padding-bottom: 8px;
-      border-bottom: 1px solid var(--border2);
-    }
-
-    .mode-options {
-      display: grid;
-      grid-template-columns: 1fr 1fr 1fr;
-      gap: 6px;
-      margin-bottom: 14px;
-    }
-
-    .mode-opt {
-      padding: 10px 6px;
-      text-align: center;
-      border: 1px solid var(--border2);
-      border-radius: 4px;
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      font-family: var(--mono);
-      font-size: .72rem;
-      letter-spacing: 1px;
-      transition: all .15s;
-    }
-
-    .mode-opt:hover {
-      border-color: var(--accent2);
-    }
-
-    .mode-opt.active {
-      background: rgba(0, 153, 187, .2);
-      border-color: var(--accent);
-      color: var(--accent);
-      box-shadow: 0 0 8px rgba(0, 153, 187, .3) inset;
-    }
-
-    .mode-opt .opt-glyph {
-      display: block;
-      font-size: 1.15rem;
-      margin-bottom: 4px;
-    }
-
-    .mode-section {
-      margin-top: 8px;
-      padding: 10px;
-      border: 1px solid var(--border);
-      border-radius: 4px;
-      background: rgba(0, 0, 0, .25);
-      display: none;
-    }
-
-    .mode-section.show {
-      display: block;
-    }
-
-    .mode-section label {
-      display: block;
-      font-family: var(--mono);
-      font-size: .65rem;
-      letter-spacing: 1.5px;
-      color: var(--dim2);
-      margin: 6px 0 3px;
-      text-transform: uppercase;
-    }
-
-    .mode-section input,
-    .mode-section select {
-      width: 100%;
-      padding: 6px 8px;
-      background: var(--bg);
-      border: 1px solid var(--border2);
-      border-radius: 3px;
-      color: var(--text);
-      font-family: var(--mono);
-      font-size: .8rem;
-      outline: none;
-    }
-
-    .mode-section input:focus,
-    .mode-section select:focus {
-      border-color: var(--accent2);
-    }
-
-    .mode-actions {
-      display: flex;
-      gap: 8px;
-      margin-top: 16px;
-      justify-content: flex-end;
-    }
-
-    .mode-btn {
-      padding: 8px 16px;
-      border: 1px solid var(--border2);
-      border-radius: 3px;
-      background: var(--surface);
-      color: var(--text);
-      cursor: pointer;
-      font-family: var(--mono);
-      font-size: .72rem;
-      letter-spacing: 1.5px;
-      text-transform: uppercase;
-      transition: all .15s;
-    }
-
-    .mode-btn:hover {
-      border-color: var(--accent2);
-    }
-
-    .mode-btn.primary {
-      background: var(--accent2);
-      color: #021;
-      border-color: var(--accent2);
-      font-weight: 700;
-    }
-
-    .mode-btn.primary:hover {
-      box-shadow: 0 0 12px var(--accent2);
-    }
-
-    .mode-hint {
-      font-family: var(--mono);
-      font-size: .62rem;
-      color: var(--dim2);
-      margin-top: 4px;
-      letter-spacing: .5px;
     }
 
     /* ── Main layout ── */
@@ -804,11 +627,31 @@
       background: transparent
     }
 
+    /* Oil level gauge */
+    .oil-wrap {
+      display: flex;
+      flex-direction: column;
+      gap: 4px
+    }
 
+    .oil-bar-outer {
+      height: 10px;
+      background: var(--border2);
+      border-radius: 5px;
+      overflow: hidden
+    }
 
+    .oil-bar-inner {
+      height: 100%;
+      border-radius: 5px;
+      transition: width .6s ease, background .3s
+    }
 
-
-
+    .oil-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline
+    }
 
     /* Current meter (two channels) */
     .current-dual {
@@ -848,9 +691,14 @@
       transition: width .5s ease
     }
 
-    /* ── Bottom: Serial log (full width) ── */
+    /* ── Bottom row: Serial log + Cloud log ── */
     .log-panel {
-      grid-column: 1/-1;
+      grid-column: 1 / 3;
+      grid-row: 2
+    }
+
+    .cloud-log-panel {
+      grid-column: 3 / -1;
       grid-row: 2
     }
 
@@ -901,6 +749,15 @@
     .log-line.error {
       color: var(--red)
     }
+
+    /* Cloud log level colors */
+    .cl-recv  { color: #00ff88 }
+    .cl-poll  { color: #4488bb }
+    .cl-ws    { color: #ffcc00 }
+    .cl-ok    { color: #00d4ff }
+    .cl-err   { color: var(--red) }
+    .cl-info  { color: var(--dim2) }
+    .cl-new   { animation: logFade 3s forwards }
 
     @keyframes logFade {
       0% {
@@ -1218,69 +1075,16 @@
       </div>
     </div>
     <div class="hdr-right">
-      <span class="mode-pill" id="mode-pill" title="Click to change input source">
-        <span class="mode-icon" id="mode-icon">⚡</span>
-        <span class="mode-name" id="mode-name">SERIAL</span>
-      </span>
+      <div class="src-toggle">
+        <button class="src-btn active" id="btn-serial" onclick="setSource('serial')">SERIAL</button>
+        <button class="src-btn"        id="btn-cloud"  onclick="setSource('cloud')">CLOUD</button>
+      </div>
       <span><span class="dot" id="dot"></span><span id="conn-lbl">Connecting…</span></span>
       <span id="port-lbl">—</span>
       <span id="frames-lbl">0 frames</span>
       <span id="clock">—</span>
     </div>
   </header>
-
-  <!-- Mode-switch modal -->
-  <div class="mode-modal" id="mode-modal">
-    <div class="mode-dialog">
-      <h3>Select Input Source</h3>
-      <div class="mode-options">
-        <div class="mode-opt" data-mode="serial">
-          <span class="opt-glyph">🔌</span>
-          Serial
-        </div>
-        <div class="mode-opt" data-mode="wifi">
-          <span class="opt-glyph">📡</span>
-          WiFi&nbsp;AP
-        </div>
-        <div class="mode-opt" data-mode="off">
-          <span class="opt-glyph">⏻</span>
-          Off
-        </div>
-      </div>
-
-      <div class="mode-section" id="serial-section">
-        <label for="serial-port">Serial Port</label>
-        <select id="serial-port">
-          <option value="">Auto-detect</option>
-        </select>
-        <div class="mode-hint">Pick a USB device or leave on auto-detect.</div>
-        <label for="serial-baud">Baud Rate</label>
-        <select id="serial-baud">
-          <option>9600</option>
-          <option>19200</option>
-          <option>38400</option>
-          <option>57600</option>
-          <option selected>115200</option>
-          <option>230400</option>
-          <option>500000</option>
-          <option>1000000</option>
-        </select>
-      </div>
-
-      <div class="mode-section" id="wifi-section">
-        <label for="wifi-ip">ESP32 AP Address</label>
-        <input id="wifi-ip" type="text" value="192.168.4.1" />
-        <div class="mode-hint">First, join the "BAKO_SMU" WiFi network.</div>
-        <label for="wifi-port">TCP Port</label>
-        <input id="wifi-port" type="number" value="9000" min="1" max="65535" />
-      </div>
-
-      <div class="mode-actions">
-        <button class="mode-btn" id="mode-cancel">Cancel</button>
-        <button class="mode-btn primary" id="mode-apply">Apply</button>
-      </div>
-    </div>
-  </div>
 
   <main>
 
@@ -1300,6 +1104,10 @@
               <div class="soc-lbl">SOC</div>
             </div>
           </div>
+          <div style="display:flex;gap:10px;justify-content:center;margin-top:4px;font-family:var(--mono);font-size:.58rem;color:var(--dim2)">
+            <span>BMS <span id="soc-bms" style="color:var(--dim)">—</span></span>
+            <span>Coul <span id="soc-coul" style="color:var(--dim)">—</span></span>
+          </div>
         </div>
         <div class="stat-grid">
           <div class="stat">
@@ -1307,15 +1115,15 @@
             <span class="stat-val" id="pack-v">—<span class="stat-unit">V</span></span>
           </div>
           <div class="stat">
-            <span class="stat-lbl">Courant</span>
+            <span class="stat-lbl">Disch. Lim</span>
             <span class="stat-val" id="disch-i">—<span class="stat-unit">A</span></span>
           </div>
           <div class="stat">
-            <span class="stat-lbl">Capacité</span>
-            <span class="stat-val" id="chg-i">—<span class="stat-unit">AH</span></span>
+            <span class="stat-lbl">Chg. Req</span>
+            <span class="stat-val" id="chg-i">—<span class="stat-unit">A</span></span>
           </div>
           <div class="stat">
-            <span class="stat-lbl">Cycles</span>
+            <span class="stat-lbl">Cells</span>
             <span class="stat-val" id="cell-count-hdr">—</span>
           </div>
         </div>
@@ -1494,10 +1302,20 @@
           <div id="hb-badge" class="hb-badge unknown">⬤ UNKNOWN</div>
         </div>
 
+        <div class="ext-row" style="margin-top:4px">
+          <div class="oil-label-row">
+            <div class="ext-label">Oil Level</div>
+            <span class="ext-value" id="oil-val" style="font-size:.9rem">—<span class="ext-unit">%</span></span>
+          </div>
+          <div class="oil-bar-outer">
+            <div class="oil-bar-inner" id="oil-bar"></div>
+          </div>
+        </div>
+
       </div>
     </div>
 
-    <!-- Bottom: Serial log -->
+    <!-- Bottom-left: Serial log -->
     <div class="card log-panel">
       <div class="card-hdr">
         <span class="card-title">Serial Monitor</span>
@@ -1508,6 +1326,22 @@
         </div>
       </div>
       <div class="log-body" id="log-body"></div>
+    </div>
+
+    <!-- Bottom-right: Cloud communication log -->
+    <div class="card cloud-log-panel">
+      <div class="card-hdr">
+        <span class="card-title">Cloud Log</span>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="cl-count" style="font-family:var(--mono);font-size:.58rem;color:var(--dim2)">0 events</span>
+          <button onclick="clearCloudLog()" class="exp-btn">✕ Clear</button>
+        </div>
+      </div>
+      <div class="log-body" id="cloud-log-body">
+        <div style="font-family:var(--mono);font-size:.65rem;color:var(--dim2);padding:20px 0;text-align:center">
+          Waiting for cloud events…
+        </div>
+      </div>
     </div>
 
   </main>
@@ -1549,7 +1383,11 @@
     };
 
     function sampleTemperature(d) {
-      if (!d.temps || Object.keys(d.temps).length === 0) return;
+      const tempData = (d.temperatures || {});
+      const tempCells = tempData.battery_cells || [];
+      const tempObj = {};
+      tempCells.forEach((val, i) => { if (i > 0 && val !== null && val !== undefined) tempObj[i] = val; });
+      if (!Object.keys(tempObj).length) return;
       const now = Date.now();
       if (now - lastTempSample < TEMP_SAMPLE_INTERVAL) return;
       lastTempSample = now;
@@ -1559,8 +1397,8 @@
 
       tempHistory.push({
         t: elapsed,
-        temps: { ...d.temps },
-        avg: d.avg_temp
+        temps: tempObj,
+        avg: tempData.battery_avg_c
       });
     }
 
@@ -1852,6 +1690,11 @@
       if (v < 11.8) return 'var(--yellow)';
       return 'var(--green)';
     }
+    function oilColor(pct) {
+      if (pct < 15) return 'var(--red)';
+      if (pct < 30) return 'var(--yellow)';
+      return 'var(--green)';
+    }
     function fmt(v, d = 1) { return (v != null) ? Number(v).toFixed(d) : '—'; }
 
     // ── Full log buffer ────────────────────────────────────────────────────────
@@ -2004,6 +1847,51 @@
       });
     }
 
+    // ── Cloud communication log ────────────────────────────────────────────────
+    let lastCloudLogLen = 0;
+    let lastCloudLogTail = '';
+
+    function levelClass(line) {
+      if (line.includes('] [RECV]'))  return 'cl-recv';
+      if (line.includes('] [POLL]'))  return 'cl-poll';
+      if (line.includes('] [WS]'))    return 'cl-ws';
+      if (line.includes('] [OK]'))    return 'cl-ok';
+      if (line.includes('] [ERR]'))   return 'cl-err';
+      return 'cl-info';
+    }
+
+    function updateCloudLog(lines) {
+      if (!lines || !lines.length) return;
+      const tail = lines[lines.length - 1];
+      if (lines.length === lastCloudLogLen && tail === lastCloudLogTail) return;
+
+      const newLines = lines.slice(lastCloudLogLen);
+      lastCloudLogLen  = lines.length;
+      lastCloudLogTail = tail;
+
+      const box = document.getElementById('cloud-log-body');
+      if (box.querySelector('div[style]')) box.innerHTML = '';   // remove placeholder
+
+      newLines.forEach(line => {
+        const el = document.createElement('div');
+        el.className = `log-line ${levelClass(line)} cl-new`;
+        el.textContent = line;
+        box.appendChild(el);
+        setTimeout(() => el.classList.remove('cl-new'), 3100);
+      });
+
+      while (box.children.length > 120) box.removeChild(box.firstChild);
+      requestAnimationFrame(() => { box.scrollTop = box.scrollHeight; });
+      document.getElementById('cl-count').textContent = lastCloudLogLen + ' events';
+    }
+
+    function clearCloudLog() {
+      document.getElementById('cloud-log-body').innerHTML = '';
+      lastCloudLogLen  = 0;
+      lastCloudLogTail = '';
+      document.getElementById('cl-count').textContent = '0 events';
+    }
+
     // ── Serial log ─────────────────────────────────────────────────────────────
     function updateLog(lines) {
       if (!lines || !lines.length) return;
@@ -2128,33 +2016,35 @@
         }
       }
 
+      // Oil level
+      if (ext.oil_level !== null && ext.oil_level !== undefined) {
+        const pct = Math.max(0, Math.min(100, ext.oil_level));
+        const col = oilColor(pct);
+        document.getElementById('oil-val').innerHTML =
+          `${pct.toFixed(0)}<span class="ext-unit">%</span>`;
+        const bar = document.getElementById('oil-bar');
+        bar.style.width = pct + '%';
+        bar.style.background = col;
+      }
     }
 
     // ── Main update ────────────────────────────────────────────────────────────
     function update(d) {
+      const batt   = d.battery      || {};
+      const tempData = d.temperatures || {};
+      const veh    = d.vehicle      || {};
+
       // Header
-      document.getElementById('frames-lbl').textContent = d.frame_count + ' frames';
-      document.getElementById('port-lbl').textContent = d.port || '—';
+      document.getElementById('frames-lbl').textContent = (d.frame_count || 0) + ' frames';
+      document.getElementById('port-lbl').textContent = d.port || d.source || '—';
 
-      // Mode pill — reflect server-reported active mode
-      if (d.mode) {
-        const modeIcon = { serial: '🔌', wifi: '📡', off: '⏻' }[d.mode] || '⚡';
-        const modeName = (d.mode || '—').toUpperCase();
-        const mi = document.getElementById('mode-icon');
-        const mn = document.getElementById('mode-name');
-        if (mi) mi.textContent = modeIcon;
-        if (mn) mn.textContent = modeName;
-      }
-
-      const dot = document.getElementById('dot');
-      const lbl = document.getElementById('conn-lbl');
-      if (d.connected) { dot.className = 'dot live'; lbl.textContent = 'Live'; }
-      else if (d.mode === 'off') { dot.className = 'dot'; lbl.textContent = 'Disabled'; }
-      else { dot.className = 'dot err'; lbl.textContent = 'Reconnecting…'; }
+      if (d.connected) setDot('live');
+      else setDot('wait');
 
       // SOC ring
-      if (d.soc != null) {
-        const pct = Math.max(0, Math.min(100, d.soc));
+      const soc = batt.soc;
+      if (soc != null) {
+        const pct = Math.max(0, Math.min(100, soc));
         const circ = 314.2;
         const ring = document.getElementById('ring');
         ring.style.strokeDashoffset = circ * (1 - pct / 100);
@@ -2166,38 +2056,48 @@
       }
 
       // Pack stats
-      setVal('pack-v', d.pack_v, 1, 'V');
-      setVal('disch-i', 0.0, 1, 'A');
-      setVal('chg-i', d.capacity_ah || 44.7, 1, 'AH');
-      document.getElementById('cell-count-hdr').innerHTML = '1<span class="stat-unit">Num</span>';
+      setVal('pack-v', batt.pack_v, 1, 'V');
+      setVal('disch-i', batt.max_disch_a, 1, 'A');
+      setVal('chg-i', (batt.charger || {}).max_charge_a, 1, 'A');
+      if (batt.cell_count != null)
+        document.getElementById('cell-count-hdr').innerHTML =
+          `${batt.cell_count}<span class="stat-unit"> cells</span>`;
+
+      // SOC sub-values (BMS)
+      const socBmsEl  = document.getElementById('soc-bms');
+      const socCoulEl = document.getElementById('soc-coul');
+      if (socBmsEl  && batt.soc_bms  != null) socBmsEl.textContent  = Number(batt.soc_bms).toFixed(1) + '%';
+      if (socCoulEl) socCoulEl.textContent = '—';
 
       // Cell summary
-      if (d.cell_min_mv) {
+      if (batt.cell_min_mv) {
         const mn = document.getElementById('c-min');
-        mn.textContent = d.cell_min_mv + ' mV';
-        mn.style.color = cellColor(d.cell_min_mv);
+        mn.textContent = batt.cell_min_mv + ' mV';
+        mn.style.color = cellColor(batt.cell_min_mv);
       }
-      if (d.cell_max_mv) {
+      if (batt.cell_max_mv) {
         const mx = document.getElementById('c-max');
-        mx.textContent = d.cell_max_mv + ' mV';
-        mx.style.color = cellColor(d.cell_max_mv);
+        mx.textContent = batt.cell_max_mv + ' mV';
+        mx.style.color = cellColor(batt.cell_max_mv);
       }
-      if (d.cell_spread_mv != null) {
+      if (batt.cell_spread_mv != null) {
         const sp = document.getElementById('c-spread');
-        sp.textContent = (d.cell_spread_mv / 1000).toFixed(3) + ' V';
-        sp.style.color = d.cell_spread_mv < 20 ? 'var(--green)' :
-          d.cell_spread_mv < 50 ? 'var(--yellow)' : 'var(--red)';
+        sp.textContent = (batt.cell_spread_mv / 1000).toFixed(3) + ' V';
+        sp.style.color = batt.cell_spread_mv < 20 ? 'var(--green)' :
+          batt.cell_spread_mv < 50 ? 'var(--yellow)' : 'var(--red)';
       }
-      if (d.cell_avg_mv) document.getElementById('c-avg').textContent = d.cell_avg_mv + ' mV';
+      if (batt.cell_avg_mv) document.getElementById('c-avg').textContent = batt.cell_avg_mv + ' mV';
 
-      // Cell cards
-      const cells = d.cells || {};
-      const keys = Object.keys(cells).map(Number).sort((a, b) => a - b);
+      // Cell cards — cells is 1-based array: index 0=null, 1-19={mv,status}|null
+      const cellsArr = batt.cells || [];
+      const keys = [];
+      cellsArr.forEach((entry, i) => { if (i > 0 && entry) keys.push(i); });
       if (keys.length && JSON.stringify(keys) !== JSON.stringify(cellCardKeys)) {
         buildCellGrid(keys);
       }
       keys.forEach(k => {
-        const info = cells[k];
+        const info = cellsArr[k];
+        if (!info) return;
         const mv = info.mv;
         const vEl = document.getElementById(`cv-${k}`);
         const bEl = document.getElementById(`cb-${k}`);
@@ -2209,9 +2109,11 @@
         }
       });
 
-      // BMS Temperatures
-      const temps = d.temps || {};
-      const tKeys = Object.keys(temps).map(Number).sort((a, b) => a - b);
+      // BMS Temperatures — battery_cells is 1-based array: index 0=null, 1-4=°C|null
+      const tempCells = tempData.battery_cells || [];
+      const tKeys = [];
+      tempCells.forEach((val, i) => { if (i > 0 && val !== null && val !== undefined) tKeys.push(i); });
+      const avgTemp = tempData.battery_avg_c;
       if (tKeys.length) {
         const tl = document.getElementById('temp-list');
         const existing = tl.querySelectorAll('.temp-row');
@@ -2229,7 +2131,7 @@
           <div class="temp-track"><div class="temp-fill" id="tf-${k}"></div></div>`;
             tl.appendChild(row);
           });
-          if (d.avg_temp != null) {
+          if (avgTemp != null) {
             const avg = document.createElement('div');
             avg.className = 'temp-avg';
             avg.innerHTML = `<span class="temp-avg-lbl">AVG</span>
@@ -2238,7 +2140,7 @@
           }
         }
         tKeys.forEach(k => {
-          const t = temps[k];
+          const t = tempCells[k];
           const col = tempColor(t);
           const pct = Math.max(4, Math.min(100, ((t + 10) / 70) * 100));
           const tv = document.getElementById(`tv-${k}`);
@@ -2247,20 +2149,29 @@
           if (tf) { tf.style.width = pct + '%'; tf.style.background = col; tf.style.boxShadow = `0 0 5px ${col}66`; }
         });
         const avgEl = document.getElementById('tv-avg');
-        if (avgEl && d.avg_temp != null) {
-          avgEl.textContent = (d.avg_temp >= 0 ? '+' : '') + d.avg_temp.toFixed(1) + '°C';
-          avgEl.style.color = tempColor(d.avg_temp);
+        if (avgEl && avgTemp != null) {
+          avgEl.textContent = (avgTemp >= 0 ? '+' : '') + avgTemp.toFixed(1) + '°C';
+          avgEl.style.color = tempColor(avgTemp);
         }
       }
 
-      // Extra sensors
-      updateExt(d.ext, d.ext_thresh);
+      // Vehicle handbrake
+      const hb = document.getElementById('hb-badge');
+      if (hb && veh.handbrake !== null && veh.handbrake !== undefined) {
+        if (veh.handbrake === 1) {
+          hb.className = 'hb-badge engaged'; hb.textContent = '⬤ ENGAGED';
+        } else {
+          hb.className = 'hb-badge released'; hb.textContent = '⬤ RELEASED';
+        }
+      }
 
       // Sample temperature for chart
       sampleTemperature(d);
 
       // Serial log
       if (d.log) updateLog(d.log);
+
+      // (cloud log is polled independently — see setInterval below)
     }
 
     function setVal(id, val, dec, unit) {
@@ -2269,138 +2180,60 @@
       el.innerHTML = Number(val).toFixed(dec) + `<span class="stat-unit">${unit}</span>`;
     }
 
-    // ── Mode switcher ─────────────────────────────────────────────────────────
-    const modePill = document.getElementById('mode-pill');
-    const modeModal = document.getElementById('mode-modal');
-    const modeCancel = document.getElementById('mode-cancel');
-    const modeApply = document.getElementById('mode-apply');
-    const modeOpts = document.querySelectorAll('.mode-opt');
-    const serialSec = document.getElementById('serial-section');
-    const wifiSec = document.getElementById('wifi-section');
-    const portSelect = document.getElementById('serial-port');
-    const baudSelect = document.getElementById('serial-baud');
-    const wifiIp = document.getElementById('wifi-ip');
-    const wifiPort = document.getElementById('wifi-port');
-
-    let selectedMode = 'serial';
-
-    function showSection(mode) {
-      serialSec.classList.toggle('show', mode === 'serial');
-      wifiSec.classList.toggle('show', mode === 'wifi');
-    }
-
-    function setActiveOpt(mode) {
-      selectedMode = mode;
-      modeOpts.forEach(o => o.classList.toggle('active', o.dataset.mode === mode));
-      showSection(mode);
-    }
-
-    modeOpts.forEach(o => o.addEventListener('click', () => setActiveOpt(o.dataset.mode)));
-
-    async function openModeModal() {
-      try {
-        const r = await fetch('/api/mode');
-        const cfg = await r.json();
-
-        // Populate serial port dropdown
-        portSelect.innerHTML = '<option value="">Auto-detect</option>';
-        (cfg.available_ports || []).forEach(p => {
-          const opt = document.createElement('option');
-          opt.value = p.device;
-          opt.textContent = p.description ? `${p.device} — ${p.description}` : p.device;
-          if (cfg.serial && cfg.serial.port === p.device) opt.selected = true;
-          portSelect.appendChild(opt);
-        });
-
-        // Pre-fill values
-        if (cfg.serial) {
-          if (cfg.serial.baud) baudSelect.value = String(cfg.serial.baud);
-        }
-        if (cfg.wifi) {
-          if (cfg.wifi.esp_ip) wifiIp.value = cfg.wifi.esp_ip;
-          if (cfg.wifi.esp_port) wifiPort.value = cfg.wifi.esp_port;
-        }
-
-        // Disable serial option if pyserial isn't installed on the server
-        const serialBtn = document.querySelector('.mode-opt[data-mode="serial"]');
-        if (serialBtn) {
-          if (cfg.serial_available === false) {
-            serialBtn.style.opacity = '0.4';
-            serialBtn.style.cursor = 'not-allowed';
-            serialBtn.title = 'pyserial not installed on the server';
-          } else {
-            serialBtn.style.opacity = '';
-            serialBtn.style.cursor = '';
-            serialBtn.title = '';
-          }
-        }
-
-        setActiveOpt(cfg.mode || 'serial');
-      } catch (e) {
-        console.error('Could not load /api/mode', e);
-      }
-      modeModal.classList.add('open');
-    }
-
-    function closeModeModal() { modeModal.classList.remove('open'); }
-
-    modePill.addEventListener('click', openModeModal);
-    modeCancel.addEventListener('click', closeModeModal);
-    modeModal.addEventListener('click', e => { if (e.target === modeModal) closeModeModal(); });
-    document.addEventListener('keydown', e => {
-      if (e.key === 'Escape' && modeModal.classList.contains('open')) closeModeModal();
-    });
-
-    modeApply.addEventListener('click', async () => {
-      const body = { mode: selectedMode };
-      if (selectedMode === 'serial') {
-        body.serial = {
-          port: portSelect.value || null,
-          baud: parseInt(baudSelect.value, 10) || 115200,
-        };
-      } else if (selectedMode === 'wifi') {
-        body.wifi = {
-          esp_ip: wifiIp.value.trim() || '192.168.4.1',
-          esp_port: parseInt(wifiPort.value, 10) || 9000,
-        };
-      }
-      modeApply.disabled = true;
-      modeApply.textContent = 'Switching…';
-      try {
-        const r = await fetch('/api/mode', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(body),
-        });
-        if (!r.ok) {
-          const err = await r.json().catch(() => ({}));
-          alert('Mode switch failed: ' + (err.error || r.statusText));
-        } else {
-          closeModeModal();
-        }
-      } catch (e) {
-        alert('Network error: ' + e.message);
-      } finally {
-        modeApply.disabled = false;
-        modeApply.textContent = 'Apply';
-      }
-    });
-
     // ── WebSocket ─────────────────────────────────────────────────────────────
-    const overlay = document.getElementById('overlay');
-    let ws, retryMs = 1000;
+    const overlay    = document.getElementById('overlay');
+    const _dot       = document.getElementById('dot');
+    const _connLbl   = document.getElementById('conn-lbl');
+    let ws;
+    let currentSource = 'serial';
+
+    function wsUrl() {
+      return currentSource === 'cloud'
+        ? `ws://${location.host}/ws/cloud`
+        : `ws://${location.host}/ws`;
+    }
+
+    function setDot(state) {
+      // state: 'live' | 'wait' | 'err'
+      const labels = { live: 'Live', wait: 'Waiting…', err: 'Disconnected' };
+      _dot.className = 'dot ' + state;
+      _connLbl.textContent = labels[state] || state;
+    }
 
     function connect() {
-      ws = new WebSocket(`ws://${location.host}/ws`);
-      ws.onopen = () => { overlay.classList.add('hidden'); retryMs = 1000; };
+      ws = new WebSocket(wsUrl());
+      ws.onopen = () => {
+        overlay.classList.add('hidden');
+        setDot('wait');
+      };
       ws.onmessage = e => { try { update(JSON.parse(e.data)); } catch (err) { } };
       ws.onclose = ws.onerror = () => {
         overlay.classList.remove('hidden');
-        setTimeout(connect, retryMs);
-        retryMs = Math.min(retryMs * 1.5, 8000);
+        setDot('err');
+        setTimeout(connect, 5000);
       };
     }
+
+    function setSource(src) {
+      if (src === currentSource) return;
+      currentSource = src;
+      document.getElementById('btn-serial').classList.toggle('active', src === 'serial');
+      document.getElementById('btn-cloud').classList.toggle('active',  src === 'cloud');
+      if (ws) { ws.onclose = ws.onerror = null; ws.close(); }
+      connect();
+    }
+
     connect();
+
+    // ── Cloud log independent poll (works in both SERIAL and CLOUD mode) ───────
+    async function pollCloudLog() {
+      try {
+        const r = await fetch('/api/cloud-log');
+        if (r.ok) updateCloudLog(await r.json());
+      } catch (_) {}
+    }
+    pollCloudLog();
+    setInterval(pollCloudLog, 2000);
 
     // Clock
     setInterval(() => {

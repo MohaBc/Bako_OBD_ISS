@@ -1,0 +1,11 @@
+{
+  "mode": "off",
+  "serial": {
+    "port": null,
+    "baud": 115200
+  },
+  "wifi": {
+    "esp_ip": "192.168.4.1",
+    "esp_port": 9000
+  }
+}

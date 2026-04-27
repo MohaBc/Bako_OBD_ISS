@@ -5,13 +5,22 @@
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1" />
   <title>BAKO Diagnostics</title>
+  <meta name="description" content="BAKO Diagnostics — real-time battery pack, BMS and sensor monitoring dashboard." />
   <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
   <link
-    href="https://fonts.googleapis.com/css2?family=Share+Tech+Mono&family=Exo+2:wght@300;400;600;800;900&display=swap"
+    href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800;900&family=JetBrains+Mono:wght@400;500;600&display=swap"
     rel="stylesheet" />
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
+    /* ──────────────────────────────────────────────────────────────────────────
+       BAKO Diagnostics — UI stylesheet
+       Color palette and CSS variable names preserved from the original.
+       Typography refreshed: Inter (UI) + JetBrains Mono (data).
+       ────────────────────────────────────────────────────────────────────────── */
+
     :root {
+      /* Brand colors — UNCHANGED */
       --bg: #060a0d;
       --surface: #0b1117;
       --card: #0f1820;
@@ -28,8 +37,23 @@
       --dim: #2a4560;
       --dim2: #cbe09c;
       --text: #dde5eb;
-      --mono: 'Share Tech Mono', monospace;
-      --ui: 'Exo 2', sans-serif;
+
+      /* Typography */
+      --mono: 'JetBrains Mono', ui-monospace, SFMono-Regular, Menlo, monospace;
+      --ui: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+
+      /* Layout tokens */
+      --radius: 8px;
+      --radius-sm: 4px;
+      --pad: 14px;
+      --gap: 12px;
+
+      /* Elevation */
+      --shadow-1: 0 1px 0 rgba(255, 255, 255, .02) inset, 0 8px 24px -12px rgba(0, 0, 0, .6);
+      --shadow-2: 0 12px 40px rgba(0, 0, 0, .6), 0 0 0 1px rgba(0, 153, 187, .15);
+
+      /* Focus ring */
+      --ring: 0 0 0 2px rgba(0, 153, 187, .55);
     }
 
     *,
@@ -37,24 +61,30 @@
     *::after {
       box-sizing: border-box;
       margin: 0;
-      padding: 0
+      padding: 0;
     }
 
     html,
     body {
       height: 100%;
-      overflow: hidden
+      overflow: hidden;
     }
 
     body {
-      background: var(--bg);
+      background: radial-gradient(1200px 600px at 70% -10%, rgba(0, 153, 187, .06), transparent 60%),
+                  radial-gradient(900px 500px at -10% 110%, rgba(155, 200, 178, .04), transparent 60%),
+                  var(--bg);
       color: var(--text);
       font-family: var(--ui);
+      font-feature-settings: "ss01", "cv11";
+      -webkit-font-smoothing: antialiased;
+      -moz-osx-font-smoothing: grayscale;
+      text-rendering: optimizeLegibility;
       display: flex;
-      flex-direction: column
+      flex-direction: column;
     }
 
-    /* grid bg */
+    /* subtle grid bg */
     body::before {
       content: '';
       position: fixed;
@@ -63,10 +93,28 @@
         linear-gradient(90deg, rgba(0, 212, 255, .02) 1px, transparent 1px);
       background-size: 44px 44px;
       pointer-events: none;
-      z-index: 0
+      z-index: 0;
     }
 
-    /* ── Header ── */
+    /* Universal focus-visible */
+    :focus-visible {
+      outline: none;
+      box-shadow: var(--ring);
+      border-radius: 4px;
+    }
+
+    /* Custom scrollbars */
+    ::-webkit-scrollbar { width: 8px; height: 8px; }
+    ::-webkit-scrollbar-track { background: transparent; }
+    ::-webkit-scrollbar-thumb {
+      background: var(--border2);
+      border-radius: 8px;
+      border: 2px solid transparent;
+      background-clip: padding-box;
+    }
+    ::-webkit-scrollbar-thumb:hover { background: var(--accent2); background-clip: padding-box; }
+
+    /* ── Header ─────────────────────────────────────────────────────────────── */
     header {
       position: relative;
       z-index: 10;
@@ -74,39 +122,40 @@
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 10px 20px;
+      padding: 12px 24px;
       border-bottom: 1px solid var(--border2);
-      background: linear-gradient(180deg, #0d1a24 0%, transparent 100%);
+      background: linear-gradient(180deg, rgba(13, 26, 36, .9) 0%, rgba(13, 26, 36, .2) 100%);
+      backdrop-filter: blur(8px);
     }
 
     .logo {
       display: flex;
       align-items: center;
-      gap: 10px
+      gap: 12px;
     }
 
     .logo-bolt {
-      font-size: 1.4rem;
-      filter: drop-shadow(0 0 8px var(--accent))
+      font-size: 1.6rem;
+      filter: drop-shadow(0 0 10px var(--accent));
     }
 
     .logo h1 {
       font-family: var(--ui);
-      font-weight: 900;
-      font-size: 1.25rem;
-      letter-spacing: 4px;
+      font-weight: 800;
+      font-size: 1.05rem;
+      letter-spacing: 3px;
       text-transform: uppercase;
       color: var(--accent);
-      text-shadow: 0 0 20px rgba(0, 212, 255, .5)
+      text-shadow: 0 0 18px rgba(155, 200, 178, .35);
     }
 
     .logo sub {
-      font-size: .6rem;
+      font-size: .65rem;
       letter-spacing: 2px;
       color: var(--dim2);
-      font-weight: 300;
+      font-weight: 400;
       display: block;
-      margin-top: 1px
+      margin-top: 2px;
     }
 
     .hdr-right {
@@ -114,229 +163,212 @@
       align-items: center;
       gap: 18px;
       font-family: var(--mono);
-      font-size: .7rem;
-      color: var(--dim2)
+      font-size: .72rem;
+      color: var(--dim2);
+    }
+
+    .hdr-right > span {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
 
     .dot {
-      width: 7px;
-      height: 7px;
+      width: 8px;
+      height: 8px;
       border-radius: 50%;
       background: var(--dim);
       display: inline-block;
-      margin-right: 6px;
-      transition: all .3s
+      margin-right: 4px;
+      transition: all .3s;
     }
 
     .dot.live {
       background: var(--green);
-      box-shadow: 0 0 8px var(--green);
-      animation: blink 2s infinite
+      box-shadow: 0 0 10px var(--green);
+      animation: blink 2s infinite;
     }
 
     .dot.err {
       background: var(--red);
-      box-shadow: 0 0 6px var(--red)
+      box-shadow: 0 0 8px var(--red);
     }
 
     @keyframes blink {
-
-      0%,
-      100% {
-        opacity: 1
-      }
-
-      50% {
-        opacity: .3
-      }
+      0%, 100% { opacity: 1; }
+      50%      { opacity: .35; }
     }
 
-    /* ── Mode switcher in header ── */
+    /* ── Mode switcher in header ───────────────────────────────────────────── */
     .mode-pill {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
-      padding: 4px 10px;
+      gap: 8px;
+      padding: 6px 14px;
       border: 1px solid var(--border2);
-      border-radius: 12px;
-      background: rgba(0, 153, 187, .08);
+      border-radius: 999px;
+      background: rgba(0, 153, 187, .1);
       cursor: pointer;
       transition: all .2s;
-      font-family: var(--mono);
-      font-size: .68rem;
-      letter-spacing: 1px;
+      font-family: var(--ui);
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: 1.5px;
       text-transform: uppercase;
       color: var(--accent);
       user-select: none;
     }
 
     .mode-pill:hover {
-      background: rgba(0, 153, 187, .18);
+      background: rgba(0, 153, 187, .22);
       border-color: var(--accent2);
+      transform: translateY(-1px);
     }
 
-    .mode-pill .mode-icon {
-      font-size: .85rem;
-      line-height: 1;
-    }
-
-    .mode-pill .mode-name {
-      font-weight: 600;
-    }
+    .mode-pill .mode-icon { font-size: .95rem; line-height: 1; }
+    .mode-pill .mode-name { font-weight: 700; }
 
     .mode-modal {
       position: fixed;
       inset: 0;
       z-index: 200;
-      background: rgba(0, 0, 0, .65);
-      backdrop-filter: blur(4px);
+      background: rgba(0, 0, 0, .7);
+      backdrop-filter: blur(6px);
       display: none;
       align-items: center;
       justify-content: center;
       animation: fadein .2s;
     }
 
-    .mode-modal.open {
-      display: flex;
-    }
-
-    @keyframes fadein {
-      from {
-        opacity: 0
-      }
-
-      to {
-        opacity: 1
-      }
-    }
+    .mode-modal.open { display: flex; }
+    @keyframes fadein { from { opacity: 0 } to { opacity: 1 } }
 
     .mode-dialog {
-      width: 380px;
+      width: 420px;
       max-width: 92vw;
       background: var(--card);
       border: 1px solid var(--border2);
-      border-radius: 8px;
-      box-shadow: 0 12px 40px rgba(0, 0, 0, .6),
-        0 0 0 1px rgba(0, 153, 187, .15);
-      padding: 18px 20px 20px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-2);
+      padding: 22px 24px 24px;
       font-family: var(--ui);
     }
 
     .mode-dialog h3 {
       font-family: var(--ui);
-      font-weight: 800;
-      font-size: .9rem;
-      letter-spacing: 3px;
+      font-weight: 700;
+      font-size: .95rem;
+      letter-spacing: 2.5px;
       text-transform: uppercase;
       color: var(--accent);
-      margin-bottom: 12px;
-      padding-bottom: 8px;
+      margin-bottom: 16px;
+      padding-bottom: 12px;
       border-bottom: 1px solid var(--border2);
     }
 
     .mode-options {
       display: grid;
       grid-template-columns: 1fr 1fr 1fr;
-      gap: 6px;
-      margin-bottom: 14px;
+      gap: 8px;
+      margin-bottom: 16px;
     }
 
     .mode-opt {
-      padding: 10px 6px;
+      padding: 14px 8px;
       text-align: center;
       border: 1px solid var(--border2);
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       background: var(--surface);
       color: var(--text);
       cursor: pointer;
-      font-family: var(--mono);
-      font-size: .72rem;
+      font-family: var(--ui);
+      font-size: .75rem;
+      font-weight: 600;
       letter-spacing: 1px;
       transition: all .15s;
     }
 
     .mode-opt:hover {
       border-color: var(--accent2);
+      transform: translateY(-1px);
     }
 
     .mode-opt.active {
       background: rgba(0, 153, 187, .2);
       border-color: var(--accent);
       color: var(--accent);
-      box-shadow: 0 0 8px rgba(0, 153, 187, .3) inset;
+      box-shadow: 0 0 12px rgba(0, 153, 187, .3) inset;
     }
 
-    .mode-opt .opt-glyph {
-      display: block;
-      font-size: 1.15rem;
-      margin-bottom: 4px;
-    }
+    .mode-opt .opt-glyph { display: block; font-size: 1.4rem; margin-bottom: 6px; }
 
     .mode-section {
-      margin-top: 8px;
-      padding: 10px;
+      margin-top: 10px;
+      padding: 14px;
       border: 1px solid var(--border);
-      border-radius: 4px;
-      background: rgba(0, 0, 0, .25);
+      border-radius: var(--radius-sm);
+      background: rgba(0, 0, 0, .3);
       display: none;
     }
 
-    .mode-section.show {
-      display: block;
-    }
+    .mode-section.show { display: block; }
 
     .mode-section label {
       display: block;
-      font-family: var(--mono);
-      font-size: .65rem;
-      letter-spacing: 1.5px;
+      font-family: var(--ui);
+      font-size: .68rem;
+      font-weight: 600;
+      letter-spacing: 1.2px;
       color: var(--dim2);
-      margin: 6px 0 3px;
+      margin: 10px 0 5px;
       text-transform: uppercase;
     }
+
+    .mode-section label:first-child { margin-top: 0; }
 
     .mode-section input,
     .mode-section select {
       width: 100%;
-      padding: 6px 8px;
+      padding: 9px 10px;
       background: var(--bg);
       border: 1px solid var(--border2);
-      border-radius: 3px;
+      border-radius: var(--radius-sm);
       color: var(--text);
       font-family: var(--mono);
-      font-size: .8rem;
+      font-size: .85rem;
       outline: none;
+      transition: border-color .15s, box-shadow .15s;
     }
 
     .mode-section input:focus,
     .mode-section select:focus {
       border-color: var(--accent2);
+      box-shadow: var(--ring);
     }
 
     .mode-actions {
       display: flex;
       gap: 8px;
-      margin-top: 16px;
+      margin-top: 18px;
       justify-content: flex-end;
     }
 
     .mode-btn {
-      padding: 8px 16px;
+      padding: 10px 18px;
       border: 1px solid var(--border2);
-      border-radius: 3px;
+      border-radius: var(--radius-sm);
       background: var(--surface);
       color: var(--text);
       cursor: pointer;
-      font-family: var(--mono);
-      font-size: .72rem;
-      letter-spacing: 1.5px;
+      font-family: var(--ui);
+      font-size: .75rem;
+      font-weight: 600;
+      letter-spacing: 1.2px;
       text-transform: uppercase;
       transition: all .15s;
     }
 
-    .mode-btn:hover {
-      border-color: var(--accent2);
-    }
+    .mode-btn:hover { border-color: var(--accent2); }
 
     .mode-btn.primary {
       background: var(--accent2);
@@ -345,102 +377,124 @@
       font-weight: 700;
     }
 
-    .mode-btn.primary:hover {
-      box-shadow: 0 0 12px var(--accent2);
-    }
+    .mode-btn.primary:hover { box-shadow: 0 0 14px var(--accent2); }
+    .mode-btn:disabled { opacity: .55; cursor: not-allowed; }
 
     .mode-hint {
-      font-family: var(--mono);
-      font-size: .62rem;
+      font-family: var(--ui);
+      font-size: .7rem;
       color: var(--dim2);
-      margin-top: 4px;
-      letter-spacing: .5px;
+      margin-top: 6px;
+      letter-spacing: .3px;
+      opacity: .85;
     }
 
-    /* ── Main layout ── */
+    /* ── Main layout ───────────────────────────────────────────────────────── */
     main {
       position: relative;
       z-index: 1;
       flex: 1;
       min-height: 0;
       display: grid;
-      grid-template-columns: 300px 1fr 220px 220px;
-      grid-template-rows: 1fr 200px;
-      gap: 10px;
-      padding: 10px;
+      grid-template-columns: 320px 1fr 240px 240px;
+      grid-template-rows: 1fr 220px;
+      gap: 12px;
+      padding: 12px;
     }
 
-    /* ── Cards ── */
+    @media (max-width: 1400px) {
+      main { grid-template-columns: 280px 1fr 220px 220px; }
+    }
+
+    @media (max-width: 1200px) {
+      main {
+        grid-template-columns: 1fr 1fr;
+        grid-template-rows: auto auto auto 220px;
+      }
+      .left   { grid-column: 1; grid-row: 1; }
+      .center { grid-column: 2; grid-row: 1 / span 2; }
+      .right  { grid-column: 1; grid-row: 2; }
+      .ext-panel { grid-column: 1 / -1; grid-row: 3; }
+      .log-panel { grid-column: 1 / -1; grid-row: 4; }
+    }
+
+    /* ── Cards ─────────────────────────────────────────────────────────────── */
     .card {
-      background: var(--card);
-      border: 1px solid var(--border);
-      border-radius: 3px;
+      background: linear-gradient(180deg, rgba(255, 255, 255, .015), transparent), var(--card);
+      border: 1px solid var(--border2);
+      border-radius: var(--radius);
       overflow: hidden;
       display: flex;
       flex-direction: column;
+      box-shadow: var(--shadow-1);
+      transition: border-color .25s;
     }
+
+    .card:hover { border-color: rgba(0, 153, 187, .35); }
 
     .card-hdr {
       flex-shrink: 0;
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 7px 12px 6px;
+      padding: 12px 16px;
       border-bottom: 1px solid var(--border);
+      background: linear-gradient(180deg, rgba(0, 153, 187, .04), transparent);
     }
 
     .card-title {
       font-family: var(--ui);
-      font-weight: 600;
-      font-size: .65rem;
-      letter-spacing: 3px;
+      font-weight: 700;
+      font-size: .72rem;
+      letter-spacing: 2.5px;
       text-transform: uppercase;
-      color: var(--dim2)
+      color: var(--accent);
     }
 
     .card-body {
       flex: 1;
       min-height: 0;
       overflow: hidden;
-      padding: 10px 12px
+      padding: 14px 16px;
     }
 
-    /* ── Left column: SOC + pack stats ── */
+    /* ── Left column: SOC + pack stats ─────────────────────────────────────── */
     .left {
       grid-column: 1;
-      grid-row: 1
+      grid-row: 1;
     }
 
     .soc-wrap {
       display: flex;
       flex-direction: column;
       align-items: center;
-      padding: 8px 0 4px
+      padding: 12px 0 8px;
     }
 
     .soc-ring {
       position: relative;
-      width: 150px;
-      height: 150px
+      width: 170px;
+      height: 170px;
+      filter: drop-shadow(0 0 18px rgba(0, 153, 187, .15));
     }
 
     .soc-ring svg {
       width: 100%;
       height: 100%;
-      transform: rotate(-90deg)
+      transform: rotate(-90deg);
     }
 
     .ring-track {
       fill: none;
       stroke: var(--border2);
-      stroke-width: 9
+      stroke-width: 9;
     }
 
     .ring-fill {
       fill: none;
       stroke-width: 9;
       stroke-linecap: round;
-      transition: stroke-dashoffset .9s cubic-bezier(.4, 0, .2, 1), stroke .4s
+      transition: stroke-dashoffset .9s cubic-bezier(.4, 0, .2, 1), stroke .4s;
     }
 
     .soc-center {
@@ -450,22 +504,26 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      gap: 1px
+      gap: 2px;
     }
 
     .soc-pct {
       font-family: var(--ui);
-      font-weight: 900;
-      font-size: 2.4rem;
+      font-weight: 800;
+      font-size: 2.7rem;
       line-height: 1;
-      color: var(--accent)
+      color: var(--accent);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -1px;
     }
 
     .soc-lbl {
-      font-family: var(--mono);
-      font-size: .55rem;
+      font-family: var(--ui);
+      font-size: .62rem;
+      font-weight: 600;
       letter-spacing: 3px;
-      color: var(--dim2)
+      color: var(--dim2);
+      text-transform: uppercase;
     }
 
     .stat-grid {
@@ -473,133 +531,123 @@
       grid-template-columns: 1fr 1fr;
       gap: 1px;
       background: var(--border);
-      margin: 4px -12px -10px
+      margin: 12px -16px -14px;
     }
 
     .stat {
       background: var(--card);
-      padding: 8px 12px;
+      padding: 12px 14px;
       display: flex;
       flex-direction: column;
-      gap: 2px
+      gap: 4px;
+      transition: background .2s;
     }
 
+    .stat:hover { background: rgba(0, 153, 187, .04); }
+
     .stat-lbl {
-      font-family: var(--mono);
-      font-size: .55rem;
-      letter-spacing: 2px;
+      font-family: var(--ui);
+      font-size: .62rem;
+      font-weight: 600;
+      letter-spacing: 1.8px;
       color: var(--dim2);
-      text-transform: uppercase
+      text-transform: uppercase;
     }
 
     .stat-val {
       font-family: var(--ui);
       font-weight: 700;
-      font-size: 1.2rem;
-      color: var(--text)
+      font-size: 1.35rem;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
+      letter-spacing: -.3px;
     }
 
     .stat-unit {
       font-family: var(--mono);
-      font-size: .6rem;
+      font-size: .65rem;
+      font-weight: 500;
       color: var(--dim2);
-      margin-left: 2px
+      margin-left: 4px;
     }
 
-    .g {
-      color: var(--green) !important
-    }
+    .g { color: var(--green) !important; }
+    .y { color: var(--yellow) !important; }
+    .o { color: var(--orange) !important; }
+    .r { color: var(--red) !important; }
+    .d { color: var(--dim2) !important; }
 
-    .y {
-      color: var(--yellow) !important
-    }
-
-    .o {
-      color: var(--orange) !important
-    }
-
-    .r {
-      color: var(--red) !important
-    }
-
-    .d {
-      color: var(--dim2) !important
-    }
-
-    /* ── Center: Cells ── */
+    /* ── Center: Cells ─────────────────────────────────────────────────────── */
     .center {
       grid-column: 2;
-      grid-row: 1
+      grid-row: 1;
     }
 
     .cell-summary {
       display: flex;
-      gap: 16px;
+      gap: 22px;
       flex-wrap: wrap;
-      padding-bottom: 8px;
+      padding: 4px 0 12px;
       border-bottom: 1px solid var(--border);
-      margin-bottom: 8px
+      margin-bottom: 12px;
     }
 
     .cs {
       display: flex;
       flex-direction: column;
-      gap: 1px
+      gap: 3px;
     }
 
     .cs-lbl {
-      font-family: var(--mono);
-      font-size: .55rem;
-      letter-spacing: 2px;
+      font-family: var(--ui);
+      font-size: .6rem;
+      font-weight: 600;
+      letter-spacing: 1.8px;
       color: var(--dim2);
-      text-transform: uppercase
+      text-transform: uppercase;
     }
 
     .cs-val {
       font-family: var(--ui);
       font-weight: 700;
-      font-size: .95rem
+      font-size: 1.05rem;
+      font-variant-numeric: tabular-nums;
     }
 
     .cell-grid {
       display: grid;
-      grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
-      gap: 5px;
+      grid-template-columns: repeat(auto-fill, minmax(64px, 1fr));
+      gap: 6px;
       overflow-y: auto;
-      height: calc(100% - 56px);
-      padding-right: 4px;
-    }
-
-    .cell-grid::-webkit-scrollbar {
-      width: 3px
-    }
-
-    .cell-grid::-webkit-scrollbar-thumb {
-      background: var(--border2)
+      height: calc(100% - 70px);
+      padding-right: 6px;
     }
 
     .cell {
       background: var(--surface);
       border: 1px solid var(--border);
-      border-radius: 3px;
-      padding: 6px 5px 5px;
+      border-radius: var(--radius-sm);
+      padding: 8px 6px 7px;
       display: flex;
       flex-direction: column;
       align-items: center;
-      gap: 4px;
+      gap: 5px;
       cursor: default;
-      transition: border-color .25s, box-shadow .25s;
+      transition: border-color .2s, box-shadow .2s, transform .2s;
     }
 
     .cell:hover {
       border-color: var(--accent);
-      box-shadow: 0 0 8px rgba(0, 212, 255, .12)
+      box-shadow: 0 0 10px rgba(0, 212, 255, .15);
+      transform: translateY(-1px);
     }
 
     .cell-num {
       font-family: var(--mono);
-      font-size: .5rem;
-      color: var(--dim2)
+      font-size: .58rem;
+      font-weight: 500;
+      color: var(--dim2);
+      letter-spacing: .5px;
     }
 
     .cell-bar-wrap {
@@ -607,101 +655,110 @@
       flex: 1;
       min-height: 60px;
       display: flex;
-      align-items: flex-end
+      align-items: flex-end;
     }
 
     .cell-bar {
       width: 100%;
-      border-radius: 2px 2px 0 0;
+      border-radius: 3px 3px 0 0;
       min-height: 2px;
-      transition: height .5s ease, background .3s
+      transition: height .5s ease, background .3s;
     }
 
     .cell-mv {
       font-family: var(--ui);
       font-weight: 700;
-      font-size: .78rem;
+      font-size: .82rem;
       transition: color .3s;
-      white-space: nowrap
+      white-space: nowrap;
+      font-variant-numeric: tabular-nums;
     }
 
-    /* ── Right column: BMS Temps ── */
+    /* ── Right column: BMS Temps ───────────────────────────────────────────── */
     .right {
       grid-column: 3;
-      grid-row: 1
+      grid-row: 1;
     }
 
     .temp-list {
       display: flex;
       flex-direction: column;
-      gap: 12px;
+      gap: 14px;
       height: 100%;
-      overflow-y: auto
+      overflow-y: auto;
+      padding-right: 4px;
     }
 
     .temp-row {
       display: flex;
       flex-direction: column;
-      gap: 4px
+      gap: 5px;
     }
 
     .temp-hdr {
       display: flex;
       justify-content: space-between;
-      align-items: baseline
+      align-items: baseline;
     }
 
     .temp-name {
-      font-family: var(--mono);
-      font-size: .62rem;
-      color: var(--dim2)
+      font-family: var(--ui);
+      font-size: .7rem;
+      font-weight: 500;
+      color: var(--dim2);
+      letter-spacing: .3px;
     }
 
     .temp-val {
       font-family: var(--ui);
       font-weight: 700;
-      font-size: 1.05rem
+      font-size: 1.1rem;
+      font-variant-numeric: tabular-nums;
     }
 
     .temp-track {
-      height: 3px;
+      height: 4px;
       background: var(--border2);
-      border-radius: 2px
+      border-radius: 3px;
+      overflow: hidden;
     }
 
     .temp-fill {
-      height: 3px;
-      border-radius: 2px;
-      transition: width .6s ease
+      height: 4px;
+      border-radius: 3px;
+      transition: width .6s ease;
     }
 
     .temp-avg {
       margin-top: auto;
-      padding-top: 10px;
+      padding-top: 12px;
       border-top: 1px solid var(--border);
       display: flex;
       justify-content: space-between;
-      align-items: center
+      align-items: center;
     }
 
     .temp-avg-lbl {
-      font-family: var(--mono);
-      font-size: .55rem;
-      letter-spacing: 2px;
-      color: var(--dim2)
+      font-family: var(--ui);
+      font-size: .62rem;
+      font-weight: 600;
+      letter-spacing: 1.8px;
+      color: var(--dim2);
+      text-transform: uppercase;
     }
 
     .temp-avg-val {
       font-family: var(--ui);
       font-weight: 700;
-      font-size: 1.05rem
+      font-size: 1.1rem;
+      font-variant-numeric: tabular-nums;
     }
 
-    /* ── Far-right: Extra sensors ── */
+    /* ── Far-right: Extra sensors ──────────────────────────────────────────── */
     .ext-panel {
       grid-column: 4;
       grid-row: 1;
-      overflow: hidden
+      overflow: hidden;
     }
 
     .ext-body {
@@ -710,66 +767,76 @@
       overflow-y: auto;
       display: flex;
       flex-direction: column;
-      gap: 8px;
-      padding: 8px 12px;
+      gap: 10px;
+      padding: 12px 14px;
     }
 
-    .ext-body::-webkit-scrollbar {
-      width: 3px
-    }
-
-    .ext-body::-webkit-scrollbar-thumb {
-      background: var(--border2)
-    }
-
-    /* Section divider inside ext panel */
+    /* Section divider */
     .ext-section {
-      font-family: var(--mono);
-      font-size: .52rem;
-      letter-spacing: 3px;
+      font-family: var(--ui);
+      font-size: .6rem;
+      font-weight: 700;
+      letter-spacing: 2.5px;
       text-transform: uppercase;
-      color: var(--dim);
-      padding: 4px 0 2px;
+      color: var(--accent);
+      padding: 6px 0 4px;
       border-bottom: 1px solid var(--border);
+      margin-top: 4px;
     }
 
-    /* Voltage row */
+    .ext-section:first-child { margin-top: 0; }
+
     .ext-row {
       display: flex;
       flex-direction: column;
-      gap: 3px
+      gap: 4px;
     }
 
     .ext-label {
-      font-family: var(--mono);
-      font-size: .58rem;
-      color: var(--dim2)
+      font-family: var(--ui);
+      font-size: .68rem;
+      font-weight: 500;
+      color: var(--dim2);
+      letter-spacing: .2px;
+      display: flex;
+      align-items: baseline;
+      gap: 5px;
+    }
+
+    .ext-label > span {
+      font-family: var(--mono) !important;
+      font-size: .55rem !important;
+      color: var(--dim) !important;
+      letter-spacing: .3px;
     }
 
     .ext-value {
       font-family: var(--ui);
       font-weight: 700;
-      font-size: 1.1rem;
-      color: var(--text)
+      font-size: 1.15rem;
+      color: var(--text);
+      font-variant-numeric: tabular-nums;
     }
 
     .ext-unit {
       font-family: var(--mono);
-      font-size: .58rem;
+      font-size: .62rem;
+      font-weight: 500;
       color: var(--dim2);
-      margin-left: 3px
+      margin-left: 4px;
     }
 
     .ext-bar-wrap {
-      height: 3px;
+      height: 4px;
       background: var(--border2);
-      border-radius: 2px
+      border-radius: 3px;
+      overflow: hidden;
     }
 
     .ext-bar {
-      height: 3px;
-      border-radius: 2px;
-      transition: width .5s ease, background .3s
+      height: 4px;
+      border-radius: 3px;
+      transition: width .5s ease, background .3s;
     }
 
     /* Handbrake badge */
@@ -777,11 +844,12 @@
       display: inline-flex;
       align-items: center;
       gap: 6px;
-      font-family: var(--mono);
+      font-family: var(--ui);
       font-size: .75rem;
-      font-weight: 600;
-      padding: 4px 10px;
-      border-radius: 2px;
+      font-weight: 700;
+      letter-spacing: 1px;
+      padding: 5px 12px;
+      border-radius: 4px;
       border: 1px solid;
       transition: all .3s;
     }
@@ -789,155 +857,106 @@
     .hb-badge.engaged {
       color: var(--red);
       border-color: var(--red);
-      background: rgba(213, 41, 67, .12)
+      background: rgba(213, 41, 67, .14);
     }
 
     .hb-badge.released {
       color: var(--green);
       border-color: var(--green);
-      background: rgba(0, 255, 136, .08)
+      background: rgba(0, 255, 136, .1);
     }
 
     .hb-badge.unknown {
       color: var(--dim2);
       border-color: var(--dim);
-      background: transparent
+      background: transparent;
     }
 
-
-
-
-
-
-
-    /* Current meter (two channels) */
-    .current-dual {
-      display: flex;
-      gap: 8px
-    }
-
-    .current-ch {
-      flex: 1;
-      display: flex;
-      flex-direction: column;
-      gap: 3px
-    }
-
-    .current-arc {
-      position: relative;
-      height: 36px;
-      display: flex;
-      align-items: center;
-      justify-content: center
-    }
-
-    .current-bg {
-      height: 5px;
+    /* Oil level */
+    .oil-bar-outer {
+      height: 12px;
       background: var(--border2);
-      border-radius: 3px;
-      width: 100%
+      border-radius: 6px;
+      overflow: hidden;
     }
 
-    .current-fill {
-      position: absolute;
-      left: 0;
-      top: 50%;
-      transform: translateY(-50%);
-      height: 5px;
-      border-radius: 3px;
-      transition: width .5s ease
+    .oil-bar-inner {
+      height: 100%;
+      border-radius: 6px;
+      transition: width .6s ease, background .3s;
     }
 
-    /* ── Bottom: Serial log (full width) ── */
+    .oil-label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+    }
+
+    /* ── Bottom: Serial log ────────────────────────────────────────────────── */
     .log-panel {
       grid-column: 1/-1;
-      grid-row: 2
+      grid-row: 2;
     }
 
     .log-body {
       flex: 1;
       min-height: 0;
       font-family: var(--mono);
-      font-size: .65rem;
-      line-height: 1.65;
+      font-size: .72rem;
+      line-height: 1.7;
       color: var(--dim2);
       overflow-y: scroll;
-      padding: 6px 12px;
-    }
-
-    .log-body::-webkit-scrollbar {
-      width: 3px
-    }
-
-    .log-body::-webkit-scrollbar-thumb {
-      background: var(--border2);
-      border-radius: 2px
+      padding: 10px 16px;
     }
 
     .log-line {
-      transition: color .1s;
+      transition: color .15s;
       white-space: nowrap;
       overflow: hidden;
-      text-overflow: ellipsis
+      text-overflow: ellipsis;
+      padding: 1px 0;
     }
 
-    .log-line.frame {
-      color: #2a6080
-    }
-
-    .log-line.new {
-      color: var(--accent);
-      animation: logFade 2s forwards
-    }
-
-    .log-line.info {
-      color: var(--dim2)
-    }
-
-    .log-line.sensor {
-      color: #7e9e6c
-    }
-
-    .log-line.error {
-      color: var(--red)
-    }
+    .log-line.frame  { color: #2a6080; }
+    .log-line.new    { color: var(--accent); animation: logFade 2s forwards; }
+    .log-line.info   { color: var(--dim2); }
+    .log-line.sensor { color: #7e9e6c; }
+    .log-line.error  { color: var(--red); font-weight: 600; }
 
     @keyframes logFade {
-      0% {
-        color: var(--accent)
-      }
-
-      100% {
-        color: #2a6080
-      }
+      0%   { color: var(--accent); }
+      100% { color: #2a6080; }
     }
 
-    /* ── Export buttons ── */
+    /* ── Buttons ───────────────────────────────────────────────────────────── */
     .exp-btn {
-      font-family: var(--mono);
-      font-size: 0.8rem;
-      padding: 7px 13px;
+      font-family: var(--ui);
+      font-size: .72rem;
+      font-weight: 600;
+      letter-spacing: .8px;
+      padding: 7px 14px;
       background: transparent;
       border: 1px solid var(--border2);
       color: var(--dim2);
-      border-radius: 2px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      transition: all 0.2s;
+      transition: all .2s;
     }
 
     .exp-btn:hover {
       border-color: var(--accent);
       color: var(--accent);
-      background: rgba(0, 212, 255, .06);
+      background: rgba(155, 200, 178, .08);
+      transform: translateY(-1px);
     }
 
     .exp-btn-csv:hover {
       border-color: var(--green);
       color: var(--green);
-      background: rgba(0, 255, 136, .06);
+      background: rgba(0, 255, 136, .08);
     }
 
-    /* ── Info Icons & Tooltips ── */
+    /* ── Info icons & legend tooltips ──────────────────────────────────────── */
     .info-wrap {
       position: relative;
       display: inline-flex;
@@ -947,126 +966,136 @@
     .info-icon {
       font-size: 14px;
       cursor: help;
-      filter: grayscale(1) opacity(0.7);
-      transition: all 0.2s;
+      filter: grayscale(.6) opacity(.75);
+      transition: all .2s;
     }
 
-    .info-wrap:hover .info-icon {
-      filter: none opacity(1);
-    }
+    .info-wrap:hover .info-icon { filter: none opacity(1); transform: scale(1.1); }
 
     .legend-tooltip {
       position: absolute;
-      top: 100%;
+      top: calc(100% + 10px);
       right: 0;
-      margin-top: 8px;
       background: var(--card);
       border: 1px solid var(--border2);
-      border-radius: 4px;
-      padding: 10px;
+      border-radius: var(--radius-sm);
+      padding: 12px 14px;
       width: max-content;
       opacity: 0;
       pointer-events: none;
-      transition: opacity 0.2s, transform 0.2s;
+      transform: translateY(-4px);
+      transition: opacity .2s, transform .2s;
       z-index: 50;
-      box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
+      box-shadow: 0 8px 24px rgba(0, 0, 0, .7);
+    }
+
+    .legend-tooltip::before {
+      content: '';
+      position: absolute;
+      top: -6px;
+      right: 10px;
+      width: 10px;
+      height: 10px;
+      background: var(--card);
+      border-left: 1px solid var(--border2);
+      border-top: 1px solid var(--border2);
+      transform: rotate(45deg);
     }
 
     .info-wrap:hover .legend-tooltip {
       opacity: 1;
+      transform: translateY(0);
     }
 
     .legend-row {
       display: flex;
       align-items: center;
-      gap: 8px;
-      margin-bottom: 6px;
-      font-family: var(--mono);
-      font-size: 0.65rem;
+      gap: 10px;
+      margin-bottom: 7px;
+      font-family: var(--ui);
+      font-size: .72rem;
       color: var(--text);
     }
 
-    .legend-row:last-child {
-      margin-bottom: 0;
-    }
+    .legend-row:last-child { margin-bottom: 0; }
 
     .legend-color {
-      width: 12px;
-      height: 12px;
-      border-radius: 2px;
+      width: 14px;
+      height: 14px;
+      border-radius: 3px;
+      flex-shrink: 0;
     }
 
-    /* ── Overlay ── */
+    /* ── Connection overlay ────────────────────────────────────────────────── */
     #overlay {
       position: fixed;
       inset: 0;
       z-index: 100;
-      background: rgba(6, 10, 13, .9);
-      backdrop-filter: blur(6px);
+      background: rgba(6, 10, 13, .92);
+      backdrop-filter: blur(8px);
       display: flex;
       align-items: center;
       justify-content: center;
-      transition: opacity .4s
+      transition: opacity .4s;
     }
 
     #overlay.hidden {
       opacity: 0;
-      pointer-events: none
+      pointer-events: none;
     }
 
     .ov-box {
       text-align: center;
       border: 1px solid var(--border2);
       background: var(--card);
-      padding: 40px 60px;
-      border-radius: 4px
+      padding: 44px 64px;
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-2);
     }
 
     .ov-box h2 {
       font-family: var(--ui);
-      font-weight: 900;
-      font-size: 1.5rem;
+      font-weight: 800;
+      font-size: 1.6rem;
       letter-spacing: 4px;
       text-transform: uppercase;
       color: var(--accent);
-      margin-bottom: 8px
+      margin-bottom: 10px;
     }
 
     .ov-box p {
-      font-family: var(--mono);
-      font-size: .7rem;
+      font-family: var(--ui);
+      font-size: .8rem;
       color: var(--dim2);
-      margin-bottom: 24px
+      margin-bottom: 26px;
+      letter-spacing: .3px;
     }
 
     .spinner {
-      width: 36px;
-      height: 36px;
+      width: 40px;
+      height: 40px;
       border: 2px solid var(--border2);
       border-top-color: var(--accent);
       border-radius: 50%;
       animation: spin 1s linear infinite;
-      margin: 0 auto
+      margin: 0 auto;
     }
 
-    @keyframes spin {
-      to {
-        transform: rotate(360deg)
-      }
-    }
+    @keyframes spin { to { transform: rotate(360deg); } }
 
-    /* ── Temp Chart Button ── */
+    /* ── Temp chart button & modal ─────────────────────────────────────────── */
     .chart-btn {
-      font-family: var(--mono);
-      font-size: .6rem;
-      padding: 3px 10px;
+      font-family: var(--ui);
+      font-size: .68rem;
+      font-weight: 600;
+      padding: 5px 12px;
       background: transparent;
       border: 1px solid var(--border2);
       color: var(--dim2);
-      border-radius: 2px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
-      transition: all .25s;
-      letter-spacing: 1px;
+      transition: all .2s;
+      letter-spacing: .8px;
       text-transform: uppercase;
     }
 
@@ -1074,10 +1103,9 @@
       border-color: var(--accent2);
       color: var(--accent2);
       background: rgba(0, 153, 187, .1);
-      box-shadow: 0 0 12px rgba(0, 153, 187, .15);
+      box-shadow: 0 0 14px rgba(0, 153, 187, .2);
     }
 
-    /* ── Temp Chart Modal ── */
     #temp-chart-modal {
       position: fixed;
       inset: 0;
@@ -1102,8 +1130,8 @@
       max-width: 1100px;
       background: var(--card);
       border: 1px solid var(--border2);
-      border-radius: 6px;
-      box-shadow: 0 8px 60px rgba(0, 0, 0, .6), 0 0 40px rgba(0, 153, 187, .08);
+      border-radius: var(--radius);
+      box-shadow: 0 8px 60px rgba(0, 0, 0, .6), 0 0 40px rgba(0, 153, 187, .1);
       display: flex;
       flex-direction: column;
       overflow: hidden;
@@ -1111,23 +1139,21 @@
       transition: transform .35s ease;
     }
 
-    #temp-chart-modal.open .tcm-box {
-      transform: scale(1) translateY(0);
-    }
+    #temp-chart-modal.open .tcm-box { transform: scale(1) translateY(0); }
 
     .tcm-header {
       display: flex;
       align-items: center;
       justify-content: space-between;
-      padding: 12px 20px;
+      padding: 14px 22px;
       border-bottom: 1px solid var(--border);
     }
 
     .tcm-title {
       font-family: var(--ui);
       font-weight: 700;
-      font-size: .8rem;
-      letter-spacing: 3px;
+      font-size: .85rem;
+      letter-spacing: 2.5px;
       text-transform: uppercase;
       color: var(--accent2);
     }
@@ -1138,9 +1164,9 @@
       background: transparent;
       border: 1px solid var(--border2);
       color: var(--dim2);
-      width: 28px;
-      height: 28px;
-      border-radius: 3px;
+      width: 32px;
+      height: 32px;
+      border-radius: var(--radius-sm);
       cursor: pointer;
       display: flex;
       align-items: center;
@@ -1151,51 +1177,63 @@
     .tcm-close:hover {
       border-color: var(--red);
       color: var(--red);
-      background: rgba(213, 41, 67, .1);
+      background: rgba(213, 41, 67, .12);
     }
 
     .tcm-body {
-      padding: 16px 20px 20px;
+      padding: 18px 22px 22px;
       display: flex;
       flex-direction: column;
-      gap: 10px;
+      gap: 12px;
     }
 
     .tcm-legend {
       display: flex;
-      gap: 18px;
+      gap: 20px;
       flex-wrap: wrap;
-      font-family: var(--mono);
-      font-size: .6rem;
+      font-family: var(--ui);
+      font-size: .72rem;
+      font-weight: 500;
       color: var(--dim2);
     }
 
     .tcm-legend-item {
       display: flex;
       align-items: center;
-      gap: 5px;
+      gap: 7px;
     }
 
     .tcm-legend-dot {
-      width: 10px;
-      height: 3px;
-      border-radius: 2px;
+      width: 14px;
+      height: 4px;
+      border-radius: 3px;
     }
 
     .tcm-info {
       display: flex;
-      gap: 20px;
+      gap: 22px;
       font-family: var(--mono);
-      font-size: .58rem;
+      font-size: .65rem;
       color: var(--dim);
     }
 
     #temp-chart-canvas {
       width: 100%;
       height: 350px;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       background: var(--surface);
       border: 1px solid var(--border);
+    }
+
+    /* Empty state */
+    .empty-state {
+      font-family: var(--ui);
+      font-size: .8rem;
+      color: var(--dim2);
+      padding: 28px 0;
+      text-align: center;
+      grid-column: 1/-1;
+      opacity: .7;
     }
   </style>
 </head>
@@ -1212,38 +1250,38 @@
 
   <header>
     <div class="logo">
-      <span class="logo-bolt">🔧</span>
+      <span class="logo-bolt" aria-hidden="true">🔧</span>
       <div>
         <h1>BAKO Diagnostics</h1>
       </div>
     </div>
     <div class="hdr-right">
-      <span class="mode-pill" id="mode-pill" title="Click to change input source">
-        <span class="mode-icon" id="mode-icon">⚡</span>
+      <button type="button" class="mode-pill" id="mode-pill" title="Click to change input source" aria-label="Change input source">
+        <span class="mode-icon" id="mode-icon" aria-hidden="true">⚡</span>
         <span class="mode-name" id="mode-name">SERIAL</span>
-      </span>
-      <span><span class="dot" id="dot"></span><span id="conn-lbl">Connecting…</span></span>
-      <span id="port-lbl">—</span>
-      <span id="frames-lbl">0 frames</span>
-      <span id="clock">—</span>
+      </button>
+      <span title="Connection status"><span class="dot" id="dot"></span><span id="conn-lbl">Connecting…</span></span>
+      <span id="port-lbl" title="Active port">—</span>
+      <span id="frames-lbl" title="Frames received">0 frames</span>
+      <span id="clock" title="Local time">—</span>
     </div>
   </header>
 
   <!-- Mode-switch modal -->
-  <div class="mode-modal" id="mode-modal">
+  <div class="mode-modal" id="mode-modal" role="dialog" aria-modal="true" aria-labelledby="mode-title">
     <div class="mode-dialog">
-      <h3>Select Input Source</h3>
+      <h3 id="mode-title">Select Input Source</h3>
       <div class="mode-options">
-        <div class="mode-opt" data-mode="serial">
-          <span class="opt-glyph">🔌</span>
+        <div class="mode-opt" data-mode="serial" tabindex="0" role="button">
+          <span class="opt-glyph" aria-hidden="true">🔌</span>
           Serial
         </div>
-        <div class="mode-opt" data-mode="wifi">
-          <span class="opt-glyph">📡</span>
+        <div class="mode-opt" data-mode="wifi" tabindex="0" role="button">
+          <span class="opt-glyph" aria-hidden="true">📡</span>
           WiFi&nbsp;AP
         </div>
-        <div class="mode-opt" data-mode="off">
-          <span class="opt-glyph">⏻</span>
+        <div class="mode-opt" data-mode="off" tabindex="0" role="button">
+          <span class="opt-glyph" aria-hidden="true">⏻</span>
           Off
         </div>
       </div>
@@ -1276,8 +1314,8 @@
       </div>
 
       <div class="mode-actions">
-        <button class="mode-btn" id="mode-cancel">Cancel</button>
-        <button class="mode-btn primary" id="mode-apply">Apply</button>
+        <button class="mode-btn"        id="mode-cancel" type="button">Cancel</button>
+        <button class="mode-btn primary" id="mode-apply" type="button">Apply</button>
       </div>
     </div>
   </div>
@@ -1289,8 +1327,8 @@
       <div class="card-hdr"><span class="card-title">Pack Overview</span></div>
       <div class="card-body">
         <div class="soc-wrap">
-          <div class="soc-ring">
-            <svg viewBox="0 0 120 120">
+          <div class="soc-ring" title="State of Charge">
+            <svg viewBox="0 0 120 120" aria-hidden="true">
               <circle class="ring-track" cx="60" cy="60" r="50" />
               <circle class="ring-fill" id="ring" cx="60" cy="60" r="50" stroke-dasharray="314.2"
                 stroke-dashoffset="314.2" />
@@ -1302,19 +1340,19 @@
           </div>
         </div>
         <div class="stat-grid">
-          <div class="stat">
-            <span class="stat-lbl">Tension</span>
+          <div class="stat" title="Pack voltage">
+            <span class="stat-lbl">Voltage</span>
             <span class="stat-val" id="pack-v">—<span class="stat-unit">V</span></span>
           </div>
-          <div class="stat">
-            <span class="stat-lbl">Courant</span>
+          <div class="stat" title="Discharge / charge current">
+            <span class="stat-lbl">Current</span>
             <span class="stat-val" id="disch-i">—<span class="stat-unit">A</span></span>
           </div>
-          <div class="stat">
-            <span class="stat-lbl">Capacité</span>
+          <div class="stat" title="Remaining capacity">
+            <span class="stat-lbl">Capacity</span>
             <span class="stat-val" id="chg-i">—<span class="stat-unit">AH</span></span>
           </div>
-          <div class="stat">
+          <div class="stat" title="Charge cycles">
             <span class="stat-lbl">Cycles</span>
             <span class="stat-val" id="cell-count-hdr">—</span>
           </div>
@@ -1326,11 +1364,11 @@
     <div class="card center">
       <div class="card-hdr">
         <span class="card-title">Cell Voltages</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span id="cell-summary-hdr" style="font-family:var(--mono);font-size:.6rem;color:var(--dim2)"></span>
-          <div class="info-wrap">
-            <span class="info-icon">ℹ️</span>
-            <div class="legend-tooltip">
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="cell-summary-hdr" style="font-family:var(--mono);font-size:.68rem;color:var(--dim2);font-weight:500"></span>
+          <div class="info-wrap" tabindex="0">
+            <span class="info-icon" aria-label="Cell voltage legend">ℹ️</span>
+            <div class="legend-tooltip" role="tooltip">
               <div class="legend-row">
                 <div class="legend-color" style="background: #ff2244"></div> &ge; 3.75V (Overvoltage)
               </div>
@@ -1357,16 +1395,12 @@
         <div class="cell-summary">
           <div class="cs"><span class="cs-lbl">Min</span><span class="cs-val" id="c-min">—</span></div>
           <div class="cs"><span class="cs-lbl">Max</span><span class="cs-val" id="c-max">—</span></div>
-          <div class="cs"><span class="cs-lbl">Diff. Tension</span><span class="cs-val" id="c-spread">—</span></div>
+          <div class="cs"><span class="cs-lbl">Spread</span><span class="cs-val" id="c-spread">—</span></div>
           <div class="cs"><span class="cs-lbl">Avg</span><span class="cs-val" id="c-avg">—</span></div>
-          <div class="cs"><span class="cs-lbl">Bal Threshold</span><span class="cs-val" style="color:var(--dim2)">3300
-              mV</span></div>
+          <div class="cs"><span class="cs-lbl">Bal Threshold</span><span class="cs-val" style="color:var(--dim2)">3300 mV</span></div>
         </div>
         <div class="cell-grid" id="cell-grid">
-          <div
-            style="font-family:var(--mono);font-size:.65rem;color:var(--dim2);padding:20px 0;grid-column:1/-1;text-align:center">
-            Waiting for cell voltage frames…
-          </div>
+          <div class="empty-state">Waiting for cell voltage frames…</div>
         </div>
       </div>
     </div>
@@ -1375,35 +1409,33 @@
     <div class="card right">
       <div class="card-hdr">
         <span class="card-title">BMS Temps</span>
-        <div style="display:flex;align-items:center;gap:12px">
-          <div class="info-wrap">
-            <span class="info-icon">ℹ️</span>
-            <div class="legend-tooltip">
+        <div style="display:flex;align-items:center;gap:10px">
+          <div class="info-wrap" tabindex="0">
+            <span class="info-icon" aria-label="Temperature legend">ℹ️</span>
+            <div class="legend-tooltip" role="tooltip">
               <div class="legend-row">
                 <div class="legend-color" style="background: #29b6f6"></div> &lt; 0&deg;C
               </div>
               <div class="legend-row">
-                <div class="legend-color" style="background: #4dd0e1"></div> 0&deg;C - 14&deg;C
+                <div class="legend-color" style="background: #4dd0e1"></div> 0&deg;C – 14&deg;C
               </div>
               <div class="legend-row">
-                <div class="legend-color" style="background: #00ff88"></div> 15&deg;C - 35&deg;C
+                <div class="legend-color" style="background: #00ff88"></div> 15&deg;C – 35&deg;C
               </div>
               <div class="legend-row">
-                <div class="legend-color" style="background: #ffcc00"></div> 36&deg;C - 45&deg;C
+                <div class="legend-color" style="background: #ffcc00"></div> 36&deg;C – 45&deg;C
               </div>
               <div class="legend-row">
                 <div class="legend-color" style="background: #ff2244"></div> &gt; 45&deg;C
               </div>
             </div>
           </div>
-          <button class="chart-btn" id="open-temp-chart" onclick="openTempChart()">📈 Chart</button>
+          <button class="chart-btn" id="open-temp-chart" onclick="openTempChart()" title="Open temperature history chart">📈 Chart</button>
         </div>
       </div>
       <div class="card-body">
         <div class="temp-list" id="temp-list">
-          <div style="font-family:var(--mono);font-size:.65rem;color:var(--dim2);padding:20px 0;text-align:center">
-            Waiting…
-          </div>
+          <div class="empty-state">Waiting…</div>
         </div>
       </div>
     </div>
@@ -1413,85 +1445,75 @@
       <div class="card-hdr"><span class="card-title">Ext Sensors</span></div>
       <div class="ext-body">
 
-        <!-- DC Voltage -->
         <div class="ext-section">DC Voltage</div>
 
         <div class="ext-row">
-          <div class="ext-label">HV ISO <span style="color:var(--dim);font-size:.5rem">MOD1150-3</span></div>
+          <div class="ext-label">HV ISO <span>MOD1150-3</span></div>
           <div><span class="ext-value" id="hv-iso-val">—</span><span class="ext-unit">V</span></div>
-          <div class="ext-bar-wrap">
-            <div class="ext-bar" id="hv-iso-bar"></div>
-          </div>
+          <div class="ext-bar-wrap"><div class="ext-bar" id="hv-iso-bar"></div></div>
         </div>
 
         <div class="ext-row">
-          <div class="ext-label">12 V AUX <span style="color:var(--dim);font-size:.5rem">C11A063</span></div>
+          <div class="ext-label">12 V AUX <span>C11A063</span></div>
           <div><span class="ext-value" id="aux12-val">—</span><span class="ext-unit">V</span></div>
-          <div class="ext-bar-wrap">
-            <div class="ext-bar" id="aux12-bar"></div>
-          </div>
+          <div class="ext-bar-wrap"><div class="ext-bar" id="aux12-bar"></div></div>
         </div>
 
-        <!-- MPPT Current -->
         <div class="ext-section">MPPT Current</div>
 
         <div class="ext-row">
-          <div class="ext-label">CH1 <span style="color:var(--dim);font-size:.5rem">ACS712-5A</span></div>
+          <div class="ext-label">CH1 <span>ACS712-5A</span></div>
           <div><span class="ext-value" id="mppt-i1-val">—</span><span class="ext-unit">A</span></div>
-          <div class="ext-bar-wrap">
-            <div class="ext-bar" id="mppt-i1-bar"></div>
-          </div>
+          <div class="ext-bar-wrap"><div class="ext-bar" id="mppt-i1-bar"></div></div>
         </div>
 
         <div class="ext-row">
-          <div class="ext-label">CH2 <span style="color:var(--dim);font-size:.5rem">ACS712-5A</span></div>
+          <div class="ext-label">CH2 <span>ACS712-5A</span></div>
           <div><span class="ext-value" id="mppt-i2-val">—</span><span class="ext-unit">A</span></div>
-          <div class="ext-bar-wrap">
-            <div class="ext-bar" id="mppt-i2-bar"></div>
-          </div>
+          <div class="ext-bar-wrap"><div class="ext-bar" id="mppt-i2-bar"></div></div>
         </div>
 
-        <!-- Ext Temperatures -->
         <div class="ext-section">Temperatures</div>
 
         <div class="ext-row">
-          <div class="ext-label">Bat Surface 1 <span style="color:var(--dim);font-size:.5rem">DS18B20</span></div>
+          <div class="ext-label">Bat Surface 1 <span>DS18B20</span></div>
           <div><span class="ext-value" id="bat-t1-val">—</span><span class="ext-unit">°C</span></div>
-          <div class="ext-bar-wrap">
-            <div class="ext-bar" id="bat-t1-bar"></div>
-          </div>
+          <div class="ext-bar-wrap"><div class="ext-bar" id="bat-t1-bar"></div></div>
         </div>
 
         <div class="ext-row">
-          <div class="ext-label">Bat Surface 2 <span style="color:var(--dim);font-size:.5rem">DS18B20</span></div>
+          <div class="ext-label">Bat Surface 2 <span>DS18B20</span></div>
           <div><span class="ext-value" id="bat-t2-val">—</span><span class="ext-unit">°C</span></div>
-          <div class="ext-bar-wrap">
-            <div class="ext-bar" id="bat-t2-bar"></div>
-          </div>
+          <div class="ext-bar-wrap"><div class="ext-bar" id="bat-t2-bar"></div></div>
         </div>
 
         <div class="ext-row">
-          <div class="ext-label">MPPT Heatsink <span style="color:var(--dim);font-size:.5rem">NTC 10K</span></div>
+          <div class="ext-label">MPPT Heatsink <span>NTC 10K</span></div>
           <div><span class="ext-value" id="mppt-t-val">—</span><span class="ext-unit">°C</span></div>
-          <div class="ext-bar-wrap">
-            <div class="ext-bar" id="mppt-t-bar"></div>
-          </div>
+          <div class="ext-bar-wrap"><div class="ext-bar" id="mppt-t-bar"></div></div>
         </div>
 
         <div class="ext-row">
-          <div class="ext-label">DC-DC Heatsink <span style="color:var(--dim);font-size:.5rem">NTC 10K</span></div>
+          <div class="ext-label">DC-DC Heatsink <span>NTC 10K</span></div>
           <div><span class="ext-value" id="dcdc-t-val">—</span><span class="ext-unit">°C</span></div>
-          <div class="ext-bar-wrap">
-            <div class="ext-bar" id="dcdc-t-bar"></div>
-          </div>
+          <div class="ext-bar-wrap"><div class="ext-bar" id="dcdc-t-bar"></div></div>
         </div>
 
-        <!-- Logic / Status -->
         <div class="ext-section">Status</div>
 
         <div class="ext-row">
-          <div class="ext-label">Handbrake <span style="color:var(--dim);font-size:.5rem">LJ12A3-4-Z/BX</span></div>
+          <div class="ext-label">Handbrake <span>LJ12A3-4-Z/BX</span></div>
           <div id="hb-badge" class="hb-badge unknown">⬤ UNKNOWN</div>
+        </div>
+
+        <div class="ext-row" style="margin-top:6px">
+          <div class="oil-label-row">
+            <div class="ext-label">Oil Level</div>
+            <span class="ext-value" id="oil-val" style="font-size:.95rem">—<span class="ext-unit">%</span></span>
+          </div>
+          <div class="oil-bar-outer">
+            <div class="oil-bar-inner" id="oil-bar"></div>
+          </div>
         </div>
 
       </div>
@@ -1501,10 +1523,10 @@
     <div class="card log-panel">
       <div class="card-hdr">
         <span class="card-title">Serial Monitor</span>
-        <div style="display:flex;align-items:center;gap:8px">
-          <span id="log-count" style="font-family:var(--mono);font-size:.58rem;color:var(--dim2)">0 lines</span>
-          <button onclick="exportTxt()" class="exp-btn">⬇ TXT</button>
-          <button onclick="exportCsv()" class="exp-btn exp-btn-csv">⬇ XLSX</button>
+        <div style="display:flex;align-items:center;gap:10px">
+          <span id="log-count" style="font-family:var(--mono);font-size:.65rem;color:var(--dim2)">0 lines</span>
+          <button onclick="exportTxt()" class="exp-btn" title="Export as plain text">⬇ TXT</button>
+          <button onclick="exportCsv()" class="exp-btn exp-btn-csv" title="Export as Excel spreadsheet">⬇ XLSX</button>
         </div>
       </div>
       <div class="log-body" id="log-body"></div>
@@ -1513,11 +1535,11 @@
   </main>
 
   <!-- Temperature Chart Modal -->
-  <div id="temp-chart-modal">
+  <div id="temp-chart-modal" role="dialog" aria-modal="true" aria-labelledby="tcm-title">
     <div class="tcm-box">
       <div class="tcm-header">
-        <span class="tcm-title">🌡️ Battery Temperature History</span>
-        <button class="tcm-close" onclick="closeTempChart()">✕</button>
+        <span class="tcm-title" id="tcm-title">🌡️ Battery Temperature History</span>
+        <button class="tcm-close" onclick="closeTempChart()" aria-label="Close chart">✕</button>
       </div>
       <div class="tcm-body">
         <div class="tcm-legend" id="tcm-legend"></div>
@@ -1852,6 +1874,11 @@
       if (v < 11.8) return 'var(--yellow)';
       return 'var(--green)';
     }
+    function oilColor(pct) {
+      if (pct < 15) return 'var(--red)';
+      if (pct < 30) return 'var(--yellow)';
+      return 'var(--green)';
+    }
     function fmt(v, d = 1) { return (v != null) ? Number(v).toFixed(d) : '—'; }
 
     // ── Full log buffer ────────────────────────────────────────────────────────
@@ -2128,6 +2155,16 @@
         }
       }
 
+      // Oil level
+      if (ext.oil_level !== null && ext.oil_level !== undefined) {
+        const pct = Math.max(0, Math.min(100, ext.oil_level));
+        const col = oilColor(pct);
+        document.getElementById('oil-val').innerHTML =
+          `${pct.toFixed(0)}<span class="ext-unit">%</span>`;
+        const bar = document.getElementById('oil-bar');
+        bar.style.width = pct + '%';
+        bar.style.background = col;
+      }
     }
 
     // ── Main update ────────────────────────────────────────────────────────────
@@ -2270,23 +2307,23 @@
     }
 
     // ── Mode switcher ─────────────────────────────────────────────────────────
-    const modePill = document.getElementById('mode-pill');
-    const modeModal = document.getElementById('mode-modal');
+    const modePill   = document.getElementById('mode-pill');
+    const modeModal  = document.getElementById('mode-modal');
     const modeCancel = document.getElementById('mode-cancel');
-    const modeApply = document.getElementById('mode-apply');
-    const modeOpts = document.querySelectorAll('.mode-opt');
-    const serialSec = document.getElementById('serial-section');
-    const wifiSec = document.getElementById('wifi-section');
+    const modeApply  = document.getElementById('mode-apply');
+    const modeOpts   = document.querySelectorAll('.mode-opt');
+    const serialSec  = document.getElementById('serial-section');
+    const wifiSec    = document.getElementById('wifi-section');
     const portSelect = document.getElementById('serial-port');
     const baudSelect = document.getElementById('serial-baud');
-    const wifiIp = document.getElementById('wifi-ip');
-    const wifiPort = document.getElementById('wifi-port');
+    const wifiIp     = document.getElementById('wifi-ip');
+    const wifiPort   = document.getElementById('wifi-port');
 
     let selectedMode = 'serial';
 
     function showSection(mode) {
       serialSec.classList.toggle('show', mode === 'serial');
-      wifiSec.classList.toggle('show', mode === 'wifi');
+      wifiSec  .classList.toggle('show', mode === 'wifi');
     }
 
     function setActiveOpt(mode) {
@@ -2317,7 +2354,7 @@
           if (cfg.serial.baud) baudSelect.value = String(cfg.serial.baud);
         }
         if (cfg.wifi) {
-          if (cfg.wifi.esp_ip) wifiIp.value = cfg.wifi.esp_ip;
+          if (cfg.wifi.esp_ip)   wifiIp.value   = cfg.wifi.esp_ip;
           if (cfg.wifi.esp_port) wifiPort.value = cfg.wifi.esp_port;
         }
 
@@ -2326,11 +2363,11 @@
         if (serialBtn) {
           if (cfg.serial_available === false) {
             serialBtn.style.opacity = '0.4';
-            serialBtn.style.cursor = 'not-allowed';
+            serialBtn.style.cursor  = 'not-allowed';
             serialBtn.title = 'pyserial not installed on the server';
           } else {
             serialBtn.style.opacity = '';
-            serialBtn.style.cursor = '';
+            serialBtn.style.cursor  = '';
             serialBtn.title = '';
           }
         }
@@ -2344,10 +2381,10 @@
 
     function closeModeModal() { modeModal.classList.remove('open'); }
 
-    modePill.addEventListener('click', openModeModal);
+    modePill .addEventListener('click', openModeModal);
     modeCancel.addEventListener('click', closeModeModal);
-    modeModal.addEventListener('click', e => { if (e.target === modeModal) closeModeModal(); });
-    document.addEventListener('keydown', e => {
+    modeModal .addEventListener('click', e => { if (e.target === modeModal) closeModeModal(); });
+    document  .addEventListener('keydown', e => {
       if (e.key === 'Escape' && modeModal.classList.contains('open')) closeModeModal();
     });
 
@@ -2360,7 +2397,7 @@
         };
       } else if (selectedMode === 'wifi') {
         body.wifi = {
-          esp_ip: wifiIp.value.trim() || '192.168.4.1',
+          esp_ip:   wifiIp.value.trim() || '192.168.4.1',
           esp_port: parseInt(wifiPort.value, 10) || 9000,
         };
       }
@@ -2408,5 +2445,6 @@
     }, 1000);
   </script>
 </body>
+
 
 </html>
