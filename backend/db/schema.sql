@@ -68,6 +68,11 @@ CREATE TABLE IF NOT EXISTS telemetry (
     flag_charging    TINYINT(1)         NULL,
     flag_discharging TINYINT(1)         NULL,
 
+    -- charge limit (battery.charge_limit)
+    charge_limit_v   DECIMAL(6,3)       NULL  COMMENT 'max_charge_v (V)',
+    charge_limit_a   DECIMAL(6,2)       NULL  COMMENT 'max_charge_a (A)',
+    charge_enable    TINYINT(1)         NULL,
+
     -- temperatures (°C)
     battery_avg_c    DECIMAL(5,2)       NULL,
     battery_min_c    DECIMAL(5,2)       NULL,
@@ -75,13 +80,11 @@ CREATE TABLE IF NOT EXISTS telemetry (
     dcdc_temp_c      DECIMAL(5,2)       NULL,
     motor_temp_c     DECIMAL(5,2)       NULL,
     mppt_temp_c      DECIMAL(5,2)       NULL,
-    cabin_temp_c     DECIMAL(5,2)       NULL,
     battery_temps_c  JSON               NULL  COMMENT 'Array of 4 probe temps in °C',
 
     -- solar
     solar_in_v       DECIMAL(6,3)       NULL  COMMENT 'Pre-MPPT panel voltage (V)',
     solar_in_a       DECIMAL(6,3)       NULL  COMMENT 'Pre-MPPT panel current (A)',
-    solar_out_v      DECIMAL(6,3)       NULL  COMMENT 'Post-MPPT voltage (V)',
     solar_out_a      DECIMAL(6,3)       NULL  COMMENT 'Post-MPPT current (A)',
 
     -- DC/DC
@@ -96,8 +99,6 @@ CREATE TABLE IF NOT EXISTS telemetry (
 
     -- vehicle
     handbrake        TINYINT(1)         NULL,
-    oil_level        ENUM('ok','low','critical') NULL,
-    ignition         TINYINT(1)         NULL,
 
     -- cell voltages — plain array of 19 integers in mV
     cells_voltages   JSON               NULL  COMMENT 'Array of 19 integers (mV), index 0 = cell 1',
