@@ -1,5 +1,5 @@
 {
-  "mode": "off",
+  "mode": "wifi",
   "serial": {
     "port": null,
     "baud": 115200
