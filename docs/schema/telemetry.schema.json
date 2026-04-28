@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://bako-iss/telemetry/2.0.0",
+  "title": "Bako OBD-ISS Telemetry Payload v2.0.0",
+  "type": "object",
+  "required": ["schema_version", "vehicle_id", "ts", "battery", "temperatures"],
+  "additionalProperties": false,
+
+  "properties": {
+
+    "schema_version": {
+      "type": "string",
+      "const": "2.0.0"
+    },
+
+    "vehicle_id": {
+      "type": "integer",
+      "minimum": 1,
+      "description": "Auto-increment ID from the vehicles table"
+    },
+
+    "ts": {
+      "type": ["string", "null"],
+      "format": "date-time",
+      "description": "ISO-8601 UTC timestamp from device RTC; null if unavailable"
+    },
+
+    "seq": {
+      "type": ["integer", "null"],
+      "minimum": 0,
+      "description": "Monotonic frame counter, resets on reboot"
+    },
+
+    "battery": {
+      "type": "object",
+      "required": ["pack_v", "pack_current_a", "soc", "cell_count", "cells_voltages"],
+      "additionalProperties": false,
+      "properties": {
+
+        "pack_v":           { "type": ["number",  "null"], "minimum": 0, "maximum": 100 },
+        "pack_current_a":   { "type": ["number",  "null"], "description": "Positive = discharge" },
+        "soc":              { "type": ["number",  "null"], "minimum": 0, "maximum": 100 },
+        "soc_bms":          { "type": ["number",  "null"], "minimum": 0, "maximum": 100 },
+        "max_disch_a":      { "type": ["number",  "null"], "minimum": 0 },
+        "cell_count":       { "type": ["integer", "null"], "minimum": 1, "maximum": 32 },
+        "cell_avg_mv":      { "type": ["number",  "null"] },
+        "cell_min_mv":      { "type": ["number",  "null"] },
+        "cell_max_mv":      { "type": ["number",  "null"] },
+        "cell_spread_mv":   { "type": ["number",  "null"] },
+
+        "cells_voltages": {
+          "type": "array",
+          "description": "Cell voltages in mV. Length 19. Index 0 = cell 1, index 18 = cell 19.",
+          "minItems": 19,
+          "maxItems": 19,
+          "items": { "type": ["integer", "null"] }
+        },
+
+        "charge_limit": {
+          "type": ["object", "null"],
+          "description": "BMS charge limits sent to the charger",
+          "additionalProperties": false,
+          "properties": {
+            "max_charge_v": { "type": ["number",  "null"] },
+            "max_charge_a": { "type": ["number",  "null"] },
+            "enable":       { "type": ["boolean", "null"] }
+          }
+        },
+
+        "status": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "fault_level":      { "type": ["integer", "null"], "enum": [0, 1, 2, null] },
+            "error_code":       { "type": ["integer", "null"] },
+            "ready":            { "type": ["boolean", "null"] },
+            "charging":         { "type": ["boolean", "null"] },
+            "discharging":      { "type": ["boolean", "null"] },
+            "charge_cable":     { "type": ["boolean", "null"] },
+            "charge_contactor": { "type": ["boolean", "null"] },
+            "disch_contactor":  { "type": ["boolean", "null"] }
+          }
+        }
+      }
+    },
+
+    "temperatures": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "battery_avg_c":  { "type": ["number", "null"] },
+        "battery_min_c":  { "type": ["number", "null"] },
+        "battery_max_c":  { "type": ["number", "null"] },
+        "battery_temps_c": {
+          "type": "array",
+          "description": "Per-probe temperatures in °C. Length 4. Index 0 = probe 1.",
+          "minItems": 4,
+          "maxItems": 4,
+          "items": { "type": ["number", "null"] }
+        },
+        "dcdc_temp_c":   { "type": ["number", "null"] },
+        "motor_temp_c":  { "type": ["number", "null"] },
+        "mppt_temp_c":   { "type": ["number", "null"] },
+        "cabin_temp_c":  { "type": ["number", "null"] }
+      }
+    },
+
+    "solar": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "pre_mppt": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "voltage_v": { "type": ["number", "null"], "minimum": 0 },
+            "current_a": { "type": ["number", "null"], "minimum": 0 }
+          }
+        },
+        "post_mppt": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "voltage_v": { "type": ["number", "null"], "minimum": 0 },
+            "current_a": { "type": ["number", "null"], "minimum": 0 }
+          }
+        }
+      }
+    },
+
+    "dc_dc": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "output_64v": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "voltage_v": { "type": ["number", "null"], "minimum": 0 }
+          }
+        },
+        "output_12v": {
+          "type": ["object", "null"],
+          "additionalProperties": false,
+          "properties": {
+            "voltage_v": { "type": ["number", "null"], "minimum": 0 }
+          }
+        }
+      }
+    },
+
+    "gnss": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "lat":       { "type": ["number",  "null"], "minimum": -90,  "maximum": 90  },
+        "lon":       { "type": ["number",  "null"], "minimum": -180, "maximum": 180 },
+        "alt_m":     { "type": ["number",  "null"] },
+        "speed_kmh": { "type": ["number",  "null"], "minimum": 0 },
+        "fix":       { "type": ["boolean", "null"] }
+      }
+    },
+
+    "vehicle": {
+      "type": ["object", "null"],
+      "additionalProperties": false,
+      "properties": {
+        "handbrake": { "type": ["boolean", "null"] },
+        "oil_level": { "type": ["string",  "null"], "enum": ["ok", "low", "critical", null] },
+        "ignition":  { "type": ["boolean", "null"] }
+      }
+    }
+
+  }
+}

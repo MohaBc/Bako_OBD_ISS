@@ -2,7 +2,12 @@
   "permissions": {
     "allow": [
       "Bash(curl -s -X DELETE \"https://esp32-connection-test-default-rtdb.firebaseio.com/bms/history.json?auth=YXfWfAQ6LkMK7fDqU2RQvuBPpqwfFeBsFyt5Ybhgd\")",
-      "Bash(ls /home/yassine/Desktop/Bako_OBD_ISS/backend/*.py)"
+      "Bash(ls /home/yassine/Desktop/Bako_OBD_ISS/backend/*.py)",
+      "Bash(pdflatex -interaction=nonstopmode main.tex)",
+      "Bash(xelatex -interaction=nonstopmode main.tex)",
+      "Bash(git commit -m 'Fix: remove malformed filename from git index *)",
+      "Bash(git push *)",
+      "Bash(git commit -m ' *)"
     ]
   }
 }
