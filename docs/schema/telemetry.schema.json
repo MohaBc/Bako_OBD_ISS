@@ -100,8 +100,8 @@
         },
         "dcdc_temp_c":   { "type": ["number", "null"] },
         "motor_temp_c":  { "type": ["number", "null"] },
-        "mppt_temp_c":   { "type": ["number", "null"] },
-        "cabin_temp_c":  { "type": ["number", "null"] }
+        "mppt_temp_c":   { "type": ["number", "null"] }
+
       }
     },
 
