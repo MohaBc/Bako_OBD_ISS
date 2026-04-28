@@ -1,0 +1,34 @@
+<parameter name="content"># Bako OBD ISS Report Development TODO
+Current branch: `feature/report/start-development`
+
+## Steps to Complete Report
+
+### 1. Setup & Baseline (Current)
+- [x] Create feature branch `feature/report/start-development`
+- [ ] Install LaTeX tools if missing: `sudo apt install texlive-xetex latexmk biber`
+- [ ] Test compile: `cd report && latexmk -xelatex main.tex`
+
+### 2. Content Development
+- [ ] Review all `report/Section Files/*.tex` - replace `% Content placeholder`
+- [ ] Prioritize sections: Start with 00-executive-summary.tex, 01-introduction.tex
+- [ ] Add images to `report/images/`, reference in sections
+- [ ] Update `report/references.bib` for citations
+- [ ] Fill preliminary files: `report/Preliminary Files/*.tex`
+
+### 3. Review & Polish
+- [ ] Compile & review `report/main.pdf`
+- [ ] Check STYLE_GUIDE.md, fix formatting
+- [ ] Cross-section consistency (terminology, refs)
+
+### 4. Git & PR
+- [ ] Commit changes: `feat(report): add content to section XX`
+- [ ] Push branch: `git push origin feature/report/start-development`
+- [ ] Open PR to main with checklist from .github/PULL_REQUEST_TEMPLATE.md
+
+## Commands
+- Compile: `cd report && latexmk -xelatex -pdf main.tex`
+- Clean: `cd report && latexmk -c`
+- View: `evince report/main.pdf` (or browser)
+
+Update this file as steps complete!
+</parameter>
