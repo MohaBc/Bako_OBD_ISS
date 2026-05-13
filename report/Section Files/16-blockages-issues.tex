@@ -1,16 +1,80 @@
 \section{Blockages \& Issue Log}
 
-\subsection{Active Blockers Register}
-% Content placeholder
-
-\subsection{Supply Chain \& Procurement Blockages}
-% Content placeholder
+This section documents the technical and organisational blockers encountered during the project and the actions taken to resolve them. All blockers listed below were ultimately closed before the Production Readiness Review at Sprint~8.
 
 \subsection{Technical Deadlocks}
-% Content placeholder
+
+\paragraph{B-001 --- O'CELL BMS CAN Protocol Undocumented.}
+\textbf{Sprint affected:} Sprint~2--3. \textbf{Severity:} Critical.
+
+The O'CELL IFS60.8-500-F-E3 BMS does not publish a DBC file or any public documentation of its CAN frame structure. Without a known message layout, the firmware could not decode any battery data. The team resolved this by capturing raw CAN bus traffic using SavvyCAN, manually identifying frame IDs by correlating byte value changes with known vehicle states (charging, discharging, full charge), and reverse-engineering all five frame types over approximately one sprint. This consumed the entire Sprint~2 capacity and pushed other firmware tasks into Sprint~3.
+
+\paragraph{B-002 --- SIM800L GPRS Bearer Intermittently Fails.}
+\textbf{Sprint affected:} Sprint~5. \textbf{Severity:} Major.
+
+The SIM800L module randomly failed to open the GPRS bearer (\texttt{AT+SAPBR=1,1} returning \texttt{ERROR}) during initial integration testing. The failure was non-deterministic and could not be reproduced reliably on the bench. Root cause was identified as insufficient bulk capacitance on the module power supply rail: the GPRS transmit burst draws up to 2~A for 600~µs, causing the rail to droop below the module's minimum operating voltage. Adding a 2200~µF / 6.3~V electrolytic capacitor resolved the issue. This defect (D-002) was closed in Sprint~5 and the fix incorporated into PCB Rev.~RECTIFICATION\_2.
+
+\paragraph{B-003 --- CAN Frame Reception Rate Below Target (95\% vs 99\%).}
+\textbf{Sprint affected:} Sprint~6. \textbf{Severity:} Major.
+
+During the first V\&V run, the CAN frame reception rate measured 95\% against the 99\% acceptance criterion. Intermittent bus-off events were observed on the MCP2515 error counter. The root cause was a missing 120~$\Omega$ termination resistor at the far end of the test harness. CAN bus signal integrity degraded with reflections at the unterminated end, causing occasional frame corruption. Adding the terminator at the vehicle harness end restored the reception rate to above 99\% in subsequent tests (Defect D-001).
+
+\paragraph{B-004 --- DS18B20 ROM Enumeration Fails on Cold Power-Up.}
+\textbf{Sprint affected:} Sprint~4. \textbf{Severity:} Minor.
+
+On cold power-up (board powered from 0~V), the 1-Wire bus enumeration occasionally failed to detect all three DS18B20 sensors, returning only one or two ROM addresses. The failure was not reproducible after a warm reset. The root cause was identified as insufficient timing margin during the 1-Wire reset pulse while the ESP32 boot ROM was still initialising. Adding a 5~ms delay before the first \texttt{ds.reset()} call in \texttt{setup()} eliminated the failure (Defect D-003).
+
+\paragraph{B-005 --- Dashboard Cell Grid Flickering at 10~Hz.}
+\textbf{Sprint affected:} Sprint~7. \textbf{Severity:} Enhancement.
+
+The 19-cell voltage grid in the browser dashboard flickered visibly when the WebSocket pushed updates at 10~Hz. Each update triggered a full DOM redraw of all 19 cells, causing the browser to repaint the entire grid on every frame. The fix was to implement a differential DOM update: only cells whose voltage value or colour threshold had changed since the previous frame are updated. This eliminated the flicker and reduced browser CPU usage (Defect D-007).
+
+\subsection{Supply Chain \& Procurement Blockages}
+
+\paragraph{B-006 --- SIM800L Module Available Online Only.}
+\textbf{Sprint affected:} Sprint~1 (planning). \textbf{Severity:} Minor.
+
+The SIM800L GSM/GPRS module is not stocked by local Tunisian electronics distributors. The module had to be ordered from an online international distributor, introducing a 10--14 day lead time. The team mitigated this by placing the order during Sprint~1, before the firmware development phase began, ensuring the module arrived before it was needed in Sprint~5. Local component availability was confirmed for all other parts (ESP32, MCP2515, DS18B20, ACS712, passives).
+
+\paragraph{B-007 --- PCB Fabrication Lead Time.}
+\textbf{Sprint affected:} Sprint~3--4. \textbf{Severity:} Minor.
+
+The first PCB revision (Rev.~1) was submitted to a local Tunisian fabrication house at the end of Sprint~3. The 7-day fabrication lead time meant that component population and bring-up could not begin until Sprint~4. Two trace-width defects (Defect D-006) discovered during bring-up required the board to go through a second fabrication cycle (RECTIFICATION\_2), adding a further 7-day delay. The team used this time to advance the firmware development and Python emulator work.
 
 \subsection{Dependency \& Third-Party Blockages}
-% Content placeholder
 
-\subsection{Resolved Blockers Log}
-% Content placeholder
+\paragraph{B-008 --- Vehicle Access Restricted to Workshop Sessions.}
+\textbf{Sprint affected:} Sprint~4--8. \textbf{Severity:} Minor.
+
+Physical access to the BAKO Motors vehicle for live CAN bus testing was limited to pre-scheduled workshop sessions, typically two sessions per sprint. Between sessions, all firmware testing was performed using the Python log replay simulator (\texttt{simulate.py}) and the CAN frame simulator firmware (\texttt{CAN\_simulation\_7\_phases.ino}). This dependency was managed by capturing comprehensive CAN log files during each vehicle session and using them for offline development.
+
+\paragraph{B-009 --- Wi-Fi Station Mode IP Instability.}
+\textbf{Sprint affected:} Sprint~3. \textbf{Severity:} Major.
+
+The original firmware used Wi-Fi Station Mode, connecting the ESP32 to a local router as a client. The router's DHCP server assigned a different IP address after every ESP32 reboot, requiring the \texttt{SERVER\_IP} constant in the firmware to be updated and reflashed before each session. In environments without a nearby router (e.g., the BAKO Motors workshop), the connection failed entirely. The team resolved this by migrating to ESP32 Access Point mode, which provides a fixed IP (192.168.4.1) and requires no external router.
+
+\subsection{Resolved Blockers Summary}
+
+Table~\ref{tab:blockers-summary} provides a consolidated view of all nine blockers, their resolution sprint, and closure status.
+
+\begin{table}[H]
+\centering
+\caption{Resolved Blockers Summary}
+\label{tab:blockers-summary}
+\small
+\begin{tabular}{c >{\bfseries}p{4.5cm} p{2.0cm} p{2.0cm} p{2.5cm}}
+\toprule
+ID & Description & Sprint Found & Sprint Closed & Resolution \\
+\midrule
+B-001 & BMS CAN protocol undocumented     & Sprint~2 & Sprint~3 & Reverse engineering \\
+B-002 & SIM800L GPRS bearer fails           & Sprint~5 & Sprint~5 & 2200~µF capacitor \\
+B-003 & CAN reception rate 95\%            & Sprint~6 & Sprint~7 & 120~$\Omega$ terminator \\
+B-004 & DS18B20 cold boot enumeration      & Sprint~4 & Sprint~4 & 5~ms delay in setup \\
+B-005 & Dashboard cell grid flicker        & Sprint~7 & Sprint~7 & Differential DOM update \\
+B-006 & SIM800L online order only         & Sprint~1 & Sprint~1 & Early order placed \\
+B-007 & PCB fabrication lead time          & Sprint~3 & Sprint~4 & Parallel firmware work \\
+B-008 & Vehicle access restricted          & Sprint~4 & Sprint~8 & Log replay simulator \\
+B-009 & Wi-Fi Station Mode IP instability  & Sprint~3 & Sprint~3 & AP mode migration \\
+\bottomrule
+\end{tabular}
+\end{table}

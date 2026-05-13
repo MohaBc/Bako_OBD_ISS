@@ -1,4 +1,4 @@
-This is XeTeX, Version 3.141592653-2.6-0.999995 (TeX Live 2023/Debian) (preloaded format=xelatex 2025.11.21)  19 APR 2026 16:37
+This is XeTeX, Version 3.141592653-2.6-0.999995 (TeX Live 2023/Debian) (preloaded format=xelatex 2025.11.21)  12 MAY 2026 22:13
 entering extended mode
  restricted \write18 enabled.
  %&-line parsing enabled.
@@ -664,7 +664,18 @@ File: pgfmodulematrix.code.tex 2023-01-15 v3.1.10 (3.1.10)
 zlibrarytopaths.code.tex
 File: tikzlibrarytopaths.code.tex 2023-01-15 v3.1.10 (3.1.10)
 )))
-(/usr/share/texlive/texmf-dist/tex/latex/changepage/changepage.sty
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/frontendlayer/tikz/libraries/tik
+zlibrarypositioning.code.tex
+File: tikzlibrarypositioning.code.tex 2023-01-15 v3.1.10 (3.1.10)
+)
+(/usr/share/texlive/texmf-dist/tex/generic/pgf/libraries/pgflibraryarrows.meta.
+code.tex
+File: pgflibraryarrows.meta.code.tex 2023-01-15 v3.1.10 (3.1.10)
+\pgfarrowinset=\dimen299
+\pgfarrowlength=\dimen300
+\pgfarrowwidth=\dimen301
+\pgfarrowlinewidth=\dimen302
+) (/usr/share/texlive/texmf-dist/tex/latex/changepage/changepage.sty
 Package: changepage 2009/10/20 v1.0c check page and change page layout
 \c@cp@cntr=\count319
 \cp@tempcnt=\count320
@@ -728,9 +739,9 @@ X
 \l__fontspec_emdef_int=\count335
 \l__fontspec_strong_int=\count336
 \l__fontspec_strongdef_int=\count337
-\l__fontspec_tmpa_dim=\dimen299
-\l__fontspec_tmpb_dim=\dimen300
-\l__fontspec_tmpc_dim=\dimen301
+\l__fontspec_tmpa_dim=\dimen303
+\l__fontspec_tmpb_dim=\dimen304
+\l__fontspec_tmpc_dim=\dimen305
 
 (/usr/share/texlive/texmf-dist/tex/latex/base/fontenc.sty
 Package: fontenc 2021/04/29 v2.0v Standard LaTeX package
@@ -1055,7 +1066,11 @@ t;"
 \@quotelevel=\count468
 \@quotereset=\count469
 
-(./main.aux)
+(./main.aux
+
+LaTeX Warning: Label `tab:dashboard-panels' multiply defined.
+
+)
 \openout1 = `main.aux'.
 
 LaTeX Font Info:    Checking defaults for OML/cmm/m/it on input line 16.
@@ -1120,8 +1135,8 @@ LaTeX Font Info:    ... okay on input line 16.
 
 Package caption Info: Begin \AtBeginDocument code.
 Package caption Info: changepage package is loaded.
-\caption@adjustwidth@hsize=\dimen302
-\caption@adjustwidth@linewidth=\dimen303
+\caption@adjustwidth@hsize=\dimen306
+\caption@adjustwidth@linewidth=\dimen307
 Package caption Info: float package is loaded.
 Package caption Info: hyperref package is loaded.
 Package caption Info: End \AtBeginDocument code.
@@ -1215,29 +1230,30 @@ File: images/MEDTECH-LOGO.png Graphic file (type bmp)
 <images/MEDTECH-LOGO.png>
 File: images/bakomotorslogo.png Graphic file (type bmp)
 <images/bakomotorslogo.png>
- [1
+LaTeX Font Info:    Trying to load font information for U+msa on input line 27.
 
-] [2]) (./Preliminary Files/abstract.tex
-Underfull \hbox (badness 10000) in paragraph at lines 25--27
+ (/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
+File: umsa.fd 2013/01/14 v3.01 AMS symbols A
+)
+LaTeX Font Info:    Trying to load font information for U+msb on input line 27.
+
+
+(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
+File: umsb.fd 2013/01/14 v3.01 AMS symbols B
+) [1
+
+])
+(./Preliminary Files/abstract.tex
+Underfull \hbox (badness 10000) in paragraph at lines 12--13
 
  []
 
 ) [1] (./Preliminary Files/acknowledgements.tex) [2
 
-] (./main.toc
-LaTeX Font Info:    Trying to load font information for U+msa on input line 6.
+] (./main.toc [3
 
-(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsa.fd
-File: umsa.fd 2013/01/14 v3.01 AMS symbols A
-)
-LaTeX Font Info:    Trying to load font information for U+msb on input line 6.
-
-(/usr/share/texlive/texmf-dist/tex/latex/amsfonts/umsb.fd
-File: umsb.fd 2013/01/14 v3.01 AMS symbols B
-) [3
-
-] [4] [5] [6]
-[7])
+] [4]
+[5] [6] [7])
 \tf@toc=\write6
 \openout6 = `main.toc'.
 
@@ -1247,210 +1263,1074 @@ File: umsb.fd 2013/01/14 v3.01 AMS symbols B
 
  [9
 
-] (./main.lof)
+] (./main.lof
+Overfull \hbox (1.81367pt too wide) in paragraph at lines 18--18
+ [][] [][]\TU/CenturyGothic.ttf(0)/m/n/10 BAKO DIAGNOSTICS live dashboard — dar
+k-theme single-page interface showing SOC 
+ []
+
+[10
+
+])
 \tf@lof=\write8
 \openout8 = `main.lof'.
 
- [10
+ [11] (./Section Files/00-executive-summary.tex [1
 
 ]
-(./Section Files/00-executive-summary.tex) [1
+Overfull \hbox (6.51166pt too wide) in paragraph at lines 28--29
+[]\TU/CenturyGothic.ttf(0)/m/n/10 Remaining work at the midway stage includes: 
+GNSS position tracking integration, full SIM800L
+ []
+
+) [2] (./Section Files/01-introduction.tex [3
+
+]) [4]
+(./Section Files/02-company-context.tex [5
+
+])
+Overfull \hbox (22.80316pt too wide) in paragraph at lines 41--61
+[]\TU/CenturyGothic.ttf(0)/m/n/10 At the global level, the EV market is dominat
+ed by large automotive companies and technology-
+ []
+
+[6] (./Section Files/03-research-phase.tex [7
 
 ]
-(./Section Files/01-introduction.tex) [2
+Underfull \hbox (badness 10000) in paragraph at lines 59--59
+[]|\TU/CenturyGothic.ttf(0)/b/n/10 CAN Bus Com-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 60--60
+[]|\TU/CenturyGothic.ttf(0)/b/n/10 Battery Data
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 60--60
+[]|\TU/CenturyGothic.ttf(0)/m/n/10 CiA 447 / propri-
+ []
+
+
+Underfull \hbox (badness 5105) in paragraph at lines 60--61
+[]|\TU/CenturyGothic.ttf(0)/m/n/10 CAN frame structure for EV battery
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 61--61
+[]|\TU/CenturyGothic.ttf(0)/b/n/10 Temperature
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 64--64
+[]|\TU/CenturyGothic.ttf(0)/b/n/10 GSM Module
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 64--65
+[]|\TU/CenturyGothic.ttf(0)/m/n/10 Radio conformance for GSM/GPRS
+ []
+
+[8]
+Overfull \hbox (4.40724pt too wide) in paragraph at lines 78--79
+[]\TU/CenturyGothic.ttf(0)/m/n/10 ESP32 (Espressif) — dual-core 240 MHz, built-
+in Wi-Fi + Bluetooth, multiple UARTs,
+ []
+
+[9]
+Overfull \hbox (1.40437pt too wide) in paragraph at lines 156--157
+\TU/CenturyGothic.ttf(0)/m/n/10 (open-source, GitHub) provided the MCP2515-to-E
+SP32 SPI wiring pattern and interrupt-driven frame
+ []
+
+) [10] [11] (./Section Files/04-systems-architecture.tex
+File: images/arch-system-overview.png Graphic file (type bmp)
+<images/arch-system-overview.png>
+ [12
 
 ]
-(./Section Files/02-company-context.tex) [3
-
-]
-(./Section Files/03-research-phase.tex) [4
-
-]
-(./Section Files/04-systems-architecture.tex
+File: images/diag-block.png Graphic file (type bmp)
+<images/diag-block.png>
+ [13] [14]
 File: images/sw-layers.png Graphic file (type bmp)
 <images/sw-layers.png>
- [5
 
-]
-Overfull \hbox (20.8208pt too wide) in paragraph at lines 45--46
+[15] [16]
+Overfull \hbox (20.8208pt too wide) in paragraph at lines 85--86
 []\TU/CenturyGothic.ttf(0)/b/n/10 No RTOS. \TU/CenturyGothic.ttf(0)/m/n/10 A Fr
 eeRTOS task structure was considered but rejected because the single-responsibi
 lity
  []
 
 
-Overfull \hbox (0.47595pt too wide) in paragraph at lines 55--56
+Overfull \hbox (0.47595pt too wide) in paragraph at lines 95--96
 []\TU/CenturyGothic.ttf(0)/m/n/10 The cloud and connectivity architecture conne
 cts the on-vehicle ESP32 to a remote browser
  []
 
 File: images/cloud-arch.png Graphic file (type bmp)
 <images/cloud-arch.png>
-[6] [7] [8]) [9] (./Section Files/05-preparation-phase.tex) [10
+[17] [18] [19]) [20] (./Section Files/05-preparation-phase.tex [21
+
+] [22]
+[23]) [24] (./Section Files/06-circuit-design.tex [25
 
 ]
-(./Section Files/06-circuit-design.tex) [11
+File: images/schematic-full.png Graphic file (type bmp)
+<images/schematic-full.png>
+ [26]
+Overfull \vbox (88.49374pt too high) has occurred while \output is active []
 
-]
-(./Section Files/07-mechanical-design.tex) [12
 
-]
-(./Section Files/08-software-implementation.tex
-File: images/firmware-flow-s.png Graphic file (type bmp)
-<images/firmware-flow-s.png>
- [13
+[27]
+File: images/schematic-esp32-sim.png Graphic file (type bmp)
+<images/schematic-esp32-sim.png>
+File: images/schematic-can.png Graphic file (type bmp)
+<images/schematic-can.png>
+File: images/schematic-ds18b20.png Graphic file (type bmp)
+<images/schematic-ds18b20.png>
+ [28]
+File: images/schematic-sensors-current.png Graphic file (type bmp)
+<images/schematic-sensors-current.png>
+File: images/schematic-sensors-voltage.png Graphic file (type bmp)
+<images/schematic-sensors-voltage.png>
+ [29]
+Overfull \hbox (7.83923pt too wide) in paragraph at lines 72--73
+[]\TU/CenturyGothic.ttf(0)/m/n/10 The \TU/CenturyGothic.ttf(0)/b/n/10 temperatu
+re sensing subsystem \TU/CenturyGothic.ttf(0)/m/n/10 accommodates three DS18B20
+ digital sensors connected
+ []
 
-] [14]
-Overfull \hbox (10.42535pt too wide) in paragraph at lines 38--39
-[]\TU/CenturyGothic.ttf(0)/m/n/10 where \TU/lmtt/m/n/10 FUNC \TU/CenturyGothic.
-ttf(0)/m/n/10 is the PGN function byte that identifies the frame type, \TU/lmtt
-/m/n/10 SUB \TU/CenturyGothic.ttf(0)/m/n/10 encodes sub-addressing
+[30]
+File: images/pcb-routing.png Graphic file (type bmp)
+<images/pcb-routing.png>
+File: images/pcb-3d.png Graphic file (type bmp)
+<images/pcb-3d.png>
+ [31] [32]
+Overfull \hbox (17.82947pt too wide) in paragraph at lines 121--122
+[]\TU/CenturyGothic.ttf(0)/m/n/10 The component placement follows a functional 
+zoning approach to minimise cross-interference
  []
 
 
+Overfull \hbox (0.58656pt too wide) in paragraph at lines 125--126
+[]\TU/CenturyGothic.ttf(0)/b/n/10 Digital processing zone: \TU/CenturyGothic.tt
+f(0)/m/n/10 The ESP32-DEVKITC (U1) and SIM7670E cellular module (U2) are placed
+
+ []
+
+[33]
+Underfull \hbox (badness 7963) in paragraph at lines 146--147
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Main MCU — Wi-Fi, BT, UART to
+ []
+
+
+Underfull \hbox (badness 2065) in paragraph at lines 147--148
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 LTE cellular module (SIM7670E foot-
+ []
+
+[34]) [35] (./Section Files/07-mechanical-design.tex
+File: images/Untitled.jpeg Graphic file (type bmp)
+<images/Untitled.jpeg>
+ [36
+
+]
+File: images/Untitled1.jpeg Graphic file (type bmp)
+<images/Untitled1.jpeg>
+ [37]
+File: images/1.PNG Graphic file (type bmp)
+<images/1.PNG>
+File: images/2.PNG Graphic file (type bmp)
+<images/2.PNG>
+File: images/3.PNG Graphic file (type bmp)
+<images/3.PNG>
+
+Underfull \hbox (badness 1377) in paragraph at lines 81--82
+[]|\TU/CenturyGothic.ttf(0)/m/n/10 “SMU-BAKO” and “Senior CSE 2026” embossed
+ []
+
+[38]) [39] (./Section Files/08-software-implementation.tex
+File: images/firmware-flow-s.png Graphic file (type bmp)
+<images/firmware-flow-s.png>
+ [40
+
+] [41]
 Overfull \hbox (9.96687pt too wide) in paragraph at lines 50--61
  [][] 
  []
 
-[15] [16]
-Overfull \hbox (33.73328pt too wide) in paragraph at lines 155--156
-[]\TU/CenturyGothic.ttf(0)/m/n/10 The payload uses a five-section nested schema
-: a top-level envelope wraps \TU/lmtt/m/n/10 battery\TU/CenturyGothic.ttf(0)/m/
-n/10 , \TU/lmtt/m/n/10 temperatures\TU/CenturyGothic.ttf(0)/m/n/10 ,
+[42]
+Overfull \hbox (0.46701pt too wide) in paragraph at lines 115--116
+\TU/CenturyGothic.ttf(0)/m/n/9 sents the most recent complete snapshot of the b
+attery’s state. The struct is updated in-place by \TU/lmtt/m/n/9 decodeFrame()
  []
 
-[17]
-Overfull \hbox (42.57373pt too wide) in paragraph at lines 157--158
-[]\TU/CenturyGothic.ttf(0)/m/n/10 The HTTP transaction uses the SIM800L’s nativ
-e \TU/CenturyGothic.ttf(0)/b/n/10 AT+HTTP* \TU/CenturyGothic.ttf(0)/m/n/10 comm
-and set over plain HTTP (AT+HTTPSSL=0).
+[43]
+Overfull \hbox (69.72574pt too wide) in paragraph at lines 155--156
+\TU/lmtt/m/n/9 = null\TU/CenturyGothic.ttf(0)/m/n/9 , \TU/lmtt/m/n/9 cells[1]…c
+ells[19] = {mv, status}\TU/CenturyGothic.ttf(0)/m/n/9 ). Temperature probes fol
+low the same convention in \TU/lmtt/m/n/9 temperatures.battery_cells\TU/Century
+Gothic.ttf(0)/m/n/9 .
+ []
+
+[44] [45] [46] [47]
+File: images/dashboard-screenshot.png Graphic file (type bmp)
+<images/dashboard-screenshot.png>
+ [48]
+Underfull \hbox (badness 2538) in paragraph at lines 309--310
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Extended sensor readings: DC/DC converter vol
+tage, MPPT
+ []
+
+[49]
+Overfull \hbox (1.62434pt too wide) in paragraph at lines 320--321
+[]\TU/CenturyGothic.ttf(0)/m/n/9 The dashboard includes a \TU/CenturyGothic.ttf
+(0)/b/n/9 Download CSV \TU/CenturyGothic.ttf(0)/m/n/9 button that retrieves the
+ last 100 snapshots from \TU/lmtt/m/n/9 /api/history
+ []
+
+[50]
+File: images/mode-selector.png Graphic file (type bmp)
+<images/mode-selector.png>
+
+Underfull \hbox (badness 2990) in paragraph at lines 362--363
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 22 A constant-current charge; SOC
  []
 
 
-Overfull \hbox (5.00336pt too wide) in paragraph at lines 175--176
-[]\TU/CenturyGothic.ttf(0)/m/n/10 The firmware detects this string in every AT 
-response buffer (both \TU/lmtt/m/n/10 sendAT() \TU/CenturyGothic.ttf(0)/m/n/10 
-and \TU/lmtt/m/n/10 sendATExpect()
+Underfull \hbox (badness 10000) in paragraph at lines 364--365
+\TU/CenturyGothic.ttf(0)/m/n/9 balanced ($\OMS/cmsy/m/n/9 ^^T$\TU/CenturyGothic
+.ttf(0)/m/n/9 8 mV spread); loop
  []
 
-[18]
-Overfull \hbox (45.9922pt too wide) in paragraph at lines 215--216
-\TU/CenturyGothic.ttf(0)/m/n/10 formula (Equation []) were verified against val
-ues from the real car log file \TU/lmtt/m/n/10 bms_log_2026-03-10T10-20-02.txt\
-TU/CenturyGothic.ttf(0)/m/n/10 ,
+[51] [52]
+LaTeX Font Info:    Font shape `TU/lmtt/bx/n' in size <9> not available
+(Font)              Font shape `TU/lmtt/b/n' tried instead on input line 397.
+
+Overfull \hbox (31.78827pt too wide) in paragraph at lines 409--410
+[]\TU/CenturyGothic.ttf(0)/m/n/9 Open a \TU/lmtt/m/n/9 socket.SOCK_STREAM \TU/C
+enturyGothic.ttf(0)/m/n/9 TCP connection to the ESP32 at the configured IP and 
+port (default 192.168.4.1:9000)
  []
 
 
-Overfull \hbox (1.44838pt too wide) in paragraph at lines 219--220
-\TU/CenturyGothic.ttf(0)/m/n/10 tool, which parses the captured CAN log and rep
-lays decoded JSON snapshots to \TU/lmtt/m/n/10 POST /api/ingest
+Overfull \hbox (0.22311pt too wide) in paragraph at lines 410--411
+[]\TU/CenturyGothic.ttf(0)/m/n/9 On successful connection, set \TU/lmtt/m/n/9 s
+tate["connected"] = True \TU/CenturyGothic.ttf(0)/m/n/9 and \TU/lmtt/m/n/9 stat
+e["mode"] = "wifi" \TU/CenturyGothic.ttf(0)/m/n/9 under the shared
  []
 
-[19]) [20] (./Section Files/09-cloud-connectivity.tex [21
 
-] [22]
+Overfull \hbox (16.032pt too wide) in paragraph at lines 412--413
+[]\TU/CenturyGothic.ttf(0)/m/n/9 On any socket error or lost connection, set \T
+U/lmtt/m/n/9 state["connected"] = False\TU/CenturyGothic.ttf(0)/m/n/9 , log the
+ error to \TU/lmtt/m/n/9 state["last_error"]\TU/CenturyGothic.ttf(0)/m/n/9 ,
+ []
 
-LaTeX Warning: `h' float specifier changed to `ht'.
+[53]
+Overfull \hbox (9.7376pt too wide) in paragraph at lines 426--427
+[]\TU/CenturyGothic.ttf(0)/m/n/9 The proposed BLE implementation uses the ESP32
+ NimBLE stack (available via the Arduino \TU/lmtt/m/n/9 NimBLE-Arduino
+ []
 
-[23]
+
+Overfull \hbox (5.01pt too wide) in paragraph at lines 430--431
+[]\TU/CenturyGothic.ttf(0)/m/n/9 Readable; encodes pack voltage (uint16, 0.1 V/
+bit) and pack current (int16, 0.1 A/bit,
+ []
+
+
+Overfull \hbox (1.62268pt too wide) in paragraph at lines 431--432
+[]\TU/CenturyGothic.ttf(0)/m/n/9 Readable; encodes minimum and maximum cell vol
+tages (uint16, 1 mV/bit each)
+ []
+
+) [54] (./Section Files/09-cloud-connectivity.tex
+File: images/diag-sequence.png Graphic file (type bmp)
+<images/diag-sequence.png>
+ [55
+
+] [56] [57]
 File: images/cloud-pipeline.png Graphic file (type bmp)
 <images/cloud-pipeline.png>
- [24]
-Overfull \hbox (27.89105pt too wide) in paragraph at lines 173--174
-[]\TU/CenturyGothic.ttf(0)/m/n/10 The dashboard is a \TU/CenturyGothic.ttf(0)/b
-/n/10 single-page web application \TU/CenturyGothic.ttf(0)/m/n/10 served as a s
-tatic HTML file (\TU/lmtt/m/n/10 frontend/index.html\TU/CenturyGothic.ttf(0)/m/
-n/10 )
- []
-
-[25]
-Underfull \hbox (badness 3590) in paragraph at lines 189--190
+ [58] [59]
+Underfull \hbox (badness 3590) in paragraph at lines 199--200
 \TU/CenturyGothic.ttf(0)/m/n/10 SOC (\TU/lmtt/m/n/10 battery.soc\TU/CenturyGoth
 ic.ttf(0)/m/n/10 ). BMS coulomb-counter SOC
  []
 
-[26] [27]
-Underfull \hbox (badness 1210) in paragraph at lines 254--255
+[60]
+Underfull \hbox (badness 1210) in paragraph at lines 264--265
 []|\TU/CenturyGothic.ttf(0)/m/n/10 Receives a BMS JSON snapshot from the
  []
 
 
-Underfull \hbox (badness 1028) in paragraph at lines 256--257
+Underfull \hbox (badness 1028) in paragraph at lines 266--267
 []|\TU/CenturyGothic.ttf(0)/m/n/10 Returns the last $\OML/cmm/m/it/10 N$ \TU/Ce
 nturyGothic.ttf(0)/m/n/10 snapshots from SQLite,
  []
 
 
-Underfull \hbox (badness 1803) in paragraph at lines 257--258
+Underfull \hbox (badness 1803) in paragraph at lines 267--268
 \TU/CenturyGothic.ttf(0)/m/n/10 events as a JSON array of timestamped
  []
 
+[61]
 
 LaTeX Warning: `h' float specifier changed to `ht'.
 
 
-LaTeX Warning: `h' float specifier changed to `ht'.
+Overfull \hbox (31.74884pt too wide) in paragraph at lines 325--326
+[]\TU/CenturyGothic.ttf(0)/m/n/9 The \TU/lmtt/m/n/9 temperatures \TU/CenturyGot
+hic.ttf(0)/m/n/9 object contains \TU/lmtt/m/n/9 battery_avg_c\TU/CenturyGothic.
+ttf(0)/m/n/9 , \TU/lmtt/m/n/9 battery_min_c\TU/CenturyGothic.ttf(0)/m/n/9 , \TU
+/lmtt/m/n/9 battery_max_c\TU/CenturyGothic.ttf(0)/m/n/9 , and a 1-based \TU/lmt
+t/m/n/9 battery_cells
+ []
 
-[28] [29]) [30] (./Section Files/10-integration-phase.tex) [31
-
-]
-(./Section Files/11-implementation-phase.tex) [32
-
-]
-(./Section Files/12-scrum-agile.tex) [33
-
-]
-(./Section Files/13-bill-of-materials.tex) [34
-
-]
-(./Section Files/14-resources.tex) [35
-
-] (./Section Files/15-limitations.tex)
-[36
-
-] (./Section Files/16-blockages-issues.tex) [37
+[62]) [63] (./Section Files/11-implementation-phase.tex
+File: images/bako-placement.png Graphic file (type bmp)
+<images/bako-placement.png>
+ [64
 
 ]
-(./Section Files/17-risk-management.tex) [38
+File: images/pcb-assembled.png Graphic file (type bmp)
+<images/pcb-assembled.png>
+ [65]
+Underfull \hbox (badness 4726) in paragraph at lines 61--61
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Live frame counter
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 62--62
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 DS18B20 vs. cali-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 63--63
+[]|\TU/CenturyGothic.ttf(0)/b/n/9 Current measure-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 63--63
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 ACS712 vs. clamp
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 64--64
+[]|\TU/CenturyGothic.ttf(0)/b/n/9 Voltage measure-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 64--64
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Divider output vs.
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 65--65
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Threshold trigger +
+ []
+
+
+Underfull \hbox (badness 1199) in paragraph at lines 66--66
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Zero snapshot loss over
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 66--66
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Server log vs.
+ []
+
+[66] [67]) [68] (./Section Files/12-scrum-agile.tex
+Underfull \hbox (badness 10000) in paragraph at lines 23--23
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 CAN bus reception (MCP2515),
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 24--24
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Multi-sensor cooperative firmware,
+ []
+
+
+Underfull \hbox (badness 1348) in paragraph at lines 24--24
+\TU/CenturyGothic.ttf(0)/m/n/9 voltage divider scaling, serial dash-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 25--25
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 SIM800L AT command integration,
+ []
+
+
+Underfull \hbox (badness 3884) in paragraph at lines 26--26
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 FastAPI WebSocket pipeline, cloud
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 26--26
+\TU/CenturyGothic.ttf(0)/m/n/9 dashboard panels, API key auth,
+ []
+
+
+Underfull \hbox (badness 1215) in paragraph at lines 27--27
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Cell voltage grid, SOC ring gauge,
+ []
+
+[69
+
+] [70]
+Overfull \hbox (19.58128pt too wide) in paragraph at lines 87--88
+[] []\TU/CenturyGothic.ttf(0)/b/n/10 Sprint 1 Review.[] \TU/CenturyGothic.ttf(0
+)/m/n/9 The system architecture synoptic, component selection justification, an
+d initial KiCad schematic
+ []
+
+
+Overfull \hbox (4.824pt too wide) in paragraph at lines 93--94
+[]\TU/CenturyGothic.ttf(0)/m/it/9 Retrospective: \TU/CenturyGothic.ttf(0)/m/n/9
+ CAN reverse engineering took longer than estimated due to the undocumented O’C
+ELL
+ []
+
+[71] [72]) [73] (./Section Files/13-bill-of-materials.tex
+Underfull \hbox (badness 10000) in paragraph at lines 20--20
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 1-Wire temperature
+ []
+
+
+Underfull \hbox (badness 1270) in paragraph at lines 22--22
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Adjustable buck regu-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 27--27
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 ESD/overvoltage pro-
+ []
+
+
+Underfull \hbox (badness 5147) in paragraph at lines 57--57
+[]|\TU/CenturyGothic.ttf(0)/b/n/10 ESP32 Arduino frame-
+ []
+
+
+Underfull \hbox (badness 2772) in paragraph at lines 62--62
+[]|\TU/CenturyGothic.ttf(0)/m/n/10 Integrated development environ-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 63--63
+[]|\TU/CenturyGothic.ttf(0)/m/n/10 Build system and dependency
+ []
+
+[74
+
+]) [75] (./Section Files/14-resources.tex
+Underfull \hbox (badness 10000) in paragraph at lines 16--16
+[]|\TU/CenturyGothic.ttf(0)/b/n/9 Mohamed Bac-
+ []
+
+
+Underfull \hbox (badness 2689) in paragraph at lines 16--17
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 KiCad schematic, PCB layout,
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 18--19
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 SIM800L GSM integration, AT
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 18--19
+\TU/CenturyGothic.ttf(0)/m/n/9 command firmware, FastAPI
+ []
+
+
+Underfull \hbox (badness 1009) in paragraph at lines 18--19
+\TU/CenturyGothic.ttf(0)/m/n/9 server, VPS deployment, cloud
+ []
+
+
+Underfull \hbox (badness 1308) in paragraph at lines 20--21
+\TU/CenturyGothic.ttf(0)/m/n/9 design, data validation, results
+ []
+
+
+Underfull \hbox (badness 7379) in paragraph at lines 21--22
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Emulator implementation, test
+ []
+
+
+Underfull \hbox (badness 1067) in paragraph at lines 22--23
+\TU/CenturyGothic.ttf(0)/m/n/9 NimBLE firmware, wireless inter-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 24--24
+[]|\TU/CenturyGothic.ttf(0)/b/n/9 Dr. Mortadha Dah-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 24--24
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Academic Supervisor /
+ []
+
+
+Overfull \hbox (12.16916pt too wide) in paragraph at lines 37--38
+[] []\TU/CenturyGothic.ttf(0)/b/n/10 BAKO Motors Test Vehicle.[] \TU/CenturyGot
+hic.ttf(0)/m/n/9 BAKO Motors made their electric motorcycle prototype available
+ on the MedTech
+ []
+
+[76
 
 ]
-(./Section Files/18-quality-assurance.tex) [39
+Underfull \hbox (badness 5147) in paragraph at lines 57--57
+[]|\TU/CenturyGothic.ttf(0)/b/n/10 ESP32 Arduino frame-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 61--61
+[]|\TU/CenturyGothic.ttf(0)/b/n/10 SavvyCAN / PEAK
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 63--63
+[]|\TU/CenturyGothic.ttf(0)/m/n/10 Document sharing and report
+ []
+
+[77]) [78] (./Section Files/15-limitations.tex [79
+
+] [80]) [81]
+(./Section Files/16-blockages-issues.tex [82
 
 ]
-(./Section Files/19-results-findings.tex) [40
+Overfull \hbox (7.23376pt too wide) in paragraph at lines 49--50
+\TU/CenturyGothic.ttf(0)/m/n/9 Python log replay simulator (\TU/lmtt/m/n/9 simu
+late.py\TU/CenturyGothic.ttf(0)/m/n/9 ) and the CAN frame simulator firmware (\
+TU/lmtt/m/n/9 CAN_simulation_7_phases.ino\TU/CenturyGothic.ttf(0)/m/n/9 ).
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 69--70
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Reverse engi-
+ []
+
+
+Underfull \hbox (badness 6016) in paragraph at lines 72--73
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 5 ms delay in
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 73--74
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Differential
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 74--75
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Early order
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 75--76
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Parallel
+ []
+
+[83]) [84] (./Section Files/17-risk-management.tex
+Underfull \hbox (badness 10000) in paragraph at lines 16--16
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Proprietary BMS CAN
+ []
+
+
+Underfull \hbox (badness 1237) in paragraph at lines 16--16
+\TU/CenturyGothic.ttf(0)/m/n/9 engineering — no DBC
+ []
+
+
+Underfull \hbox (badness 6775) in paragraph at lines 16--17
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Allocated dedicated sprint
+ []
+
+
+Underfull \hbox (badness 1960) in paragraph at lines 16--17
+\TU/CenturyGothic.ttf(0)/m/n/9 for SavvyCAN capture and
+ []
+
+
+Underfull \hbox (badness 3364) in paragraph at lines 16--17
+\TU/CenturyGothic.ttf(0)/m/n/9 frame analysis. \TU/CenturyGothic.ttf(0)/b/n/9 O
+ccurred:
+ []
+
+
+Underfull \hbox (badness 3428) in paragraph at lines 18--19
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Selected SIM800L (LTE Cat-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 20--20
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 ADC nonlinearity limits
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 20--20
+\TU/CenturyGothic.ttf(0)/m/n/9 current measurement
+ []
+
+
+Underfull \hbox (badness 1997) in paragraph at lines 22--22
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 SIM800L unavailable lo-
+ []
+
+
+Underfull \hbox (badness 1092) in paragraph at lines 24--25
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Rigorous KiCad DRC before
+ []
+
+
+Underfull \hbox (badness 1132) in paragraph at lines 24--25
+\TU/CenturyGothic.ttf(0)/m/n/9 Gerber export; peer review
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 24--25
+\TU/CenturyGothic.ttf(0)/m/n/9 re-spin (RECTIFICATION_2)
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 26--26
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Vehicle access insuf-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 26--26
+\TU/CenturyGothic.ttf(0)/m/n/9 ficient for integration
+ []
+
+
+Underfull \hbox (badness 2189) in paragraph at lines 26--27
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Python log replay simulator
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 26--27
+\TU/CenturyGothic.ttf(0)/m/n/9 and CAN frame simulator
+ []
+
+
+Underfull \hbox (badness 3780) in paragraph at lines 26--27
+\TU/CenturyGothic.ttf(0)/m/n/9 firmware developed as of-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 28--29
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 MoSCoW backlog used;
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 28--29
+\TU/CenturyGothic.ttf(0)/m/n/9 GNSS, BLE deferred to
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 30--30
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 GPRS bearer instability
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 30--30
+\TU/CenturyGothic.ttf(0)/m/n/9 under peak transmit
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 30--31
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 SIMCOM module design
+ []
+
+
+Underfull \hbox (badness 3179) in paragraph at lines 32--32
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 ESP32 heap exhaustion
+ []
+
+
+Underfull \hbox (badness 5359) in paragraph at lines 32--32
+\TU/CenturyGothic.ttf(0)/m/n/9 from cooperative loop
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 32--33
+\TU/CenturyGothic.ttf(0)/m/n/9 Json) sized conservatively;
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 34--35
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Termination requirement
+ []
+
+[85
 
 ]
-(./Section Files/20-recommendations.tex) [41
+Underfull \hbox (badness 10000) in paragraph at lines 52--52
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 SIM800L power
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 52--52
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Supply droop
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 52--52
+\TU/CenturyGothic.ttf(0)/m/n/9 during GPRS
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 52--52
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Modem reset;
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 52--52
+\TU/CenturyGothic.ttf(0)/m/n/9 publish cycle
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 52--52
+\TU/CenturyGothic.ttf(0)/m/n/9 missed; cloud
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 52--53
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 2200 µF bulk
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 52--53
+\TU/CenturyGothic.ttf(0)/m/n/9 capacitor;
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 52--53
+\TU/CenturyGothic.ttf(0)/m/n/9 brownout re-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 54--54
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 MCP2515 CAN
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 54--54
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Bus-off due to
+ []
+
+
+Underfull \hbox (badness 8189) in paragraph at lines 54--54
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 CAN reception
+ []
+
+
+Underfull \hbox (badness 1067) in paragraph at lines 54--54
+\TU/CenturyGothic.ttf(0)/m/n/9 stops; BMSData
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 54--55
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Auto-reinit
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 54--55
+\TU/CenturyGothic.ttf(0)/m/n/9 on bus-off;
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 54--55
+\TU/CenturyGothic.ttf(0)/m/n/9 MCP2515 error
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 54--55
+\TU/CenturyGothic.ttf(0)/m/n/9 counter moni-
+ []
+
+
+Underfull \hbox (badness 7344) in paragraph at lines 56--56
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Open circuit /
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 56--56
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Temperature
+ []
+
+
+Underfull \hbox (badness 4981) in paragraph at lines 56--56
+\TU/CenturyGothic.ttf(0)/m/n/9 reading reports
+ []
+
+
+Underfull \hbox (badness 3271) in paragraph at lines 56--56
+\TU/CenturyGothic.ttf(0)/m/n/9 0xFF; alert sup-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 56--57
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Firmware skips
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 56--57
+\TU/CenturyGothic.ttf(0)/m/n/9 0xFF; alert on
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 58--58
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 LM2596S-ADJ
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 58--58
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Thermal shut-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 58--58
+\TU/CenturyGothic.ttf(0)/m/n/9 down at high
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 58--58
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 ESP32 power
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 58--58
+\TU/CenturyGothic.ttf(0)/m/n/9 loss; complete
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 58--59
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Thermal stress
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 58--59
+\TU/CenturyGothic.ttf(0)/m/n/9 test validated
+ []
+
+[86]) [87] [88] (./Section Files/18-quality-assurance.tex [89
 
 ]
-(./Section Files/21-conclusion.tex) [42
+Overfull \hbox (0.63307pt too wide) in paragraph at lines 41--42
+[]\TU/CenturyGothic.ttf(0)/b/n/9 Integration tests\TU/CenturyGothic.ttf(0)/m/n/
+9 : all subsystems active simultaneously in the cooperative main loop; monitore
+d for watch-
+ []
+
+
+Overfull \hbox (2.95879pt too wide) in paragraph at lines 43--44
+[]\TU/CenturyGothic.ttf(0)/b/n/9 Performance tests\TU/CenturyGothic.ttf(0)/m/n/
+9 : sustained 2-hour CAN reception, 30-minute thermal stress, 1-hour MPPT volta
+ge sweep. 
+ []
+
+
+Underfull \hbox (badness 1629) in paragraph at lines 62--63
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 System inoperable; data completely lost or co
+rrupted;
+ []
+
+
+Underfull \hbox (badness 1112) in paragraph at lines 81--81
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Missing 120 $\OT1/cmr/m/n/9 
+$
+ []
+
+
+Underfull \hbox (badness 2376) in paragraph at lines 81--81
+\TU/CenturyGothic.ttf(0)/m/n/9 terminator on
+ []
+
+
+Underfull \hbox (badness 7326) in paragraph at lines 82--82
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 SIM800L GPRS bearer fails to
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 82--82
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Insufficient
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 82--82
+\TU/CenturyGothic.ttf(0)/m/n/9 bulk capac-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 82--82
+\TU/CenturyGothic.ttf(0)/m/n/9 itance on
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 83--83
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 1-Wire timing
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 83--83
+\TU/CenturyGothic.ttf(0)/m/n/9 margin; re-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 84--84
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Calibration
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 84--84
+\TU/CenturyGothic.ttf(0)/m/n/9 temperature
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 85--85
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 WebSocket disconnects not
+ []
+
+
+Underfull \hbox (badness 4303) in paragraph at lines 85--85
+\TU/CenturyGothic.ttf(0)/m/n/9 nect logic in
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 86--86
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Insufficient
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 86--86
+\TU/CenturyGothic.ttf(0)/m/n/9 trace width
+ []
+
+
+Overfull \hbox (15.14192pt too wide) in paragraph at lines 87--87
+[]|\TU/CenturyGothic.ttf(0)/b/n/9 Enhancement| 
+ []
+
+
+Underfull \hbox (badness 1137) in paragraph at lines 87--87
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Dashboard cell grid flickers on
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 87--87
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Non-batched
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 87--87
+\TU/CenturyGothic.ttf(0)/m/n/9 DOM up-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 87--87
+\TU/CenturyGothic.ttf(0)/m/n/9 dates; fixed
+ []
+
+[90]) [91] (./Section Files/19-results-findings.tex
+Underfull \hbox (badness 10000) in paragraph at lines 15--15
+[]|\TU/CenturyGothic.ttf(0)/m/n/9 Acceptance Crite-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 18--18
+[]|$\OMS/cmsy/m/n/9 ^^F\OT1/cmr/m/n/9 1\OML/cmm/m/it/9 :\OT1/cmr/m/n/9 5[]$ \TU
+/CenturyGothic.ttf(0)/m/n/9 (voltage-
+ []
+
+
+Underfull \hbox (badness 10000) in paragraph at lines 19--19
+[]|\TU/CenturyGothic.ttf(0)/b/n/9 Temperature
+ []
+
+
+Underfull \hbox (badness 5175) in paragraph at lines 19--19
+[]|$\OMS/cmsy/m/n/9 ^^F\OT1/cmr/m/n/9 0\OML/cmm/m/it/9 :\OT1/cmr/m/n/9 5$\TU/Ce
+nturyGothic.ttf(0)/m/n/9 °C max devia-
+ []
+
+
+Underfull \hbox (badness 5374) in paragraph at lines 20--20
+[]|$\OMS/cmsy/m/n/9 ^^F\OT1/cmr/m/n/9 1\OML/cmm/m/it/9 :\OT1/cmr/m/n/9 8[]$ \TU
+/CenturyGothic.ttf(0)/m/n/9 at 5 A test
+ []
+
+[92
+
+]
+Underfull \hbox (badness 10000) in paragraph at lines 73--73
+[]|\TU/CenturyGothic.ttf(0)/b/n/10 Electronics components
+ []
+
+[93] [94]) [95] (./Section Files/20-recommendations.tex [96
+
+] [97]) [98]
+(./Section Files/21-conclusion.tex) [99
 
 ] (./Section Files/references.tex
+Overfull \hbox (13.53375pt too wide) in paragraph at lines 3--3
+\TU/CenturyGothic.ttf(0)/m/n/10 nis, Tunisia, Tech. Rep., 2025, Internal docume
+nt provided by BAKO Motors. Ref: 2_EM701.102.V01-
+ []
 
-LaTeX Warning: Empty bibliography on input line 19.
+[100
 
-) [43
+]
 
-] (./Section Files/22-appendices.tex) [44
+Package biblatex Warning: No driver for 'standard'.
+(biblatex)                Using fallback driver on input line 3.
+
+
+Overfull \hbox (1.78903pt too wide) in paragraph at lines 3--3
+[]\TU/CenturyGothic.ttf(0)/m/n/10 NXP Semiconductors, \TU/CenturyGothic.ttf(0)/
+m/it/10 TJA1051 high-speed CAN transceiver\TU/CenturyGothic.ttf(0)/m/n/10 , Rev
+. 3, NXP Semiconductors, 2017.
+ []
+
+
+Package biblatex Warning: No driver for 'standard'.
+(biblatex)                Using fallback driver on input line 3.
+
+
+Overfull \hbox (7.65541pt too wide) in paragraph at lines 3--3
+[]\TU/CenturyGothic.ttf(0)/m/n/10 Maxim Integrated, \TU/CenturyGothic.ttf(0)/m/
+it/10 DS18B20 programmable resolution 1-wire digital thermometer\TU/CenturyGoth
+ic.ttf(0)/m/n/10 , Rev. 6, Maxim
+ []
+
+[101]) [102] (./Section Files/22-appendices.tex) [103
 
 ] (./main.aux)
  ***********
 LaTeX2e <2023-11-01> patch level 1
 L3 programming layer <2024-01-22>
  ***********
+
+
+LaTeX Warning: There were multiply-defined labels.
+
 Package rerunfilecheck Info: File `main.out' has not changed.
-(rerunfilecheck)             Checksum: A903061FFB215D9B2EFF13936964B287;31421.
+(rerunfilecheck)             Checksum: 8B7EF126F1B8D44FAC2F2025BAF6BDEF;31232.
 Package logreq Info: Writing requests to 'main.run.xml'.
 \openout1 = `main.run.xml'.
 
  ) 
 Here is how much of TeX's memory you used:
- 33460 strings out of 474878
- 673771 string characters out of 5762515
- 1937627 words of memory out of 5000000
- 54920 multiletter control sequences out of 15000+600000
- 560312 words of font info for 68 fonts, out of 8000000 for 9000
+ 34577 strings out of 474878
+ 701834 string characters out of 5762515
+ 1944627 words of memory out of 5000000
+ 55991 multiletter control sequences out of 15000+600000
+ 565031 words of font info for 95 fonts, out of 8000000 for 9000
  1348 hyphenation exceptions out of 8191
- 89i,12n,118p,1042b,3688s stack positions out of 10000i,1000n,20000p,200000b,200000s
+ 89i,12n,118p,1172b,4894s stack positions out of 10000i,1000n,20000p,200000b,200000s
 
-Output written on main.pdf (56 pages).
+Output written on main.pdf (115 pages).

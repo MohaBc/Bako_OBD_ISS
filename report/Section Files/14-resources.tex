@@ -1,16 +1,93 @@
 \section{Resources}
 
 \subsection{Human Resources \& Skillset Matrix}
-% Content placeholder
+
+The project team comprises seven members, each assigned to functional areas that align with their academic specialisation. Table~\ref{tab:human-resources} summarises the team composition and primary responsibilities.
+
+\begin{table}[H]
+\centering
+\caption{Human Resources and Responsibility Assignment}
+\label{tab:human-resources}
+\small
+\begin{tabular}{>{\bfseries}p{3.4cm} p{4.2cm} p{5.0cm}}
+\toprule
+Team Member & Primary Role & Key Deliverables \\
+\midrule
+Mohamed Baccouche  & Hardware / PCB Lead        & KiCad schematic, PCB layout, BOM, CAN bus bring-up \\
+Mahdi Hachicha     & Embedded Firmware          & ESP32 firmware, CAN decoding, sensor drivers \\
+Yassine Mtibaa     & GSM / Cloud Backend        & SIM800L GSM integration, AT command firmware, FastAPI server, VPS deployment, cloud dashboard \\
+Hana Gdoura        & Wi-Fi / Wireless Dashboard & Wi-Fi AP mode integration, TCP dashboard connection, wireless testing \\
+Khadija Ben Hamida & Emulation / Simulation     & Python sensor emulator scenario design, data validation, results analysis \\
+Selima Grissa      & Emulation / Simulation     & Emulator implementation, test scenario execution, V\&V test report \\
+Fares Smaoui       & BLE / Wireless             & BLE GATT server implementation, NimBLE firmware, wireless interface \\
+\midrule
+Dr.\ Mortadha Dahmani & Academic Supervisor / Stakeholder & Project governance, VPS provision, milestone approval \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All team members contributed to the technical report, with sections distributed according to the area of responsibility. Version-controlled collaboration was managed through the shared private Git repository.
 
 \subsection{Equipment \& Lab Resources}
-% Content placeholder
+
+\paragraph{FABLAB at MedTech Mediterranean Institute of Technology.}
+The MedTech FABLAB provided free access to the following equipment throughout the project: soldering stations with hot-air rework capability, digital storage oscilloscopes (100~MHz bandwidth), logic analysers compatible with SaleaeLogic software, regulated bench power supplies (0--30~V, 0--5~A), precision digital multimeters, 3D printers for enclosure prototyping, and a PCB rework station for component replacement.
+
+\paragraph{BAKO Motors Test Vehicle.}
+BAKO Motors made their electric motorcycle prototype available on the MedTech campus for controlled on-vehicle testing sessions. These sessions were scheduled on a weekly basis (approximately 4~hours per week) to validate CAN bus reception, sensor placement, and vehicle-in-motion data integrity.
+
+\paragraph{Personal Equipment.}
+Team members contributed laptops running VS~Code, PlatformIO, and KiCad, as well as USB-to-serial adapters for firmware flashing and serial monitoring.
 
 \subsection{Software Tools \& Licenses}
-% Content placeholder
+
+All software tools used in this project are open-source or free for academic use. No commercial software licences were required or procured. Table~\ref{tab:software-tools} summarises the development toolchain.
+
+\begin{table}[H]
+\centering
+\caption{Software Development Tools}
+\label{tab:software-tools}
+\begin{tabular}{>{\bfseries}p{4.0cm} p{5.8cm} l}
+\toprule
+Tool & Purpose & Licence \\
+\midrule
+KiCad 10.0              & PCB schematic capture and layout        & GPL \\
+VS Code                 & Integrated development environment      & MIT \\
+PlatformIO              & Build system, dependency management     & Apache 2.0 \\
+ESP32 Arduino framework & Embedded firmware for ESP32             & Apache 2.0 \\
+Python 3.11             & Sensor emulator and FastAPI backend     & PSF \\
+FastAPI / Uvicorn       & REST API and WebSocket server           & MIT \\
+SQLite                  & Cloud telemetry database on VPS         & Public Domain \\
+SavvyCAN / PEAK PCANView & CAN bus frame capture and analysis     & Open-source / free \\
+Git / GitHub            & Version control and team collaboration  & Free \\
+Google Drive            & Document sharing and report drafts      & Free (academic) \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Cloud \& Infrastructure Resources}
-% Content placeholder
+
+The cloud infrastructure was provided at no cost by the academic supervisor, Dr.\ Mortadha Dahmani, who made available a Linux VPS with a public IP address. The following services were deployed on this VPS:
+
+\begin{itemize}
+    \item \textbf{FastAPI backend} (Python/Uvicorn): handles HTTP ingest and WebSocket streaming on port 8787.
+    \item \textbf{SQLite database} (\texttt{bms\_cloud.db}): stores all received telemetry snapshots in a flat schema managed directly by the FastAPI server.
+    \item \textbf{Web dashboard}: served as a static HTML file directly by the FastAPI backend.
+    \item \textbf{MQTT Mosquitto broker}: deployed for future MQTT-based telemetry (not yet used in the current firmware).
+\end{itemize}
+
+VPS administration was performed via SSH. Server logs, database contents, and WebSocket connections are directly inspectable by the team without any third-party cloud portal. The VPS approach eliminated dependency on managed cloud services and kept all operational data within the project team's direct control.
 
 \subsection{Budget Allocation \& Burn Rate}
-% Content placeholder
+
+The actual project hardware spend was approximately 240~TND in total, allocated as follows:
+
+\begin{itemize}
+    \item \textbf{Electronics components}: 60~TND (ESP32, MCP2515 modules, DS18B20 sensors, ACS712, passives, connectors — all locally sourced in Tunisia).
+    \item \textbf{PCB fabrication}: 180~TND (local fabrication house, FR-4, 2-layer, 1.6~mm, Gerber RS-274X).
+    \item \textbf{Lab equipment}: 0~TND (provided free by the MedTech FABLAB).
+    \item \textbf{VPS / cloud hosting}: 0~TND (provided by Dr.\ Dahmani).
+    \item \textbf{Software licences}: 0~TND (all open-source or free for academic use).
+\end{itemize}
+
+Total actual spend was 240~TND. All components were available from local Tunisian suppliers without import delays. No unplanned budget overruns occurred during any sprint.

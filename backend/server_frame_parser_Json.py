@@ -36,7 +36,7 @@ from collections import deque
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -825,6 +825,86 @@ async def get_latest_push():
     if payload is None:
         return JSONResponse({"error": "No JSON push received yet"}, status_code=404)
     return JSONResponse({"received_at": ts, "data": payload})
+
+INGEST_API_KEY = os.environ.get("BMS_API_KEY", "bako-bms-2024")
+
+def _cell_status(mv: int, thresh: dict) -> str:
+    if mv is None:              return "nc"
+    if mv >= thresh["cell_ov"]: return "ov"
+    if mv <= thresh["cell_uv"]: return "uv"
+    if mv >= thresh["cell_full"]: return "full"
+    if mv >= thresh["cell_bal"]: return "ok"
+    return "low"
+
+@app.post("/api/ingest")
+async def ingest(request: Request):
+    key = request.headers.get("X-Api-Key", "")
+    if key != INGEST_API_KEY:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        payload = await request.json()
+    except Exception:
+        return JSONResponse({"error": "bad json"}, status_code=400)
+
+    bat   = payload.get("battery", {})
+    temps = payload.get("temperatures", {})
+
+    with state_lock:
+        thresh = state["thresh"]
+
+        state["pack_v"]         = bat.get("pack_v")
+        state["pack_current_a"] = bat.get("pack_current_a")
+        state["soc"]            = bat.get("soc")
+        state["soc_bms"]        = bat.get("soc_bms")
+        state["cell_count"]     = bat.get("cell_count", 0)
+        state["cell_avg_mv"]    = bat.get("cell_avg_mv")
+        state["cell_min_mv"]    = bat.get("cell_min_mv")
+        state["cell_max_mv"]    = bat.get("cell_max_mv")
+        state["cell_spread_mv"] = bat.get("cell_spread_mv")
+        state["disch_i_lim"]    = bat.get("max_disch_a")
+        state["fault_level"]    = payload.get("fault_level", 0)
+        state["error_code"]     = payload.get("error_code", 0)
+        state["frame_count"]    = payload.get("frame_count", 0)
+        state["connected"]      = payload.get("connected", True)
+        state["mode"]           = "cloud"
+        state["port"]           = payload.get("device_id", "replay")
+
+        charger = bat.get("charger", {})
+        state["chg_i_req"] = charger.get("max_charge_a")
+
+        # cells_arr format: [None, {mv, status}, {mv, status}, ...]
+        # position 0 is a null placeholder; positions 1-19 are the actual cells
+        cells_arr = bat.get("cells", [])
+        cells = {}
+        for idx, entry in enumerate(cells_arr):
+            if idx == 0 or entry is None:
+                continue
+            if isinstance(entry, dict):
+                mv = entry.get("mv")
+            else:
+                mv = entry  # plain integer fallback
+            if mv is not None:
+                cells[idx] = {"mv": mv, "status": _cell_status(mv, thresh)}
+        state["cells"] = cells
+
+        # battery_cells format: [None, temp1, temp2, ...]
+        # position 0 is a null placeholder; positions 1-4 are probe readings
+        bc = temps.get("battery_cells", [])
+        state["temps"] = {}
+        for idx, v in enumerate(bc):
+            if idx == 0 or v is None:
+                continue
+            state["temps"][idx] = v
+        state["avg_temp"] = temps.get("battery_avg_c")
+
+        state["latest_json_push"]    = payload
+        state["latest_json_push_ts"] = time.strftime("%Y-%m-%dT%H:%M:%S.000Z", time.gmtime())
+
+        log_buffer.append(f"[CLOUD] ingest seq={payload.get('seq','?')} "
+                          f"soc={state['soc']} pack_v={state['pack_v']}")
+
+    return JSONResponse({"ok": True})
+
 
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket):

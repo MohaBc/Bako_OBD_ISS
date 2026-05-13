@@ -1,13 +1,34 @@
 \section{Executive Summary}
 
 \subsection{Project Overview}
-% Content placeholder
+
+The BAKO Motors Monitoring System is a full-stack embedded IoT platform developed to provide real-time diagnostics and telemetry for BAKO Motors' electric vehicle prototype. The system integrates an ESP32-based custom hardware board with a CAN bus interface, a twelve-sensor network, a live WebSocket web dashboard, and a cloud database pipeline through GSM/GPRS connectivity.
+
+The project was designed and developed by a seven-member engineering student team at MedTech Mediterranean Institute of Technology (SMU) as part of the ISS~496 senior project (one academic semester), in direct collaboration with BAKO Motors as the industrial partner. The system is intended to serve both as a diagnostic tool for engineers and as a foundation for future predictive maintenance capabilities.
 
 \subsection{Client Brief \& Objectives}
-% Content placeholder
+
+BAKO Motors identified several critical gaps in their existing electric vehicle prototype:
+
+\begin{itemize}
+    \item the CAN bus communication was limited to the battery management system only;
+    \item no real-time data access was available to engineers, and no monitoring interface existed for vehicle diagnostics;
+    \item sensors were exclusively placed on the battery pack with no coverage of the motor, MPPT controller, or power distribution unit;
+    \item insufficient system documentation was available for maintenance and development teams.
+\end{itemize}
+
+The primary objectives of this project were therefore: to extend CAN bus monitoring across the full vehicle by adding external sensors; to develop a real-time web-based dashboard accessible over Wi-Fi and LTE; to design and fabricate a custom PCB integrating all monitoring electronics; to implement a cloud telemetry pipeline for remote data storage and analysis; and to produce a Python-based software emulator enabling full system testing without physical hardware.
 
 \subsection{Key Milestones \& Timeline}
-% Content placeholder
+
+The project was structured across a one-semester academic timeline following an iterative Agile development approach. The first phase covered system design, component selection, and feasibility study, culminating in a validated bill of materials and system architecture synoptic. The second phase focused on hardware development, firmware implementation, dashboard development, and cloud pipeline integration.
+
+Key milestones achieved at the midway stage include: completion of the system architecture and synoptic design; full PCB schematic and layout in KiCad (Revision RECTIFICATION\_2, April~2026); implementation of CAN bus communication with the BMS via MCP2515; DS18B20 temperature sensor integration for motor, MPPT, and DC/DC converter monitoring; current and voltage measurement across all energy nodes; a Python-based sensor emulator with seven automated test scenarios; a real-time WebSocket dashboard with data export functionality; and a cloud telemetry pipeline from ESP32 through SIM800L to a SQLite database on a VPS.
+
+Remaining work at the midway stage includes: GNSS position tracking integration, full SIM800L GSM/GPRS connectivity, fault detection and SMS alert system, in-vehicle PCB installation and field validation, and completion of testing and quality assurance procedures.
 
 \subsection{Document Conventions}
-% Content placeholder
+
+This report follows the MedTech ISS~496 reporting standard and all electronic references use the IEEE citation style as specified in the MedTech Internship Guide. Component references throughout the document follow KiCad designator conventions, where U denotes integrated circuits, J denotes connectors, R denotes resistors, C denotes capacitors, D denotes diodes, and F denotes fuses.
+
+Voltage levels are expressed in volts~(V) or millivolts~(mV). Temperature values are expressed in degrees Celsius~(\textdegree{}C). Current values are expressed in amperes~(A). CAN frame identifiers are expressed in hexadecimal notation with the \texttt{0x} prefix. All PCB dimensions are given in millimetres~(mm) and electrical trace widths in micrometres~(\textmu{}m) unless otherwise stated.

@@ -1,29 +1,14 @@
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 % Abstract                      %
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-% This page contains the abstract of your report. Customize the content of the abstract by replacing the placeholder text with the actual abstract of your project. Ensure that the abstract provides a clear and concise summary of your work.
-
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-
-% \centerline{
-% Uncomment the line above to center the section heading
 
 \section*{Abstract}
-
-% }
-% Uncomment the closing bracket above to center the section heading
-
 \addcontentsline{toc}{section}{Abstract}
-% Add the Abstract section to the Table of Contents
 
 \vspace{1.4cm}
 \large
 \noindent
-% Start a new paragraph without indentation
 
-The abstract is a concise summary of the main points and findings of your project. It provides a brief overview of the purpose, methodology, results, and conclusions of your research or study. The abstract should be written in a clear and concise manner, using language that is accessible to a broad audience.\\
-% Replace the placeholder text with the actual abstract of your project.
+BAKO Motors Monitoring System is an embedded IoT solution developed as part of the ISS~496 senior project at MedTech Mediterranean Institute of Technology. The project addresses critical gaps in BAKO Motors' electric vehicle platform, including the absence of real-time sensor monitoring beyond the battery, no vehicle-wide data acquisition interface, and insufficient diagnostic documentation. The system is built around an ESP32 microcontroller interfaced with a CAN bus (via MCP2515/TJA1051T), a suite of 12 external sensors (current, voltage, temperature, handbrake, GNSS), and a custom Python-based sensor emulator for testing. A real-time web dashboard streams live vehicle telemetry via WebSocket, while a cloud pipeline transmits data over GPRS (SIM800L) to a SQLite database hosted on a VPS. A custom PCB was designed in KiCad to house all components. At the midway stage, the project has achieved 90\% completion in embedded development and 80\% in system design and dashboard visualisation, with future work focused on GNSS tracking, GSM/GPRS connectivity, and full in-vehicle PCB installation.\\
 
-\textbf{Keywords: }
-% Add relevant keywords here
+\textbf{Keywords:} Electric Vehicle, CAN Bus, ESP32, BMS, IoT, Real-Time Monitoring, Telemetry, PCB Design, BAKO Motor.

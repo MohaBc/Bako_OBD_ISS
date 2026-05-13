@@ -1,16 +1,72 @@
 \section{Bill of Materials (BOM)}
 
 \subsection{Electronics BOM}
-% Content placeholder
+
+Table~\ref{tab:electronics-bom} lists all electronic components required to populate one unit of the BAKO Motors ISS board. Unit prices are estimates based on local Tunisian market rates (TND) and online distributor quotes at the time of procurement.
+
+\begin{table}[H]
+\centering
+\caption{Electronics Bill of Materials}
+\label{tab:electronics-bom}
+\small
+\begin{tabular}{>{\bfseries}p{3.0cm} p{3.6cm} c r r l}
+\toprule
+Component & Description & Qty & Unit Price & Total & Source \\
+\midrule
+ESP32-DEVKITC    & Microcontroller                & 1  & \textasciitilde30 TND  & \textasciitilde30 TND  & Local \\
+MCP2515 module   & CAN controller SPI             & 3  & \textasciitilde5 TND   & \textasciitilde15 TND  & Local \\
+TJA1051T         & CAN transceiver                & 1  & \textasciitilde3 TND   & \textasciitilde3 TND   & Local \\
+SIM7670E         & LTE Cat-M1 module              & 1  & \textasciitilde80 TND  & \textasciitilde80 TND  & Online \\
+DS18B20          & 1-Wire temperature sensor      & 3  & \textasciitilde3 TND   & \textasciitilde9 TND   & Local \\
+ACS712 (30\,A)   & Hall-effect current sensor     & 2  & \textasciitilde5 TND   & \textasciitilde10 TND  & Local \\
+LM2596S-ADJ      & Adjustable buck regulator      & 1  & \textasciitilde4 TND   & \textasciitilde4 TND   & Local \\
+AMS1117-3.3      & 3.3\,V LDO regulator           & 1  & \textasciitilde1 TND   & \textasciitilde1 TND   & Local \\
+LM7805           & 5\,V linear regulator          & 1  & \textasciitilde1 TND   & \textasciitilde1 TND   & Local \\
+Resistors (misc) & Various values                 & 20 & \textasciitilde0.1 TND & \textasciitilde2 TND   & Local \\
+Capacitors (misc)& Various values                 & 10 & \textasciitilde0.5 TND & \textasciitilde5 TND   & Local \\
+Zener diodes     & ESD/overvoltage protection     & 3  & \textasciitilde1 TND   & \textasciitilde3 TND   & Local \\
+Fuses            & Overcurrent protection         & 3  & \textasciitilde1 TND   & \textasciitilde3 TND   & Local \\
+Connectors (misc)& JST and screw terminals        & 15 & \textasciitilde1 TND   & \textasciitilde15 TND  & Local \\
+PCB fabrication  & FR-4, 2-layer, 1.6\,mm         & 1  & \textasciitilde180 TND & \textasciitilde180 TND & Local fab \\
+\midrule
+\multicolumn{4}{r}{\textbf{Total Actual Cost (components + PCB)}} & \multicolumn{2}{l}{\textbf{\textasciitilde240 TND}} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Mechanical \& Structural BOM}
-% Content placeholder
+
+The mechanical and structural BOM covers the enclosure and mounting hardware for the ISS board. The enclosure design was not finalised within the scope of this academic prototype phase and is deferred to the next hardware revision. Provisional components include: a standard ABS or polycarbonate DIN-rail enclosure (approximately 150~TND), M3 standoffs and screws for PCB mounting (approximately 5~TND), and cable glands for harness entry points (approximately 10~TND). These items are not included in the electronics BOM total.
 
 \subsection{Battery \& Powertrain BOM}
-% Content placeholder
+
+The BAKO Motors electric motorcycle powertrain (LiFePO4 battery pack, MPPT solar controller, three-phase motor controller, and DC/DC converter) was provided by BAKO Motors as the system under test. These components are outside the scope of the ISS project BOM and are not costed here.
 
 \subsection{Software \& Licensing BOM}
-% Content placeholder
 
-\subsection{BOM Cost Summary \& Target vs. Actual}
-% Content placeholder
+All software tools and frameworks used in this project are open-source or free for academic use. No commercial software licences were required. Table~\ref{tab:software-bom} summarises the tools and their applicable licences.
+
+\begin{table}[H]
+\centering
+\caption{Software and Licensing Bill of Materials}
+\label{tab:software-bom}
+\begin{tabular}{>{\bfseries}p{4.0cm} p{6.0cm} l}
+\toprule
+Tool / Framework & Purpose & Licence \\
+\midrule
+ESP32 Arduino framework & Embedded firmware development & Apache 2.0 \\
+KiCad 10.0              & PCB schematic and layout      & GPL \\
+Python 3.11             & Emulator and FastAPI back-end & PSF \\
+FastAPI                 & REST API and WebSocket server & MIT \\
+SQLite                  & Cloud telemetry database      & Public Domain \\
+VS Code                 & Integrated development environment & MIT \\
+PlatformIO              & Build system and dependency management & Apache 2.0 \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{BOM Cost Summary \& Target vs.\ Actual}
+
+The actual project hardware expenditure was approximately 240~TND in total: approximately 60~TND for all electronic components (locally sourced from Tunisian suppliers) and 180~TND for PCB fabrication at a local fabrication house (FR-4, 2-layer, Gerber RS-274X). The SIM7670E LTE module is not included in this figure as it was evaluated but not purchased within the academic project budget.
+
+All software tools used in the project are open-source or free for academic use, contributing 0~TND to the software cost line. The mechanical enclosure was prototyped on the MedTech FABLAB 3D printer at no material cost to the project budget.

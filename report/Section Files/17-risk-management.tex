@@ -1,13 +1,78 @@
 \section{Risk Management}
 
-\subsection{Risk Register (Full)}
-% Content placeholder
+\subsection{Risk Register}
 
-\subsection{Safety Risk Analysis (FMEA / HAZOP)}
-% Content placeholder
+Risks were identified, scored, and tracked from Sprint~1 onwards using a likelihood × impact matrix. Likelihood is rated 1 (rare) to 5 (almost certain); Impact is rated 1 (negligible) to 5 (critical). The Risk Priority Number (RPN) is the product of the two scores. Risks with RPN $\geq 12$ were assigned mitigation actions and tracked at every sprint review.
+
+\begin{table}[H]
+\centering
+\caption{Project Risk Register}
+\label{tab:risk-register}
+\small
+\begin{tabular}{c p{3.8cm} c c c p{4.5cm}}
+\toprule
+ID & Risk Description & L & I & RPN & Mitigation / Outcome \\
+\midrule
+R-01 & Proprietary BMS CAN protocol requires reverse engineering --- no DBC published & 5 & 5 & 25 & Allocated dedicated sprint for SavvyCAN capture and frame analysis. \textbf{Occurred:} consumed Sprint~2 (Blocker B-001). \\
+\midrule
+R-02 & SIM800L 2G network sunset by Tunisian operators (Ooredoo, Orange) & 4 & 4 & 16 & Selected SIM800L (LTE Cat-M1) as primary module from the outset; SIM800L retained as schematic footprint only. \textbf{Avoided.} \\
+\midrule
+R-03 & ADC nonlinearity limits current measurement accuracy & 3 & 3 & 9 & Calibration offset stored per unit; ACS712-30A selected for 2\% full-scale spec. Monitored --- accepted at $\pm 1.8\%$. \\
+\midrule
+R-04 & SIM800L unavailable locally in Tunisia & 3 & 4 & 12 & Ordered from online distributor in Sprint~1 with 14-day lead time. \textbf{Occurred:} managed (B-006). \\
+\midrule
+R-05 & PCB fabrication defects requiring re-spin & 3 & 4 & 12 & Rigorous KiCad DRC before Gerber export; peer review of schematic. \textbf{Occurred:} one re-spin (RECTIFICATION\_2) due to trace width (D-006). \\
+\midrule
+R-06 & Vehicle access insufficient for integration testing & 3 & 3 & 9 & Python log replay simulator and CAN frame simulator firmware developed as offline surrogates. Managed. \\
+\midrule
+R-07 & Scope creep from additional sensor integrations & 2 & 3 & 6 & MoSCoW backlog used; GNSS, BLE deferred to roadmap. Controlled. \\
+\midrule
+R-08 & GPRS bearer instability under peak transmit current & 3 & 4 & 12 & SIMCOM module design guide requires bulk capacitor on VBAT. \textbf{Occurred:} resolved with 2200~µF (B-002). \\
+\midrule
+R-09 & ESP32 heap exhaustion from cooperative loop and JSON buffer & 2 & 4 & 8 & Static JSON buffer (ArduinoJson) sized conservatively; heap usage monitored. Not triggered in 2-hour tests. \\
+\midrule
+R-10 & CAN bus signal integrity from missing termination & 2 & 4 & 8 & Termination requirement documented in wiring guide. \textbf{Occurred:} missing at harness end; resolved Sprint~7 (B-003). \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsection{Safety Risk Analysis (FMEA)}
+
+A Failure Mode and Effects Analysis (FMEA) was conducted for the four highest-consequence failure modes of the ISS system in a deployed vehicle context.
+
+\begin{table}[H]
+\centering
+\caption{FMEA --- Top Four Failure Modes}
+\label{tab:fmea}
+\small
+\begin{tabular}{p{2.5cm} p{2.5cm} p{2.5cm} c c c p{2.5cm}}
+\toprule
+Component & Failure Mode & Effect on System & S & O & D & Control \\
+\midrule
+SIM800L power rail & Supply droop during GPRS burst & Modem reset; publish cycle missed; cloud data gap & 3 & 3 & 3 & 2200~µF bulk capacitor; brownout recovery firmware \\
+\midrule
+MCP2515 CAN controller & Bus-off due to noise & CAN reception stops; BMSData struct stale & 4 & 2 & 3 & Auto-reinit on bus-off; MCP2515 error counter monitoring \\
+\midrule
+DS18B20 sensor & Open circuit / disconnected & Temperature reading reports 0xFF; alert suppressed & 3 & 2 & 4 & Firmware skips 0xFF; alert on all-zero temperature \\
+\midrule
+LM2596S-ADJ regulator & Thermal shutdown at high ambient & ESP32 power loss; complete system down & 4 & 1 & 3 & Thermal stress test validated to 62°C; copper flood on B.Cu \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\noindent S = Severity (1--5), O = Occurrence (1--5), D = Detection difficulty (1--5). RPN = S~$\times$~O~$\times$~D.
 
 \subsection{Cybersecurity Risk Assessment}
-% Content placeholder
+
+The ISS system transmits telemetry over plain HTTP (AT+HTTPSSL=0) with an API key injected in the \texttt{X-Api-Key} header. The current security posture is assessed as follows:
+
+\begin{itemize}
+    \item \textbf{Data confidentiality:} Low. HTTP traffic is unencrypted and visible to any party with access to the GPRS bearer. No personally identifiable information is transmitted; all data is vehicle telemetry. Risk accepted for the academic prototype phase.
+    \item \textbf{API authentication:} Basic. The \texttt{X-Api-Key} header provides minimal protection against accidental ingestion from unrelated sources; it does not prevent a determined attacker who intercepts the key from injecting false data.
+    \item \textbf{Recommended upgrade:} Enable HTTPS (AT+HTTPSSL=1 with CA certificate) and rotate API keys per vehicle before any production deployment. The FastAPI backend is already capable of TLS termination via a reverse proxy (nginx).
+    \item \textbf{Physical security:} The ISS board is mounted inside the vehicle chassis. USB programming access requires physical vehicle access. No remote firmware update vector exists in the current firmware (OTA deferred).
+\end{itemize}
 
 \subsection{Risk Review Cadence}
-% Content placeholder
+
+The risk register was reviewed at the end of every sprint during the sprint retrospective. Risks that materialised were moved to the Blockages \& Issue Log (Section~16) and new risks identified during the sprint were added to the register. The final risk review was conducted at the Sprint~8 PRR. Of the ten identified risks, four occurred and were fully resolved before closure; six were avoided through mitigation or did not materialise.

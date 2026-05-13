@@ -1,13 +1,23 @@
 \section{Introduction}
 
 \subsection{Background}
-% Content placeholder
+
+The global electric vehicle industry is undergoing rapid expansion, driven by environmental awareness, rising fuel costs, and legislative pressure to decarbonise transportation. In emerging markets such as Tunisia, small electric vehicle manufacturers and startups are beginning to establish themselves, facing unique challenges related to limited infrastructure, local market constraints, and the need for affordable yet reliable technology.
+
+BAKO Motors is a Tunisian company founded in 2021 that designs and manufactures solar-powered electric micro-vehicles for urban mobility and last-mile delivery. Their vehicles incorporate a lithium-ion battery pack with a dedicated BMS, a solar panel with MPPT controller, a three-phase motor, and a DC/DC power distribution unit. Despite the technical sophistication of their drivetrain, BAKO Motors lacked a comprehensive monitoring and diagnostics system capable of observing all these subsystems in real time.
 
 \subsection{Problem Statement}
-% Content placeholder
+
+Prior to this project, the BAKO Motors vehicle monitoring infrastructure suffered from five critical deficiencies. First, the CAN bus was limited exclusively to the battery BMS. Second, no real-time data access mechanism existed. Third, no monitoring interface or dashboard had been developed. Fourth, sensor placement was restricted to the battery pack, leaving the motor, DC/DC converter, and solar system entirely unmeasured. Fifth, insufficient system documentation was available for maintenance and development.
+
+These deficiencies translate directly into operational risks: undetected overheating at the motor or DC/DC converter can cause component failure; lack of solar performance data prevents MPPT optimisation; and the absence of remote diagnostics limits field support capability. This project was commissioned to solve all five problems through a unified embedded IoT monitoring solution.
 
 \subsection{Scope of Work \& Deliverables}
-% Content placeholder
+
+The scope covers the full hardware and software stack: component selection and justification; custom PCB schematic and layout in KiCad; ESP32 firmware for CAN bus, sensor acquisition, and data transmission; a Python sensor emulator; a real-time WebSocket dashboard with data export; and a cloud telemetry pipeline using LTE, FastAPI, and SQLite.
+
+Primary deliverables include: a validated bill of materials (BOM); a complete PCB design package (schematic, layout, and Gerber files); documented firmware source code; a functional live dashboard; a live cloud platform with database schema; a Python emulator covering seven test scenarios; and this technical report. The scope explicitly excludes motor control algorithms, BMS cell balancing logic, and mechanical vehicle chassis integration.
 
 \subsection{Report Structure}
-% Content placeholder
+
+This report is organised into twenty-two chapters following the MedTech ISS~496 structure. Chapters~1 through~4 cover the executive summary, introduction, company context, and research phase respectively. Chapter~5 describes the full systems architecture. Chapters~6 through~11 detail the preparation, circuit design, mechanical design, software implementation, cloud connectivity, and implementation phases. Chapters~12 through~22 address Scrum and Agile management, bill of materials, resources, limitations, blockages, risk management, quality assurance, results, recommendations, and conclusions. A full reference list is provided at the end of the document.

@@ -1,9 +1,30 @@
-\contentsline {table}{\numberline {1}{\ignorespaces O'CELL BMS CAN Frame Map (SAE J1939, 250 kbps)}}{15}{table.caption.8}%
-\contentsline {table}{\numberline {2}{\ignorespaces BMS Fault Code Map (byte 7 of 0x18FF28F4)}}{16}{table.caption.9}%
-\contentsline {table}{\numberline {3}{\ignorespaces SOC Calibration Data — Four On-Vehicle Sessions}}{17}{table.caption.10}%
-\contentsline {table}{\numberline {4}{\ignorespaces Backend Python Dependencies}}{23}{table.caption.11}%
-\contentsline {table}{\numberline {5}{\ignorespaces Server Environment Variables}}{24}{table.caption.12}%
-\contentsline {table}{\numberline {6}{\ignorespaces Dashboard Panel Summary}}{26}{table.caption.14}%
-\contentsline {table}{\numberline {7}{\ignorespaces Backend API Endpoint Reference}}{28}{table.caption.15}%
-\contentsline {table}{\numberline {8}{\ignorespaces ESP32 JSON Payload — Top-Level Envelope}}{29}{table.caption.16}%
-\contentsline {table}{\numberline {9}{\ignorespaces ESP32 JSON Payload — \texttt {battery} Object Fields}}{29}{table.caption.17}%
+\contentsline {table}{\numberline {1}{\ignorespaces Applicable Standards and Regulatory Framework}}{9}{table.caption.5}%
+\contentsline {table}{\numberline {2}{\ignorespaces PCB Mechanical and Electrical Parameters}}{33}{table.caption.19}%
+\contentsline {table}{\numberline {3}{\ignorespaces Full Component Inventory --- Integrated Circuits and Connectors}}{34}{table.caption.20}%
+\contentsline {table}{\numberline {4}{\ignorespaces Full Component Inventory --- Passive Components}}{34}{table.caption.21}%
+\contentsline {table}{\numberline {5}{\ignorespaces ISS Enclosure Mechanical Parameters}}{39}{table.caption.25}%
+\contentsline {table}{\numberline {6}{\ignorespaces O'CELL BMS CAN Frame Map (SAE J1939, 250 kbps)}}{42}{table.caption.27}%
+\contentsline {table}{\numberline {7}{\ignorespaces BMS Fault Code Map (byte 7 of 0x18FF28F4)}}{43}{table.caption.28}%
+\contentsline {table}{\numberline {8}{\ignorespaces SOC Calibration Data — Four On-Vehicle Sessions}}{44}{table.caption.29}%
+\contentsline {table}{\numberline {9}{\ignorespaces Dashboard Panel Layout}}{50}{table.caption.31}%
+\contentsline {table}{\numberline {10}{\ignorespaces ESP32 CAN Simulator --- 7-Phase Scenario Cycle}}{52}{table.caption.33}%
+\contentsline {table}{\numberline {11}{\ignorespaces Backend Python Dependencies}}{57}{table.caption.35}%
+\contentsline {table}{\numberline {12}{\ignorespaces Server Environment Variables}}{58}{table.caption.36}%
+\contentsline {table}{\numberline {13}{\ignorespaces Dashboard Panel Summary}}{60}{table.caption.38}%
+\contentsline {table}{\numberline {14}{\ignorespaces Backend API Endpoint Reference}}{62}{table.caption.39}%
+\contentsline {table}{\numberline {15}{\ignorespaces ESP32 JSON Payload — Top-Level Envelope}}{62}{table.caption.40}%
+\contentsline {table}{\numberline {16}{\ignorespaces ESP32 JSON Payload — \texttt {battery} Object Fields}}{63}{table.caption.41}%
+\contentsline {table}{\numberline {17}{\ignorespaces V\&V Test Criteria and Results}}{66}{table.caption.44}%
+\contentsline {table}{\numberline {18}{\ignorespaces Sprint Log and Velocity Summary}}{70}{table.caption.45}%
+\contentsline {table}{\numberline {19}{\ignorespaces MoSCoW Product Backlog (selected items)}}{71}{table.caption.46}%
+\contentsline {table}{\numberline {20}{\ignorespaces Electronics Bill of Materials}}{74}{table.caption.47}%
+\contentsline {table}{\numberline {21}{\ignorespaces Software and Licensing Bill of Materials}}{75}{table.caption.48}%
+\contentsline {table}{\numberline {22}{\ignorespaces Human Resources and Responsibility Assignment}}{76}{table.caption.49}%
+\contentsline {table}{\numberline {23}{\ignorespaces Software Development Tools}}{77}{table.caption.50}%
+\contentsline {table}{\numberline {24}{\ignorespaces Resolved Blockers Summary}}{84}{table.caption.51}%
+\contentsline {table}{\numberline {25}{\ignorespaces Project Risk Register}}{86}{table.caption.52}%
+\contentsline {table}{\numberline {26}{\ignorespaces FMEA --- Top Four Failure Modes}}{87}{table.caption.53}%
+\contentsline {table}{\numberline {27}{\ignorespaces Defect Severity Classification}}{90}{table.caption.54}%
+\contentsline {table}{\numberline {28}{\ignorespaces Defect Log}}{91}{table.caption.55}%
+\contentsline {table}{\numberline {29}{\ignorespaces Hardware Subsystem Performance Results}}{92}{table.caption.56}%
+\contentsline {table}{\numberline {30}{\ignorespaces Cost vs.\ Budget Analysis}}{94}{table.caption.57}%

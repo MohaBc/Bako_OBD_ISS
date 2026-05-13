@@ -1,13 +1,90 @@
 \section{Quality Assurance}
 
 \subsection{Quality Management Plan}
-% Content placeholder
+
+The Quality Management Plan (QMP) for the BAKO Motors ISS project defines the quality criteria, measurement methods, and acceptance thresholds applied to each functional subsystem. Quality was evaluated across four primary subsystems, each with its own set of quantitative acceptance criteria.
+
+\paragraph{CAN Bus Subsystem.}
+Quality criterion: frame reception rate $\geq 99\%$ over a 60-minute continuous test session. Measurement method: comparison of the firmware frame counter against the expected frame count calculated from the BMS transmission interval (100~ms for high-priority frames). The initial test result of 95\% was traced to a missing termination resistor and corrected; subsequent tests exceeded the 99\% criterion.
+
+\paragraph{Temperature Measurement Subsystem.}
+Quality criterion: DS18B20 readings within $\pm 1$\textdegree{}C of a calibrated reference thermometer at three stable temperature points (ambient $\approx 25$\textdegree{}C, warm $\approx 45$\textdegree{}C, hot $\approx 70$\textdegree{}C). Measurement method: simultaneous reading of DS18B20 and reference thermometer in a temperature-controlled environment. Result: $\pm 0.5$\textdegree{}C maximum deviation across all three sensors at all test points.
+
+\paragraph{Current Measurement Subsystem.}
+Quality criterion: ACS712 current reading error $< 2\%$ of full scale (30~A) at three load points (0~A, 5~A, 15~A). Measurement method: ACS712 firmware output compared against a calibrated clamp meter reference. Result: $\pm 1.8\%$ maximum error, within the acceptance threshold.
+
+\paragraph{Voltage Measurement Subsystem.}
+Quality criterion: voltage divider output error $< 1\%$ of the reference multimeter reading at three input levels (12~V, 24~V, 48~V). Measurement method: bench power supply at known voltage, ESP32 ADC output versus Fluke multimeter. Result: $\pm 0.9\%$ maximum error.
 
 \subsection{Design Review Gates}
-% Content placeholder
+
+Four formal design review gates were conducted during the project, aligned with the sprint cadence and the Agile development lifecycle.
+
+\paragraph{Gate 1 --- Architecture Review (Sprint~1 End).}
+Scope: system architecture synoptic, component selection justification, initial risk register. Participants: full development team and Dr.\ Mortadha Dahmani (supervisor). Outcome: architecture approved with one action: validate MCP2515 KiCad footprint against physical module dimensions before PCB layout begins. Action closed within Sprint~2.
+
+\paragraph{Gate 2 --- Hardware Design Review (Sprint~3 End).}
+Scope: completed KiCad schematic, PCB layout Revision~1, BOM draft. Participants: hardware team (Mohamed Baccouche) and supervisor. Outcome: layout approved with two actions: (1) increase power trace widths on the 12~V rail to handle 500~mA continuous; (2) add a pull-down resistor on the SIM800L PWRKEY line to prevent spurious power-on events. Both actions incorporated into RECTIFICATION\_2.
+
+\paragraph{Gate 3 --- Integration Review (Sprint~6 End).}
+Scope: integrated firmware running all sensors in the cooperative loop, WebSocket dashboard operational, cloud pipeline live. Participants: full team and supervisor. Outcome: integration accepted with one action: confirm CAN termination on vehicle harness and re-run frame reception test. Action closed at Sprint~7 with 99\% result confirmed.
+
+\paragraph{Gate 4 --- Production Readiness Review (Sprint~8 End).}
+Scope: V\&V results, PRR checklist, complete BOM, report draft. Participants: full team and supervisor. Outcome: prototype declared production-ready for the academic phase. Two items deferred to next revision: enclosure design and OTA firmware update capability.
 
 \subsection{Test \& Measurement Plan}
-% Content placeholder
+
+The test and measurement plan defined the following test types executed across the project lifecycle:
+
+\begin{itemize}
+    \item \textbf{Unit tests}: individual sensor driver functions tested in isolation using known inputs (e.g., simulated CAN frame bytes decoded against expected field values).
+    \item \textbf{Integration tests}: all subsystems active simultaneously in the cooperative main loop; monitored for watchdog triggers, stack overflow, and heap exhaustion over a 30-minute run.
+    \item \textbf{System tests}: end-to-end data flow from CAN bus to browser dashboard, including cloud pipeline path.
+    \item \textbf{Performance tests}: sustained 2-hour CAN reception, 30-minute thermal stress, 1-hour MPPT voltage sweep.
+    \item \textbf{Regression tests}: after each firmware change, a 10-minute smoke test confirmed that previously passing sensor reads continued to produce valid data.
+\end{itemize}
+
+All test results were recorded in a shared test log maintained in the team Git repository alongside the firmware source code.
 
 \subsection{Defect Tracking \& Resolution}
-% Content placeholder
+
+Defects were classified by severity using the four-level scheme in Table~\ref{tab:defect-severity}.
+
+\begin{table}[H]
+\centering
+\caption{Defect Severity Classification}
+\label{tab:defect-severity}
+\small
+\begin{tabular}{>{\bfseries}p{2.8cm} p{9.0cm}}
+\toprule
+Severity & Definition \\
+\midrule
+Critical    & System inoperable; data completely lost or corrupted; safety hazard. Must be resolved before any further testing. \\
+Major       & A primary feature is non-functional or produces incorrect output; workaround required to proceed. Must be resolved before Gate review. \\
+Minor       & A secondary feature is degraded but the primary function remains correct. Can be deferred to next sprint if documented. \\
+Enhancement & Improvement to usability, performance, or documentation with no functional impact. Added to backlog for future sprints. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Table~\ref{tab:defect-log} lists the seven defects logged during the project. All defects were resolved and closed before the Production Readiness Review.
+
+\begin{table}[H]
+\centering
+\caption{Defect Log}
+\label{tab:defect-log}
+\small
+\begin{tabular}{c >{\bfseries}p{1.6cm} p{5.0cm} p{2.2cm} p{1.6cm}}
+\toprule
+ID & Severity & Description & Root Cause & Status \\
+\midrule
+D-001 & Major    & CAN frame reception rate 95\% (target 99\%)         & Missing 120~$\Omega$ terminator on harness  & Closed \\
+D-002 & Major    & SIM800L GPRS bearer fails to open intermittently    & Insufficient bulk capacitance on power rail & Closed \\
+D-003 & Minor    & DS18B20 ROM enumeration fails on cold power-up      & 1-Wire timing margin; resolved by 5~ms delay & Closed \\
+D-004 & Minor    & ACS712 zero-current offset drifts with temperature  & Calibration stored without temperature comp & Closed \\
+D-005 & Minor    & WebSocket disconnects not auto-recovered in browser & Missing reconnect logic in JS client         & Closed \\
+D-006 & Major    & PCB Revision~1 power traces undersized (12~V rail)  & Insufficient trace width calculation         & Closed \\
+D-007 & Enhancement & Dashboard cell grid flickers on 10~Hz refresh    & Non-batched DOM updates; fixed with frame diff & Closed \\
+\bottomrule
+\end{tabular}
+\end{table}
