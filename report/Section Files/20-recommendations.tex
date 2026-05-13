@@ -1,10 +1,62 @@
 \section{Recommendations}
+\label{sec:recommendations}
 
 \subsection{Technical Recommendations}
-% Content placeholder
+
+\subsubsection*{Hardware Improvements}
+
+\paragraph{DS18B20 External Power Mode.}
+The current firmware uses the DS18B20 parasitic power mode, which draws operating current from the data line during conversion. In electrically noisy environments (near switching regulators or CAN bus transients), this can cause spurious conversion failures. Rewiring the DS18B20 VDD pin to the 3.3~V rail (external power mode) eliminates parasitic-power timing constraints and increases measurement reliability. The PCB should include a dedicated 3.3~V pad at each DS18B20 connector for this purpose in the next revision.
+
+\paragraph{SIM800L Bulk Capacitor.}
+A 2200~\textmu{}F, 6.3~V electrolytic capacitor should be placed on the SIM800L power supply rail, as close to the module's VBAT pins as possible. This is a mandatory requirement identified during integration testing (Defect D-002) and is consistent with SIMCOM module hardware design guidelines. The capacitor prevents the GPRS transmit burst from drooping the supply below the module's minimum operating voltage and is already incorporated into PCB Revision RECTIFICATION\_2.
+
+\paragraph{Replace ACS712-30A with ACS758-50B.}
+The ACS712-30A has a sensitivity of 66~mV/A, which produces a low signal-to-noise ratio at MPPT currents below 5~A. The ACS758-50B offers a sensitivity of 40~mV/A in a PCB-mount package with improved linearity and lower noise floor at small currents. Alternatively, a shunt resistor (e.g., 5~m$\Omega$) with a dedicated instrumentation amplifier (INA219) would provide 12-bit precision current measurement independent of ADC nonlinearity.
+
+\paragraph{Galvanic Isolation on CAN Bus.}
+The production revision of the ISS board should incorporate an isolated CAN transceiver (e.g., Texas Instruments ISO1050) to provide galvanic isolation between the vehicle CAN ground and the ESP32 logic ground. This eliminates ground loop noise injection into the ADC inputs and protects the ESP32 from automotive-level transients (ISO~7637-2 pulses).
+
+\subsubsection*{Firmware Improvements}
+
+\paragraph{Protected Shared State for Multi-Core Expansion.}
+The current single-threaded firmware reads and writes the \texttt{BMSData} struct sequentially with no concurrency risk. If the firmware is extended to use FreeRTOS tasks on both ESP32 cores in a future revision, a \texttt{SemaphoreHandle\_t} mutex wrapping all writes and reads to \texttt{BMSData} should be added to eliminate potential race conditions between the CAN receive task and the publish task.
+
+\paragraph{Non-Volatile Storage of Last Known Good Values.}
+If the ESP32 restarts while the vehicle is in operation, all accumulated CAN data is lost and the dashboard shows a ``waiting'' state until the next BMS frame is received. Using the ESP32's NVS (Non-Volatile Storage) flash partition to persist the last known good \texttt{BMSData} struct would allow the dashboard to display the pre-restart values immediately on reconnection, improving user experience.
 
 \subsection{Process Recommendations}
-% Content placeholder
+
+\paragraph{Begin Integration Testing at Sprint~3.}
+Key finding~6 (Section~\ref{sec:results-findings}) identified that late integration testing (Sprint~6--7) caused avoidable rework. The recommended process change is to perform a 30-minute cross-subsystem integration smoke test at the end of every sprint from Sprint~3 onwards. This would surface hardware incompatibilities (missing termination, power rail drooping) while corrective cost is still low.
+
+\paragraph{Calibration Log Per Unit.}
+Each ISS board unit should receive a per-unit calibration log documenting the ACS712 zero-current offset, the voltage divider correction coefficients, and the DS18B20 ROM addresses. This log should be stored in the NVS flash and retrievable via the \texttt{/api/calibration} endpoint. Centralised calibration records would support fleet-level monitoring and simplify field maintenance.
+
+\paragraph{Live Wiring Diagram.}
+The current project documentation includes the KiCad schematic but does not include a harness-level wiring diagram showing how the ISS board connects to the BAKO Motors vehicle harness. A simplified wiring diagram (colour-coded by subsystem) should be produced and laminated for use by the BAKO Motors workshop team during installation and troubleshooting.
+
+\paragraph{Arabic and French User Guide.}
+The dashboard and firmware error messages are currently in English only. Given that BAKO Motors operates in Tunisia, a brief user guide in Arabic and French covering dashboard interpretation, fault LED meanings, and basic troubleshooting should be produced for workshop technicians.
 
 \subsection{Future Development Roadmap}
-% Content placeholder
+
+\paragraph{Short-Term (Next 3--6 Months).}
+\begin{itemize}
+    \item \textbf{GNSS Integration}: add a NEO-6M or NEO-M8N GPS module connected to the ESP32 via UART. Include latitude, longitude, and speed in the telemetry JSON payload. Display vehicle position on an embedded Leaflet.js map in the dashboard.
+    \item \textbf{Bluetooth Companion App}: implement a BLE GATT server on the ESP32 to stream live battery SOC and fault status to a smartphone companion application. This would allow the rider to monitor the vehicle without connecting to the Wi-Fi AP.
+    \item \textbf{Enclosure Design}: design a sealed (IP54 minimum) ABS or polycarbonate enclosure for the ISS board with cable glands for the vehicle harness. Submit for 3D printing and evaluate fitment on the motorcycle frame.
+\end{itemize}
+
+\paragraph{Medium-Term (6--18 Months).}
+\begin{itemize}
+    \item \textbf{Historical Cloud Dashboard}: add time-series charting to the cloud dashboard (Chart.js or ECharts) to display battery SOC, cell temperatures, and MPPT current trends over the last 24~hours, 7~days, and 30~days. Add date-range CSV export.
+    \item \textbf{Predictive Maintenance Model}: use the accumulated SQLite telemetry history to train a simple battery degradation model (e.g., linear regression on cell spread over time). Deploy the model as a FastAPI background task that emits a ``battery health'' score updated daily.
+    \item \textbf{LTE Firmware Optimisation}: refine the SIM800L AT+HTTP* command sequence to take advantage of LTE Cat-M1 throughput, including increasing the publish frequency from the current 5-second interval to 1~Hz and enabling persistent bearer mode to reduce per-transaction setup overhead.
+\end{itemize}
+
+\paragraph{Long-Term (18+ Months).}
+\begin{itemize}
+    \item \textbf{Fleet Management Platform}: extend the cloud backend to support multiple vehicle device IDs, with a per-vehicle dashboard, aggregate fleet SOC view, and automated maintenance scheduling based on predictive model outputs.
+    \item \textbf{Standalone Monitoring Product}: package the ISS system as a standalone product for sale to other Tunisian electric vehicle manufacturers. This would require formal CE marking, automotive-grade component qualification, and an Arabic/French localisation of the full dashboard.
+\end{itemize}

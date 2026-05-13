@@ -7,7 +7,9 @@
       "Bash(xelatex -interaction=nonstopmode main.tex)",
       "Bash(git commit -m 'Fix: remove malformed filename from git index *)",
       "Bash(git push *)",
-      "Bash(git commit -m ' *)"
+      "Bash(git commit -m ' *)",
+      "Bash(pdfinfo /home/yassine/Desktop/Bako_OBD_ISS/report/main.pdf)",
+      "Read(//home/yassine/Desktop/**)"
     ]
   }
 }

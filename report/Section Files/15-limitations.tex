@@ -1,16 +1,72 @@
 \section{Limitations}
 
 \subsection{Technical Limitations}
-% Content placeholder
+
+\paragraph{ESP32 ADC Nonlinearity.}
+The ESP32's internal 12-bit ADC exhibits a documented nonlinearity in the lower voltage range (below approximately 150~mV) and at the top of its input range. This limits the effective resolution to approximately 11 bits ($\pm 0.1$~V at the ADC input). While calibration routines partially correct the systematic offset, the residual nonlinearity introduces an irreducible measurement uncertainty of approximately $\pm 1$\% in voltage and current readings. For a production instrument, an external precision ADC (e.g., ADS1115) would eliminate this limitation.
+
+\paragraph{SIM800L 2G-Only Sunset Risk.}
+The SIM800L module is limited to 2G GSM/GPRS connectivity. Tunisian mobile operators (Ooredoo and Orange) are progressively decommissioning 2G infrastructure in favour of LTE networks. While the current firmware connects successfully, the 2G network availability cannot be guaranteed beyond the short term. The SIM7670E LTE Cat-M1 module is specified as the production replacement (and is already chosen as the populated component on the ISS board) to address this risk, but the firmware LTE migration was not completed within the academic project scope.
+
+\paragraph{CAN Protocol Dependency.}
+The current firmware is tightly coupled to the proprietary CAN DBC of the O'CELL IFS60.8-500-F-E3 BMS. Any change to the BMS model, firmware version, or communication protocol would require reverse engineering of the new frame structure and firmware updates. No generic CAN DBC parser is currently implemented; frame IDs and byte offsets are hardcoded.
+
+\paragraph{Absence of Galvanic Isolation.}
+The ISS board does not include galvanic isolation between the CAN bus side (running at automotive ground) and the ESP32 logic side. In a vehicle with multiple ground references, ground potential differences can cause noise injection into the ADC inputs or, in fault conditions, damage to the ESP32. A production design should incorporate isolated CAN transceivers (e.g., ISO1050) or optical coupling on the CAN lines.
 
 \subsection{Regulatory \& Certification Limitations}
-% Content placeholder
+
+\paragraph{Electromagnetic Compatibility.}
+No formal EMC testing was conducted. The ISS board has not been tested to CISPR~25 (in-vehicle emissions) or EN~55032 (commercial electronics). The LM2596S-ADJ switching regulator operates at approximately 150~kHz; without input filtering, its conducted emissions may exceed Class~B limits. Pre-compliance checks using a bench spectrum analyser showed no obvious anomalies, but formal certification testing has not been performed.
+
+\paragraph{PCB Design Tool Limitations.}
+KiCad~10.0 was used for schematic and PCB design. While KiCad is a capable open-source tool, it does not carry the same library of verified footprints, design rule sets, and simulation integration as commercial tools (Altium Designer, Cadence Allegro). Formal automotive PCB submissions typically require Altium-format design files, which would necessitate a toolchain migration.
+
+\paragraph{Cellular Module Type Approval.}
+The SIM800L carries its own type approval for 2G operation. The SIM800L also carries LTE type approval from its manufacturer. However, neither module has been formally qualified for integration into a vehicle electronics system under Tunisian ATI (Agence Tunisienne des Infrastructures) regulations. Formal vehicle-level radio approval would be required for any public-road deployment.
+
+\paragraph{Component Automotive Grade.}
+The components used in this prototype (ESP32, ACS712, passive components) are commercial-grade rather than automotive-grade (AEC-Q100 for ICs, AEC-Q200 for passives). They are not rated for the extended temperature range ($-40$\textdegree{}C to $+125$\textdegree{}C) or vibration/shock levels specified by automotive standards. For deployment in a vehicle operating environment, automotive-grade equivalents should be specified in the production BOM.
+
+\subsection{Software \& Code Constraints}
+
+\paragraph{Hardcoded Configuration.}
+The current firmware stores network credentials, VPS endpoint URLs, and CAN frame byte offsets as compile-time constants. Any change to the server IP address, API key, or BMS protocol requires reflashing the ESP32. A production implementation would externalise these parameters to EEPROM or a configuration file readable at boot, eliminating the need for firmware recompilation on deployment changes.
+
+\paragraph{No OTA Firmware Update.}
+Over-the-air (OTA) firmware update capability was not implemented within the academic project scope. Updates currently require physical USB access to the ESP32. The ESP-IDF OTA partition scheme is supported by the ESP32 hardware and was deferred to a future revision.
+
+\paragraph{Single-File Firmware Architecture.}
+The embedded firmware is structured as a single large Arduino \texttt{.ino} file. While functional, this structure limits reusability and makes unit testing of individual modules (CAN decoder, sensor drivers, AT command layer) impractical without refactoring into separate compilation units with defined interfaces.
+
+\paragraph{Memory Constraints.}
+The ESP32 has 520~kB of on-chip SRAM. The current firmware uses approximately 40\% of this for the cooperative loop stack, the JSON serialisation buffer (ArduinoJson), and the \texttt{BMSData} struct. Adding additional features (larger history buffers, additional sensor types, or a local OLED display driver) will require careful heap profiling to avoid stack overflow or heap exhaustion.
+
+\paragraph{Python Backend Dependency Coupling.}
+The FastAPI server and the browser dashboard are tightly coupled: the WebSocket message format (JSON field names and structure) is duplicated across the server-side Python code and the client-side JavaScript. Any change to the telemetry data model requires coordinated updates in both places with no formal contract or schema validation between them.
 
 \subsection{Budget \& Resource Constraints}
-% Content placeholder
+
+\paragraph{Prototype-Only Pricing.}
+The BOM costs (Table~\ref{tab:electronics-bom}) reflect single-unit prototype pricing. At production volumes (100+ units), component costs would decrease significantly through bulk purchasing and direct manufacturer pricing. PCB fabrication cost per unit would also decrease substantially at volume.
+
+\paragraph{Single-Engineer Disciplines.}
+Most functional areas (hardware, firmware, cloud backend, dashboard, testing) were covered by one or two team members each. This created single-engineer bottlenecks: when one team member was unavailable, the corresponding workstream was blocked. A production team would require redundancy across all disciplines.
+
+\paragraph{Incomplete BAKO Motors Documentation.}
+BAKO Motors did not have complete documentation for the O'CELL BMS CAN protocol, the MPPT controller electrical interface, or the motor controller signals. This required the team to perform reverse engineering activities (CAN frame capture and analysis with SavvyCAN) that were not anticipated in the project plan, consuming approximately one full sprint of additional effort.
 
 \subsection{Timeline Limitations}
-% Content placeholder
+
+\paragraph{Unplanned CAN Reverse Engineering.}
+The discovery that the O'CELL BMS uses a proprietary, undocumented CAN DBC was not identified in the initial risk register. Reverse engineering the frame structure consumed approximately three weeks of effort that had been allocated to sensor integration, compressing the timeline for Phase~P2 and P3 of the prototype build.
+
+\paragraph{Short Field Testing Window.}
+Access to the BAKO Motors test vehicle was limited to approximately four hours per week. This restricted the amount of on-vehicle data that could be collected and reduced the opportunity for extended thermal and vibration testing under real driving conditions.
+
+\paragraph{Predictive Maintenance Model Immaturity.}
+The backlog included a predictive maintenance module based on battery degradation trend analysis. Insufficient historical data had been accumulated by the end of Sprint~8 to produce a statistically meaningful model. This item was moved to the Could Have backlog and deferred to a future project phase.
 
 \subsection{Technology Readiness Level (TRL) Limitations}
-% Content placeholder
+
+The BAKO Motors ISS prototype is assessed at TRL~4 (technology validated in laboratory). The system has been demonstrated to function correctly in a controlled environment with the target BMS, but has not yet been validated in a representative operating environment (TRL~5) or demonstrated in a relevant environment (TRL~6). Full-vehicle integration, enclosure sealing, extended field testing under vibration and temperature variation, and regulatory compliance verification are required to advance the TRL to a level suitable for commercial deployment.

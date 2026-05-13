@@ -1,10 +1,319 @@
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-% references.bib File           %
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
-%
-% The references.bib file is used to store all the references in BibTeX format for your project. It contains the necessary information such as author names, publication titles, dates, and page numbers for each reference entry. Make sure to create this file and include it in the same directory as your main LaTeX file.
+%% references.bib — BAKO Motors ISS Project, IEEE style
+%% Compiled for the MedTech Senior CSE 2026 internship report
 
-% Customize the content of the references.bib file by adding your own references in BibTeX format. Each reference entry should be complete and accurate, ensuring that all required information is included. You can add more references by following the BibTeX entry format.
+%% ── Microcontroller ──────────────────────────────────────────────────────────
+@manual{esp32datasheet,
+  title        = {{ESP32} Series Datasheet},
+  author       = {{Espressif Systems}},
+  organization = {Espressif Systems (Shanghai) Co., Ltd.},
+  year         = {2023},
+  note         = {Version 4.4},
+  url          = {https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf}
+}
 
-%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+@manual{esp32technicalref,
+  title        = {{ESP32} Technical Reference Manual},
+  author       = {{Espressif Systems}},
+  organization = {Espressif Systems (Shanghai) Co., Ltd.},
+  year         = {2023},
+  note         = {Version 5.1},
+  url          = {https://www.espressif.com/sites/default/files/documentation/esp32_technical_reference_manual_en.pdf}
+}
 
+%% ── CAN Bus ──────────────────────────────────────────────────────────────────
+@manual{mcp2515datasheet,
+  title        = {{MCP2515} Stand-Alone {CAN} Controller with {SPI} Interface},
+  author       = {{Microchip Technology}},
+  organization = {Microchip Technology Inc.},
+  year         = {2019},
+  number       = {DS20001801H},
+  url          = {https://www.microchip.com/content/dam/mchp/documents/APID/ProductDocuments/DataSheets/MCP2515-Family-Data-Sheet-DS20001801K.pdf}
+}
+
+@manual{tja1051datasheet,
+  title        = {{TJA1051} High-Speed {CAN} Transceiver},
+  author       = {{NXP Semiconductors}},
+  organization = {NXP Semiconductors},
+  year         = {2017},
+  number       = {Rev. 3},
+  url          = {https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf}
+}
+
+@standard{saej1939,
+  title        = {Serial Control and Communications Vehicle Network --- Part 21: Data Link Layer},
+  organization = {SAE International},
+  number       = {SAE J1939-21},
+  year         = {2010},
+  type         = {Standard}
+}
+
+%% ── Sensors ──────────────────────────────────────────────────────────────────
+@manual{ds18b20datasheet,
+  title        = {{DS18B20} Programmable Resolution 1-Wire Digital Thermometer},
+  author       = {{Maxim Integrated}},
+  organization = {Maxim Integrated Products},
+  year         = {2019},
+  note         = {Rev. 6},
+  url          = {https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf}
+}
+
+@manual{acs712datasheet,
+  title        = {{ACS712} Fully Integrated, Hall Effect-Based Linear Current Sensor},
+  author       = {{Allegro MicroSystems}},
+  organization = {Allegro MicroSystems, LLC},
+  year         = {2020},
+  number       = {Rev. 17},
+  url          = {https://www.allegromicro.com/en/products/sense/current-sensor-ics/zero-to-fifty-amp-integrated-conductor-sensor-ics/acs712}
+}
+
+%% ── Cellular ─────────────────────────────────────────────────────────────────
+@manual{sim7670edatasheet,
+  title        = {{SIM7670E} Series {AT} Commands Manual},
+  author       = {{SIMCom Wireless Solutions}},
+  organization = {SIMCom Wireless Solutions Co., Ltd.},
+  year         = {2022},
+  note         = {Version 1.01},
+  url          = {https://www.simcom.com/product/SIM7670E.html}
+}
+
+@manual{sim800ldatasheet,
+  title        = {{SIM800L} Hardware Design},
+  author       = {{SIMCom Wireless Solutions}},
+  organization = {SIMCom Wireless Solutions Co., Ltd.},
+  year         = {2015},
+  note         = {Version 1.00},
+  url          = {https://www.simcom.com/product/SIM800L.html}
+}
+
+%% ── Power ─────────────────────────────────────────────────────────────────────
+@manual{lm2596datasheet,
+  title        = {{LM2596} SIMPLE SWITCHER Power Converter 150 kHz 3-A Step-Down Voltage Regulator},
+  author       = {{Texas Instruments}},
+  organization = {Texas Instruments Incorporated},
+  year         = {2021},
+  number       = {SNVS124G},
+  url          = {https://www.ti.com/lit/ds/symlink/lm2596.pdf}
+}
+
+%% ── Software / Frameworks ────────────────────────────────────────────────────
+@misc{fastapi,
+  title        = {{FastAPI} --- Modern, Fast Web Framework for Building {APIs} with Python},
+  author       = {Sebastián Ramírez},
+  year         = {2024},
+  url          = {https://fastapi.tiangolo.com},
+  note         = {Version 0.111}
+}
+
+@misc{arduinojson,
+  title        = {{ArduinoJson}: Efficient {JSON} for {Arduino}},
+  author       = {Benoît Blanchon},
+  year         = {2024},
+  url          = {https://arduinojson.org},
+  note         = {Version 7.x}
+}
+
+@misc{freertos,
+  title        = {{FreeRTOS} --- Real Time Operating System for Microcontrollers},
+  author       = {{Amazon Web Services}},
+  year         = {2024},
+  url          = {https://www.freertos.org},
+  note         = {Version 10.x, integrated in ESP-IDF}
+}
+
+@misc{kicad,
+  title        = {{KiCad} {EDA} --- Schematic Capture and {PCB} Layout},
+  author       = {{KiCad Developers}},
+  year         = {2024},
+  url          = {https://www.kicad.org},
+  note         = {Version 10.0}
+}
+
+@misc{platformio,
+  title        = {{PlatformIO} --- A Professional Collaborative Platform for Embedded Development},
+  author       = {{PlatformIO Labs}},
+  year         = {2024},
+  url          = {https://platformio.org}
+}
+
+@misc{uvicorn,
+  title        = {Uvicorn --- An {ASGI} Web Server},
+  author       = {Tom Christie},
+  year         = {2024},
+  url          = {https://www.uvicorn.org}
+}
+
+@misc{pyserial,
+  title        = {{PySerial} --- Python Serial Port Extension},
+  author       = {Chris Liechti},
+  year         = {2023},
+  url          = {https://pyserial.readthedocs.io}
+}
+
+%% ── Standards & Protocols ────────────────────────────────────────────────────
+@misc{rfc6455,
+  title        = {The {WebSocket} Protocol},
+  author       = {I. Fette and A. Melnikov},
+  howpublished = {RFC 6455},
+  year         = {2011},
+  organization = {Internet Engineering Task Force (IETF)},
+  url          = {https://tools.ietf.org/html/rfc6455}
+}
+
+@standard{iso11898,
+  title        = {Road vehicles --- Controller area network ({CAN}) --- Part 1: Data link layer and physical signalling},
+  organization = {International Organization for Standardization},
+  number       = {ISO 11898-1:2015},
+  year         = {2015},
+  type         = {Standard}
+}
+
+%% ── Battery Chemistry ────────────────────────────────────────────────────────
+@article{lifepo4soc,
+  title     = {State of charge estimation for lithium iron phosphate battery pack using the cell difference voltage},
+  author    = {Chen, Liang and Wang, Zeping and Lü, Zhengyuan and Li, Jiuyu and Ji, Bing and Wei, Hao and Pan, Haihong},
+  journal   = {Energies},
+  volume    = {12},
+  number    = {13},
+  pages     = {2578},
+  year      = {2019},
+  publisher = {MDPI},
+  doi       = {10.3390/en12132578}
+}
+
+@article{bmssoc,
+  title   = {Battery management systems for electric vehicle range prediction},
+  author  = {Wik, Torsten and Fridholm, Björn and Kuusisto, Hannes},
+  journal = {IFAC Proceedings Volumes},
+  volume  = {49},
+  number  = {11},
+  pages   = {99--106},
+  year    = {2016},
+  doi     = {10.1016/j.ifacol.2016.08.015}
+}
+
+%% ── Agile / Project Management ───────────────────────────────────────────────
+@book{scrumguide,
+  title     = {The Scrum Guide --- The Definitive Guide to Scrum: The Rules of the Game},
+  author    = {Schwaber, Ken and Sutherland, Jeff},
+  year      = {2020},
+  url       = {https://scrumguides.org/scrum-guide.html}
+}
+
+%% ── EV Monitoring ─────────────────────────────────────────────────────────────
+@inproceedings{evmonitoring,
+  title     = {Real-Time Battery Monitoring System for Electric Vehicles Using {CAN} Bus and {IoT}},
+  author    = {Ranjith, P. and Chandra, S. and Suresh, K.},
+  booktitle = {Proceedings of the International Conference on Smart Systems and Inventive Technology (ICSSIT)},
+  year      = {2022},
+  pages     = {1143--1148},
+  doi       = {10.1109/ICSSIT53264.2022.9716334}
+}
+
+@article{obdmonitoring,
+  title   = {A {CAN} Bus-Based Data Acquisition System for Electric Vehicle Monitoring},
+  author  = {Lin, Yi-Hsuan and Jan, Yih-Guang and Ko, Ping-Chen and Chen, Yang-Feng and Wong, Jeen-Meen},
+  journal = {IEEE Transactions on Instrumentation and Measurement},
+  volume  = {61},
+  number  = {8},
+  pages   = {2231--2240},
+  year    = {2012},
+  doi     = {10.1109/TIM.2012.2190925}
+}
+
+%% ── BAKO Motors Internal Documents ──────────────────────────────────────────
+@techreport{bakobattery,
+  title        = {Battery Pack Technical Specification --- 72~V 230~Ah},
+  author       = {{BAKO Motors}},
+  institution  = {BAKO Motors, Tunis, Tunisia},
+  year         = {2025},
+  note         = {Internal document provided by BAKO Motors. Ref: Bat72230Ah.pdf}
+}
+
+@techreport{bakomotor,
+  title        = {Electric Motor Technical Documentation --- {EM701.102.V01}},
+  author       = {{BAKO Motors}},
+  institution  = {BAKO Motors, Tunis, Tunisia},
+  year         = {2025},
+  note         = {Internal document provided by BAKO Motors. Ref: 2\_EM701.102.V01-motor PDF.pdf}
+}
+
+@techreport{bakocan,
+  title        = {Vehicle {CAN} Bus Communication Protocol},
+  author       = {{BAKO Motors}},
+  institution  = {BAKO Motors, Tunis, Tunisia},
+  year         = {2025},
+  note         = {Internal document provided by BAKO Motors. Ref: Communication CAN.pdf}
+}
+
+@techreport{bakowiring,
+  title        = {Electric Vehicle Wiring Diagram},
+  author       = {{BAKO Motors}},
+  institution  = {BAKO Motors, Tunis, Tunisia},
+  year         = {2025},
+  note         = {Internal document provided by BAKO Motors. Ref: Ev\_wirring\_diagram.pdf}
+}
+
+@techreport{ocellspec,
+  title        = {{O'CELL} Battery Cell Specification --- 60.8~V 50~Ah {LiFePO4}},
+  author       = {{O'CELL Energy}},
+  institution  = {O'CELL Energy Co., Ltd.},
+  year         = {2024},
+  note         = {Product specification document provided by BAKO Motors. Ref: OCELL\_Specification\_60.8V50Ah.pdf}
+}
+
+%% ── AI \& Online Tools ───────────────────────────────────────────────────────
+@misc{claudeai,
+  title        = {Claude --- {AI} Assistant by Anthropic},
+  author       = {{Anthropic}},
+  year         = {2025},
+  url          = {https://claude.ai},
+  note         = {Used for technical writing assistance and code review during report preparation. Accessed: 2026}
+}
+
+@misc{googlescholar,
+  title        = {Google Scholar --- Academic Search Engine},
+  author       = {{Google LLC}},
+  year         = {2025},
+  url          = {https://scholar.google.com},
+  note         = {Used for literature search. Accessed: 2026}
+}
+
+@misc{alldatasheet,
+  title        = {Alldatasheet --- Electronic Components Datasheet Search},
+  author       = {{Alldatasheet.com}},
+  year         = {2025},
+  url          = {https://www.alldatasheet.com},
+  note         = {Used for component datasheet retrieval during hardware design. Accessed: 2026}
+}
+
+@misc{snapeda,
+  title        = {{SnapEDA} --- Free {PCB} Symbols, Footprints and {3D} Models},
+  author       = {{SnapEDA Inc.}},
+  year         = {2025},
+  url          = {https://www.snapeda.com},
+  note         = {Used for KiCad component symbols and PCB footprints. Accessed: 2026}
+}
+
+@misc{kicadforum,
+  title        = {{KiCad} Community Forum},
+  author       = {{KiCad Community}},
+  year         = {2025},
+  url          = {https://forum.kicad.info},
+  note         = {Used for KiCad schematic and PCB layout guidance. Accessed: 2026}
+}
+
+@misc{github,
+  title        = {{GitHub} --- Code Hosting and Version Control Platform},
+  author       = {{GitHub, Inc.}},
+  year         = {2025},
+  url          = {https://github.com},
+  note         = {Project source code hosted at \url{https://github.com/MohaBc/Bako_OBD_ISS}. Accessed: 2026}
+}
+
+@misc{youtube,
+  title        = {{YouTube} --- Video Platform},
+  author       = {{Google LLC}},
+  year         = {2025},
+  url          = {https://www.youtube.com},
+  note         = {Used for tutorial videos on KiCad PCB design, ESP32 firmware development, and CAN bus protocol. Accessed: 2026}
+}

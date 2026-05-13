@@ -1,16 +1,160 @@
 \section{Research Phase}
 
 \subsection{Market \& Competitor Analysis}
-% Content placeholder
+
+\subsubsection*{Market Context}
+
+The solar-powered electric motorcycle market is growing steadily across North Africa and Sub-Saharan Africa, where fuel costs are high and solar irradiance is excellent. BAKO Motors positions itself in this space by offering electric motorcycles paired with solar charging (MPPT-based), making real-time monitoring of energy flow, battery health, and thermal conditions a critical product differentiator.
+
+\subsubsection*{Competitor Landscape}
+
+Existing monitoring solutions fall into three categories:
+
+\begin{itemize}
+    \item \textbf{Generic EV dashboards} (e.g., those embedded in Chinese EV controllers) offer basic SOC display but no solar integration or CAN bus decoding.
+    \item \textbf{Off-the-shelf MPPT monitors} track solar data but have no motor or battery CAN interface.
+    \item \textbf{Professional BMS displays} (e.g., DALY BMS app, JK BMS Bluetooth) cover battery data via CAN or UART but lack MPPT voltage/current measurement and thermal mapping around the motor.
+\end{itemize}
+
+\subsubsection*{BAKO Motors' Differentiation}
+
+This monitoring system consolidates CAN bus battery data (via MCP2515), multi-point temperature monitoring, MPPT output current measurement, and multi-source voltage measurement (solar panel, MPPT output, battery) into a single unified interface on an ESP32-based platform at a fraction of the cost of comparable commercial systems.
 
 \subsection{Feasibility Study}
-% Content placeholder
+
+\subsubsection*{Technical Feasibility}
+
+The ESP32 microcontroller is well-suited as the central processing unit. It supports SPI (for MCP2515 CAN interface), 1-Wire (for DS18B20 temperature sensors), ADC inputs (for voltage and current measurement), and Wi-Fi/Bluetooth for wireless data transmission or dashboard display. All four monitoring functions can be handled within a single cooperative main loop on the ESP32, as CAN frames and sensor polling intervals are compatible with sequential scheduling.
+
+The MCP2515 CAN controller communicates with the battery management system over standard CAN~2.0B at 250~kbps or 500~kbps, which are the most common rates in EV battery packs. Decoding cell voltages, current, and SOC from CAN frames is feasible once the BMS CAN DBC (database map) is known or reverse-engineered.
+
+DS18B20 sensors are well-proven for embedded thermal monitoring, supporting up to 127 sensors on a single 1-Wire bus --- more than sufficient for motor and MPPT placement. Current measurement via a shunt resistor or ACS712/ACS758 Hall-effect sensor on the MPPT output line is straightforward and accurate to within $\pm 1$--$2$\%.
+
+Voltage divider networks are used to scale down MPPT output (typically 24--48~V), solar panel voltage (up to 50~V), and battery voltage into the 0--3.3~V safe range for the ESP32 ADC.
+
+\subsubsection*{Economic Feasibility}
+
+The full BOM is low-cost in the Tunisian market: ESP32-DEVKITC (\textasciitilde30~TND), MCP2515 SPI module (\textasciitilde5~TND each), DS18B20 temperature sensors (\textasciitilde3~TND each), ACS712 current sensor (\textasciitilde5~TND), passive components and connectors (\textasciitilde17~TND total). Total prototype component cost was approximately 60~TND, with PCB fabrication adding 180~TND, making the total hardware cost approximately 240~TND — highly viable for both prototype and small-scale production in the Tunisian context.
+
+\subsubsection*{Operational Feasibility}
+
+The system can operate continuously from the motorcycle's battery supply, with a regulated 3.3~V/5~V step-down. A watchdog timer ensures recovery from any software hang. Data can be displayed locally via an LCD/OLED or transmitted remotely via a cellular module (SIM800L GPRS) for fleet-level monitoring.
+
+\subsubsection*{Key Risks}
+
+CAN frame decoding depends on the specific BMS protocol used --- if proprietary, reverse engineering will be required. ADC accuracy on the ESP32 is limited ($\sim$11-bit effective), so calibration routines are essential for precise voltage and current readings.
 
 \subsection{Standards \& Regulatory Review}
-% Content placeholder
+
+The following standards are relevant to the BAKO Motors Monitoring System:
+
+\begin{table}[H]
+\centering
+\caption{Applicable Standards and Regulatory Framework}
+\label{tab:standards}
+\begin{tabular}{>{\bfseries}p{3.0cm} p{3.4cm} p{6.8cm}}
+\toprule
+Domain & Standard & Relevance \\
+\midrule
+CAN Bus Communication  & ISO 11898-1/2          & CAN 2.0B protocol used with MCP2515 \\
+Battery Data (BMS)     & CiA~447 / proprietary DBC & CAN frame structure for EV battery packs \\
+Temperature Sensing    & DS18B20 datasheet      & Accuracy class and operating range \\
+Electrical Safety      & IEC 62368-1            & General electronics safety for the monitoring unit \\
+EMC                    & CISPR~25               & Emissions from switching regulators and CAN lines \\
+GSM Module (SIM800L)   & ETSI TS~51.010         & Radio conformance for GSM/GPRS transmission \\
+RoHS                   & EU 2011/65/EU          & Lead-free component compliance \\
+Solar / MPPT           & IEC 62109-1            & Safety of power converters in PV systems \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{Key Design Implications}
+
+CAN bus lines require 120~$\Omega$ termination resistors at both ends of the bus. DS18B20 sensors require a 4.7~k$\Omega$ pull-up on the data line. Voltage dividers must be calculated to ensure no ADC input ever exceeds 3.3~V under any fault condition. The SIM800L requires compliance with local telecom authority regulations (ATI --- Agence Tunisienne des Infrastructures) for GSM transmission.
 
 \subsection{Technology Stack Selection}
-% Content placeholder
+
+\begin{description}
+    \item[\textbf{Core Microcontroller:}] ESP32 (Espressif) --- dual-core 240~MHz, built-in Wi-Fi + Bluetooth, multiple UARTs, SPI, I2C, 1-Wire support, 12-bit ADC. Selected for its versatility, community support, and low cost.
+
+    \item[\textbf{CAN Interface:}] MCP2515 (Microchip) + TJA1050 CAN transceiver --- SPI-connected to ESP32, supports CAN~2.0B up to 1~Mbps. Handles all battery communication frames.
+
+    \item[\textbf{Temperature Sensing:}] DS18B20 --- digital 1-Wire sensor, $\pm 0.5$\textdegree{}C accuracy, operating range $-55$\textdegree{}C to $+125$\textdegree{}C. Multiple units on a single GPIO line for DC/DC and MPPT zones.
+
+    \item[\textbf{Current Measurement:}] ACS712 (30~A variant) --- Hall-effect current sensor, analog output to ESP32 ADC, non-invasive measurement of MPPT input/output current.
+
+    \item[\textbf{Voltage Measurement:}] Resistive voltage divider networks scaled to ESP32 ADC range (0--3.3~V) for three voltage measurement points: solar panel, MPPT output, battery.
+
+    \item[\textbf{GSM Connectivity:}] SIM800L (SIMCOM) --- UART-connected to ESP32 for remote SMS alerts and GPRS data push. Enables remote fleet monitoring.
+
+    \item[\textbf{Firmware Framework:}] Arduino-ESP32 or ESP-IDF with a cooperative main loop for sensor polling, CAN frame processing, display update, and cellular communication.
+
+    \item[\textbf{Development Tools:}] VS~Code + PlatformIO, KiCad for PCB, MATLAB/Python for calibration and data analysis.
+\end{description}
 
 \subsection{Reference Architecture Review}
-% Content placeholder
+
+The BAKO Motors Monitoring System architecture is organised around the ESP32 as the central hub, with four dedicated sensing and communication subsystems feeding into it, as illustrated in Figure~\ref{fig:ref-arch}.
+
+\begin{figure}[H]
+\centering
+\resizebox{0.88\textwidth}{!}{%
+\begin{tikzpicture}[
+    node distance=1.3cm and 1.8cm,
+    box/.style={draw, rounded corners=3pt, fill=white, minimum width=2.8cm,
+                minimum height=0.85cm, align=center, font=\small},
+    core/.style={draw, rounded corners=4pt, fill=cyan!12, minimum width=3.6cm,
+                 minimum height=1.3cm, align=center, font=\small\bfseries},
+    sensor/.style={draw, rounded corners=3pt, fill=gray!10, minimum width=2.5cm,
+                   minimum height=0.7cm, align=center, font=\footnotesize},
+    outnode/.style={draw, rounded corners=3pt, fill=orange!12, minimum width=2.5cm,
+                minimum height=0.7cm, align=center, font=\footnotesize},
+    arr/.style={->, >=stealth, thick},
+]
+% ESP32 core
+\node[core] (esp32) {ESP32\\Core};
+
+% Left — CAN / BMS
+\node[box,  left=2.8cm of esp32] (mcp)    {MCP2515\\(SPI)};
+\node[sensor, above left=0.2cm and 0.7cm of mcp] (bms) {Battery BMS\\(CAN bus)};
+\draw[arr] (bms)  -- (mcp);
+\draw[arr] (mcp)  -- (esp32);
+
+% Top — Temperature
+\node[box,  above=1.6cm of esp32]          (ds18)   {DS18B20\\(1-Wire)};
+\node[sensor, left=0.9cm  of ds18]         (motorT) {Motor Temp};
+\node[sensor, right=0.9cm of ds18]         (mpptT)  {MPPT Temp};
+\draw[arr] (motorT) -- (ds18);
+\draw[arr] (mpptT)  -- (ds18);
+\draw[arr] (ds18)   -- (esp32);
+
+% Right — Current / Voltage
+\node[box,  right=2.8cm of esp32]          (adc)    {ACS712\,/\,ADC\\Inputs};
+\node[sensor, above right=0.25cm and 0.7cm of adc]  (solarI) {Solar Current};
+\node[sensor, right=0.7cm of adc]          (mpptV)  {MPPT Output V};
+\node[sensor, below right=0.25cm and 0.7cm of adc]  (batV)   {Battery V};
+\draw[arr] (solarI) -- (adc);
+\draw[arr] (mpptV)  -- (adc);
+\draw[arr] (batV)   -- (adc);
+\draw[arr] (adc)    -- (esp32);
+
+% Bottom — Output
+\node[box,     below=1.6cm of esp32]       (comm)   {SIM800L (UART)\\+ Display (SPI/I2C)};
+\node[outnode, left=0.9cm  of comm]        (gsm)    {LTE\\Remote Alerts};
+\node[outnode, right=0.9cm of comm]        (ui)     {Local UI\\(TFT/OLED)};
+\draw[arr] (esp32) -- (comm);
+\draw[arr] (comm)  -- (gsm);
+\draw[arr] (comm)  -- (ui);
+\end{tikzpicture}%
+}
+\caption{BAKO Motors Monitoring System --- Reference Architecture}
+\label{fig:ref-arch}
+\end{figure}
+
+\subsubsection*{Reference Designs Reviewed}
+
+Three existing reference designs informed this architecture. The ESP32 CAN bus logger (open-source, GitHub) provided the MCP2515-to-ESP32 SPI wiring pattern and interrupt-driven frame reception approach. The MPPT solar charge controller monitoring projects (EPever RS485 loggers) informed the multi-voltage measurement strategy and calibration methodology. The SIM800L ESP32 integration guides (SIMCOM official and community) established the hardware flow control wiring and AT command firmware structure used for cellular communication.
+
+\subsubsection*{Key Architecture Decisions}
+
+All sensor reads are performed sequentially within a cooperative main loop at defined polling intervals --- CAN frames at 10~ms, temperature at 1~s, voltage/current at 500~ms --- feeding a shared data structure that the publish and alert logic reads from. This single-threaded design ensures no inter-task synchronization is needed. Alert thresholds (temperature, voltage out-of-range, overcurrent) are evaluated centrally after each polling cycle and trigger cellular SMS dispatch if breached.

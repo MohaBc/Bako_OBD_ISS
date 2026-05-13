@@ -16,5 +16,827 @@
   {}
 \endgroup
 
+
+\refsection{0}
+  \datalist[entry]{none/global//global/global}
+    \entry{bakobattery}{report}{}
+      \name{author}{1}{}{%
+        {{hash=bc466e3edbcdf00e70caca68b29c4bf5}{%
+           family={{BAKO Motors}},
+           familyi={B\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {BAKO Motors, Tunis, Tunisia}%
+      }
+      \strng{namehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{fullhash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{bibnamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authorbibnamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authornamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authorfullhash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \field{extraname}{1}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Internal document provided by BAKO Motors. Ref: Bat72230Ah.pdf}
+      \field{title}{Battery Pack Technical Specification --- 72~V 230~Ah}
+      \field{type}{techreport}
+      \field{year}{2025}
+    \endentry
+    \entry{ocellspec}{report}{}
+      \name{author}{1}{}{%
+        {{hash=f45e25514f497772ffe84144ef837223}{%
+           family={{O'CELL Energy}},
+           familyi={O\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {O'CELL Energy Co., Ltd.}%
+      }
+      \strng{namehash}{f45e25514f497772ffe84144ef837223}
+      \strng{fullhash}{f45e25514f497772ffe84144ef837223}
+      \strng{bibnamehash}{f45e25514f497772ffe84144ef837223}
+      \strng{authorbibnamehash}{f45e25514f497772ffe84144ef837223}
+      \strng{authornamehash}{f45e25514f497772ffe84144ef837223}
+      \strng{authorfullhash}{f45e25514f497772ffe84144ef837223}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Product specification document provided by BAKO Motors. Ref: OCELL\_Specification\_60.8V50Ah.pdf}
+      \field{title}{{O'CELL} Battery Cell Specification --- 60.8~V 50~Ah {LiFePO4}}
+      \field{type}{techreport}
+      \field{year}{2024}
+    \endentry
+    \entry{bakocan}{report}{}
+      \name{author}{1}{}{%
+        {{hash=bc466e3edbcdf00e70caca68b29c4bf5}{%
+           family={{BAKO Motors}},
+           familyi={B\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {BAKO Motors, Tunis, Tunisia}%
+      }
+      \strng{namehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{fullhash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{bibnamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authorbibnamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authornamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authorfullhash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \field{extraname}{2}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Internal document provided by BAKO Motors. Ref: Communication CAN.pdf}
+      \field{title}{Vehicle {CAN} Bus Communication Protocol}
+      \field{type}{techreport}
+      \field{year}{2025}
+    \endentry
+    \entry{bakomotor}{report}{}
+      \name{author}{1}{}{%
+        {{hash=bc466e3edbcdf00e70caca68b29c4bf5}{%
+           family={{BAKO Motors}},
+           familyi={B\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {BAKO Motors, Tunis, Tunisia}%
+      }
+      \strng{namehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{fullhash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{bibnamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authorbibnamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authornamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authorfullhash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \field{extraname}{3}
+      \field{sortinit}{4}
+      \field{sortinithash}{9381316451d1b9788675a07e972a12a7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Internal document provided by BAKO Motors. Ref: 2\_EM701.102.V01-motor PDF.pdf}
+      \field{title}{Electric Motor Technical Documentation --- {EM701.102.V01}}
+      \field{type}{techreport}
+      \field{year}{2025}
+    \endentry
+    \entry{platformio}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=9b2ea7fe7c55ef9c9e2a5d1c582fc6ab}{%
+           family={{PlatformIO Labs}},
+           familyi={P\bibinitperiod}}}%
+      }
+      \strng{namehash}{9b2ea7fe7c55ef9c9e2a5d1c582fc6ab}
+      \strng{fullhash}{9b2ea7fe7c55ef9c9e2a5d1c582fc6ab}
+      \strng{bibnamehash}{9b2ea7fe7c55ef9c9e2a5d1c582fc6ab}
+      \strng{authorbibnamehash}{9b2ea7fe7c55ef9c9e2a5d1c582fc6ab}
+      \strng{authornamehash}{9b2ea7fe7c55ef9c9e2a5d1c582fc6ab}
+      \strng{authorfullhash}{9b2ea7fe7c55ef9c9e2a5d1c582fc6ab}
+      \field{sortinit}{5}
+      \field{sortinithash}{20e9b4b0b173788c5dace24730f47d8c}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{{PlatformIO} --- A Professional Collaborative Platform for Embedded Development}
+      \field{year}{2024}
+      \verb{urlraw}
+      \verb https://platformio.org
+      \endverb
+      \verb{url}
+      \verb https://platformio.org
+      \endverb
+    \endentry
+    \entry{kicad}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=ef6a27457e6912de5fdf3300eeeacb64}{%
+           family={{KiCad Developers}},
+           familyi={K\bibinitperiod}}}%
+      }
+      \strng{namehash}{ef6a27457e6912de5fdf3300eeeacb64}
+      \strng{fullhash}{ef6a27457e6912de5fdf3300eeeacb64}
+      \strng{bibnamehash}{ef6a27457e6912de5fdf3300eeeacb64}
+      \strng{authorbibnamehash}{ef6a27457e6912de5fdf3300eeeacb64}
+      \strng{authornamehash}{ef6a27457e6912de5fdf3300eeeacb64}
+      \strng{authorfullhash}{ef6a27457e6912de5fdf3300eeeacb64}
+      \field{sortinit}{6}
+      \field{sortinithash}{b33bc299efb3c36abec520a4c896a66d}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Version 10.0}
+      \field{title}{{KiCad} {EDA} --- Schematic Capture and {PCB} Layout}
+      \field{year}{2024}
+      \verb{urlraw}
+      \verb https://www.kicad.org
+      \endverb
+      \verb{url}
+      \verb https://www.kicad.org
+      \endverb
+    \endentry
+    \entry{snapeda}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=d760bfb380cb98d737b6537145f2d935}{%
+           family={{SnapEDA Inc.}},
+           familyi={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{d760bfb380cb98d737b6537145f2d935}
+      \strng{fullhash}{d760bfb380cb98d737b6537145f2d935}
+      \strng{bibnamehash}{d760bfb380cb98d737b6537145f2d935}
+      \strng{authorbibnamehash}{d760bfb380cb98d737b6537145f2d935}
+      \strng{authornamehash}{d760bfb380cb98d737b6537145f2d935}
+      \strng{authorfullhash}{d760bfb380cb98d737b6537145f2d935}
+      \field{sortinit}{6}
+      \field{sortinithash}{b33bc299efb3c36abec520a4c896a66d}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Used for KiCad component symbols and PCB footprints. Accessed: 2026}
+      \field{title}{{SnapEDA} --- Free {PCB} Symbols, Footprints and {3D} Models}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://www.snapeda.com
+      \endverb
+      \verb{url}
+      \verb https://www.snapeda.com
+      \endverb
+    \endentry
+    \entry{kicadforum}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=5687677d271090f0359e87204182309c}{%
+           family={{KiCad Community}},
+           familyi={K\bibinitperiod}}}%
+      }
+      \strng{namehash}{5687677d271090f0359e87204182309c}
+      \strng{fullhash}{5687677d271090f0359e87204182309c}
+      \strng{bibnamehash}{5687677d271090f0359e87204182309c}
+      \strng{authorbibnamehash}{5687677d271090f0359e87204182309c}
+      \strng{authornamehash}{5687677d271090f0359e87204182309c}
+      \strng{authorfullhash}{5687677d271090f0359e87204182309c}
+      \field{sortinit}{6}
+      \field{sortinithash}{b33bc299efb3c36abec520a4c896a66d}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Used for KiCad schematic and PCB layout guidance. Accessed: 2026}
+      \field{title}{{KiCad} Community Forum}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://forum.kicad.info
+      \endverb
+      \verb{url}
+      \verb https://forum.kicad.info
+      \endverb
+    \endentry
+    \entry{github}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=9b127eb47f59d27ace73783046da8889}{%
+           family={{GitHub, Inc.}},
+           familyi={G\bibinitperiod}}}%
+      }
+      \strng{namehash}{9b127eb47f59d27ace73783046da8889}
+      \strng{fullhash}{9b127eb47f59d27ace73783046da8889}
+      \strng{bibnamehash}{9b127eb47f59d27ace73783046da8889}
+      \strng{authorbibnamehash}{9b127eb47f59d27ace73783046da8889}
+      \strng{authornamehash}{9b127eb47f59d27ace73783046da8889}
+      \strng{authorfullhash}{9b127eb47f59d27ace73783046da8889}
+      \field{sortinit}{7}
+      \field{sortinithash}{108d0be1b1bee9773a1173443802c0a3}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Project source code hosted at \url{https://github.com/MohaBc/Bako_OBD_ISS}. Accessed: 2026}
+      \field{title}{{GitHub} --- Code Hosting and Version Control Platform}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://github.com
+      \endverb
+      \verb{url}
+      \verb https://github.com
+      \endverb
+    \endentry
+    \entry{alldatasheet}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=53969520cf445dd863cc579ae2e0ac37}{%
+           family={{Alldatasheet.com}},
+           familyi={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{53969520cf445dd863cc579ae2e0ac37}
+      \strng{fullhash}{53969520cf445dd863cc579ae2e0ac37}
+      \strng{bibnamehash}{53969520cf445dd863cc579ae2e0ac37}
+      \strng{authorbibnamehash}{53969520cf445dd863cc579ae2e0ac37}
+      \strng{authornamehash}{53969520cf445dd863cc579ae2e0ac37}
+      \strng{authorfullhash}{53969520cf445dd863cc579ae2e0ac37}
+      \field{sortinit}{8}
+      \field{sortinithash}{a231b008ebf0ecbe0b4d96dcc159445f}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Used for component datasheet retrieval during hardware design. Accessed: 2026}
+      \field{title}{Alldatasheet --- Electronic Components Datasheet Search}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://www.alldatasheet.com
+      \endverb
+      \verb{url}
+      \verb https://www.alldatasheet.com
+      \endverb
+    \endentry
+    \entry{youtube}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=7b568e72d25af32b0cec03e49cbf3f70}{%
+           family={{Google LLC}},
+           familyi={G\bibinitperiod}}}%
+      }
+      \strng{namehash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{fullhash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{bibnamehash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{authorbibnamehash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{authornamehash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{authorfullhash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \field{extraname}{1}
+      \field{sortinit}{9}
+      \field{sortinithash}{0a5ebc79d83c96b6579069544c73c7d4}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Used for tutorial videos on KiCad PCB design, ESP32 firmware development, and CAN bus protocol. Accessed: 2026}
+      \field{title}{{YouTube} --- Video Platform}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://www.youtube.com
+      \endverb
+      \verb{url}
+      \verb https://www.youtube.com
+      \endverb
+    \endentry
+    \entry{googlescholar}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=7b568e72d25af32b0cec03e49cbf3f70}{%
+           family={{Google LLC}},
+           familyi={G\bibinitperiod}}}%
+      }
+      \strng{namehash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{fullhash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{bibnamehash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{authorbibnamehash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{authornamehash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \strng{authorfullhash}{7b568e72d25af32b0cec03e49cbf3f70}
+      \field{extraname}{2}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Used for literature search. Accessed: 2026}
+      \field{title}{Google Scholar --- Academic Search Engine}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://scholar.google.com
+      \endverb
+      \verb{url}
+      \verb https://scholar.google.com
+      \endverb
+    \endentry
+    \entry{claudeai}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=f431db65cea024a5f19eab835afefee2}{%
+           family={{Anthropic}},
+           familyi={A\bibinitperiod}}}%
+      }
+      \strng{namehash}{f431db65cea024a5f19eab835afefee2}
+      \strng{fullhash}{f431db65cea024a5f19eab835afefee2}
+      \strng{bibnamehash}{f431db65cea024a5f19eab835afefee2}
+      \strng{authorbibnamehash}{f431db65cea024a5f19eab835afefee2}
+      \strng{authornamehash}{f431db65cea024a5f19eab835afefee2}
+      \strng{authorfullhash}{f431db65cea024a5f19eab835afefee2}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Used for technical writing assistance and code review during report preparation. Accessed: 2026}
+      \field{title}{Claude --- {AI} Assistant by Anthropic}
+      \field{year}{2025}
+      \verb{urlraw}
+      \verb https://claude.ai
+      \endverb
+      \verb{url}
+      \verb https://claude.ai
+      \endverb
+    \endentry
+    \entry{esp32datasheet}{manual}{}
+      \name{author}{1}{}{%
+        {{hash=66589871a3c3f27bcbf3891133af42b1}{%
+           family={{Espressif Systems}},
+           familyi={E\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {Espressif Systems (Shanghai) Co., Ltd.}%
+      }
+      \strng{namehash}{66589871a3c3f27bcbf3891133af42b1}
+      \strng{fullhash}{66589871a3c3f27bcbf3891133af42b1}
+      \strng{bibnamehash}{66589871a3c3f27bcbf3891133af42b1}
+      \strng{authorbibnamehash}{66589871a3c3f27bcbf3891133af42b1}
+      \strng{authornamehash}{66589871a3c3f27bcbf3891133af42b1}
+      \strng{authorfullhash}{66589871a3c3f27bcbf3891133af42b1}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Version 4.4}
+      \field{title}{{ESP32} Series Datasheet}
+      \field{year}{2023}
+      \verb{urlraw}
+      \verb https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf
+      \endverb
+      \verb{url}
+      \verb https://www.espressif.com/sites/default/files/documentation/esp32_datasheet_en.pdf
+      \endverb
+    \endentry
+    \entry{mcp2515datasheet}{manual}{}
+      \name{author}{1}{}{%
+        {{hash=01549117d584aea719e867257f581e77}{%
+           family={{Microchip Technology}},
+           familyi={M\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {Microchip Technology Inc.}%
+      }
+      \strng{namehash}{01549117d584aea719e867257f581e77}
+      \strng{fullhash}{01549117d584aea719e867257f581e77}
+      \strng{bibnamehash}{01549117d584aea719e867257f581e77}
+      \strng{authorbibnamehash}{01549117d584aea719e867257f581e77}
+      \strng{authornamehash}{01549117d584aea719e867257f581e77}
+      \strng{authorfullhash}{01549117d584aea719e867257f581e77}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{number}{DS20001801H}
+      \field{title}{{MCP2515} Stand-Alone {CAN} Controller with {SPI} Interface}
+      \field{year}{2019}
+      \verb{urlraw}
+      \verb https://www.microchip.com/content/dam/mchp/documents/APID/ProductDocuments/DataSheets/MCP2515-Family-Data-Sheet-DS20001801K.pdf
+      \endverb
+      \verb{url}
+      \verb https://www.microchip.com/content/dam/mchp/documents/APID/ProductDocuments/DataSheets/MCP2515-Family-Data-Sheet-DS20001801K.pdf
+      \endverb
+    \endentry
+    \entry{iso11898}{standard}{}
+      \list{organization}{1}{%
+        {International Organization for Standardization}%
+      }
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labeltitlesource}{title}
+      \field{number}{ISO 11898-1:2015}
+      \field{title}{Road vehicles --- Controller area network ({CAN}) --- Part 1: Data link layer and physical signalling}
+      \field{type}{Standard}
+      \field{year}{2015}
+    \endentry
+    \entry{tja1051datasheet}{manual}{}
+      \name{author}{1}{}{%
+        {{hash=70a107d58d4aa1203cc8cde04480d72c}{%
+           family={{NXP Semiconductors}},
+           familyi={N\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {NXP Semiconductors}%
+      }
+      \strng{namehash}{70a107d58d4aa1203cc8cde04480d72c}
+      \strng{fullhash}{70a107d58d4aa1203cc8cde04480d72c}
+      \strng{bibnamehash}{70a107d58d4aa1203cc8cde04480d72c}
+      \strng{authorbibnamehash}{70a107d58d4aa1203cc8cde04480d72c}
+      \strng{authornamehash}{70a107d58d4aa1203cc8cde04480d72c}
+      \strng{authorfullhash}{70a107d58d4aa1203cc8cde04480d72c}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{number}{Rev. 3}
+      \field{title}{{TJA1051} High-Speed {CAN} Transceiver}
+      \field{year}{2017}
+      \verb{urlraw}
+      \verb https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf
+      \endverb
+      \verb{url}
+      \verb https://www.nxp.com/docs/en/data-sheet/TJA1051.pdf
+      \endverb
+    \endentry
+    \entry{lm2596datasheet}{manual}{}
+      \name{author}{1}{}{%
+        {{hash=67e54b1ee931f3f4bddfefa5fbde5fd8}{%
+           family={{Texas Instruments}},
+           familyi={T\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {Texas Instruments Incorporated}%
+      }
+      \strng{namehash}{67e54b1ee931f3f4bddfefa5fbde5fd8}
+      \strng{fullhash}{67e54b1ee931f3f4bddfefa5fbde5fd8}
+      \strng{bibnamehash}{67e54b1ee931f3f4bddfefa5fbde5fd8}
+      \strng{authorbibnamehash}{67e54b1ee931f3f4bddfefa5fbde5fd8}
+      \strng{authornamehash}{67e54b1ee931f3f4bddfefa5fbde5fd8}
+      \strng{authorfullhash}{67e54b1ee931f3f4bddfefa5fbde5fd8}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{number}{SNVS124G}
+      \field{title}{{LM2596} SIMPLE SWITCHER Power Converter 150 kHz 3-A Step-Down Voltage Regulator}
+      \field{year}{2021}
+      \verb{urlraw}
+      \verb https://www.ti.com/lit/ds/symlink/lm2596.pdf
+      \endverb
+      \verb{url}
+      \verb https://www.ti.com/lit/ds/symlink/lm2596.pdf
+      \endverb
+    \endentry
+    \entry{bakowiring}{report}{}
+      \name{author}{1}{}{%
+        {{hash=bc466e3edbcdf00e70caca68b29c4bf5}{%
+           family={{BAKO Motors}},
+           familyi={B\bibinitperiod}}}%
+      }
+      \list{institution}{1}{%
+        {BAKO Motors, Tunis, Tunisia}%
+      }
+      \strng{namehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{fullhash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{bibnamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authorbibnamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authornamehash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \strng{authorfullhash}{bc466e3edbcdf00e70caca68b29c4bf5}
+      \field{extraname}{4}
+      \field{sortinit}{1}
+      \field{sortinithash}{4f6aaa89bab872aa0999fec09ff8e98a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Internal document provided by BAKO Motors. Ref: Ev\_wirring\_diagram.pdf}
+      \field{title}{Electric Vehicle Wiring Diagram}
+      \field{type}{techreport}
+      \field{year}{2025}
+    \endentry
+    \entry{saej1939}{standard}{}
+      \list{organization}{1}{%
+        {SAE International}%
+      }
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labeltitlesource}{title}
+      \field{number}{SAE J1939-21}
+      \field{title}{Serial Control and Communications Vehicle Network --- Part 21: Data Link Layer}
+      \field{type}{Standard}
+      \field{year}{2010}
+    \endentry
+    \entry{ds18b20datasheet}{manual}{}
+      \name{author}{1}{}{%
+        {{hash=708945beacf49e6e06951ec3f877a859}{%
+           family={{Maxim Integrated}},
+           familyi={M\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {Maxim Integrated Products}%
+      }
+      \strng{namehash}{708945beacf49e6e06951ec3f877a859}
+      \strng{fullhash}{708945beacf49e6e06951ec3f877a859}
+      \strng{bibnamehash}{708945beacf49e6e06951ec3f877a859}
+      \strng{authorbibnamehash}{708945beacf49e6e06951ec3f877a859}
+      \strng{authornamehash}{708945beacf49e6e06951ec3f877a859}
+      \strng{authorfullhash}{708945beacf49e6e06951ec3f877a859}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Rev. 6}
+      \field{title}{{DS18B20} Programmable Resolution 1-Wire Digital Thermometer}
+      \field{year}{2019}
+      \verb{urlraw}
+      \verb https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf
+      \endverb
+      \verb{url}
+      \verb https://www.analog.com/media/en/technical-documentation/data-sheets/DS18B20.pdf
+      \endverb
+    \endentry
+    \entry{lifepo4soc}{article}{}
+      \name{author}{7}{}{%
+        {{hash=ddc1e4faf59edc7d7675723be4296244}{%
+           family={Chen},
+           familyi={C\bibinitperiod},
+           given={Liang},
+           giveni={L\bibinitperiod}}}%
+        {{hash=69cbf9cf6ee13bcadc8efce2ba4c3f5a}{%
+           family={Wang},
+           familyi={W\bibinitperiod},
+           given={Zeping},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=2126379e4d58667506e9fd0da4532761}{%
+           family={Lü},
+           familyi={L\bibinitperiod},
+           given={Zhengyuan},
+           giveni={Z\bibinitperiod}}}%
+        {{hash=9be0d46f5733466bb6b5e706b39a97f7}{%
+           family={Li},
+           familyi={L\bibinitperiod},
+           given={Jiuyu},
+           giveni={J\bibinitperiod}}}%
+        {{hash=3450dfa2e6a4dd66608fbb3bb3c0df7e}{%
+           family={Ji},
+           familyi={J\bibinitperiod},
+           given={Bing},
+           giveni={B\bibinitperiod}}}%
+        {{hash=267edcf1773afe40d7e17e72f79b6b0a}{%
+           family={Wei},
+           familyi={W\bibinitperiod},
+           given={Hao},
+           giveni={H\bibinitperiod}}}%
+        {{hash=05d15b65be9a98029eded33ca6ff801c}{%
+           family={Pan},
+           familyi={P\bibinitperiod},
+           given={Haihong},
+           giveni={H\bibinitperiod}}}%
+      }
+      \list{publisher}{1}{%
+        {MDPI}%
+      }
+      \strng{namehash}{e61a2c0bb61edbe07adc0d98d824ce33}
+      \strng{fullhash}{a86d2996b4e0e2d5fd8f3260ccd92e25}
+      \strng{bibnamehash}{e61a2c0bb61edbe07adc0d98d824ce33}
+      \strng{authorbibnamehash}{e61a2c0bb61edbe07adc0d98d824ce33}
+      \strng{authornamehash}{e61a2c0bb61edbe07adc0d98d824ce33}
+      \strng{authorfullhash}{a86d2996b4e0e2d5fd8f3260ccd92e25}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{Energies}
+      \field{number}{13}
+      \field{title}{State of charge estimation for lithium iron phosphate battery pack using the cell difference voltage}
+      \field{volume}{12}
+      \field{year}{2019}
+      \field{pages}{2578}
+      \range{pages}{1}
+      \verb{doi}
+      \verb 10.3390/en12132578
+      \endverb
+    \endentry
+    \entry{bmssoc}{article}{}
+      \name{author}{3}{}{%
+        {{hash=afaae93f1b09448e562d14e252e4481a}{%
+           family={Wik},
+           familyi={W\bibinitperiod},
+           given={Torsten},
+           giveni={T\bibinitperiod}}}%
+        {{hash=7df310da81b4aeafcdc3a356017c54d4}{%
+           family={Fridholm},
+           familyi={F\bibinitperiod},
+           given={Björn},
+           giveni={B\bibinitperiod}}}%
+        {{hash=04e0c9199fcc227e75930924bfef5fbf}{%
+           family={Kuusisto},
+           familyi={K\bibinitperiod},
+           given={Hannes},
+           giveni={H\bibinitperiod}}}%
+      }
+      \strng{namehash}{30e946218e1152b44fbdc46df2641b24}
+      \strng{fullhash}{30e946218e1152b44fbdc46df2641b24}
+      \strng{bibnamehash}{30e946218e1152b44fbdc46df2641b24}
+      \strng{authorbibnamehash}{30e946218e1152b44fbdc46df2641b24}
+      \strng{authornamehash}{30e946218e1152b44fbdc46df2641b24}
+      \strng{authorfullhash}{30e946218e1152b44fbdc46df2641b24}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{journaltitle}{IFAC Proceedings Volumes}
+      \field{number}{11}
+      \field{title}{Battery management systems for electric vehicle range prediction}
+      \field{volume}{49}
+      \field{year}{2016}
+      \field{pages}{99\bibrangedash 106}
+      \range{pages}{8}
+      \verb{doi}
+      \verb 10.1016/j.ifacol.2016.08.015
+      \endverb
+    \endentry
+    \entry{arduinojson}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=ca0418f0dc334d743a5a6f847b734863}{%
+           family={Blanchon},
+           familyi={B\bibinitperiod},
+           given={Benoît},
+           giveni={B\bibinitperiod}}}%
+      }
+      \strng{namehash}{ca0418f0dc334d743a5a6f847b734863}
+      \strng{fullhash}{ca0418f0dc334d743a5a6f847b734863}
+      \strng{bibnamehash}{ca0418f0dc334d743a5a6f847b734863}
+      \strng{authorbibnamehash}{ca0418f0dc334d743a5a6f847b734863}
+      \strng{authornamehash}{ca0418f0dc334d743a5a6f847b734863}
+      \strng{authorfullhash}{ca0418f0dc334d743a5a6f847b734863}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Version 7.x}
+      \field{title}{{ArduinoJson}: Efficient {JSON} for {Arduino}}
+      \field{year}{2024}
+      \verb{urlraw}
+      \verb https://arduinojson.org
+      \endverb
+      \verb{url}
+      \verb https://arduinojson.org
+      \endverb
+    \endentry
+    \entry{evmonitoring}{inproceedings}{}
+      \name{author}{3}{}{%
+        {{hash=f40930a6d41cf13716af42c5db6156ca}{%
+           family={Ranjith},
+           familyi={R\bibinitperiod},
+           given={P.},
+           giveni={P\bibinitperiod}}}%
+        {{hash=61bf947a75b2f1172dc03c0549360d2c}{%
+           family={Chandra},
+           familyi={C\bibinitperiod},
+           given={S.},
+           giveni={S\bibinitperiod}}}%
+        {{hash=458a5787cad415fc002cd2ecde21fc5d}{%
+           family={Suresh},
+           familyi={S\bibinitperiod},
+           given={K.},
+           giveni={K\bibinitperiod}}}%
+      }
+      \strng{namehash}{e2318034c05060fd29f9b96bbd82ade1}
+      \strng{fullhash}{e2318034c05060fd29f9b96bbd82ade1}
+      \strng{bibnamehash}{e2318034c05060fd29f9b96bbd82ade1}
+      \strng{authorbibnamehash}{e2318034c05060fd29f9b96bbd82ade1}
+      \strng{authornamehash}{e2318034c05060fd29f9b96bbd82ade1}
+      \strng{authorfullhash}{e2318034c05060fd29f9b96bbd82ade1}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{booktitle}{Proceedings of the International Conference on Smart Systems and Inventive Technology (ICSSIT)}
+      \field{title}{Real-Time Battery Monitoring System for Electric Vehicles Using {CAN} Bus and {IoT}}
+      \field{year}{2022}
+      \field{pages}{1143\bibrangedash 1148}
+      \range{pages}{6}
+      \verb{doi}
+      \verb 10.1109/ICSSIT53264.2022.9716334
+      \endverb
+    \endentry
+    \entry{uvicorn}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=e73069a89f32799b054c4852f92acd55}{%
+           family={Christie},
+           familyi={C\bibinitperiod},
+           given={Tom},
+           giveni={T\bibinitperiod}}}%
+      }
+      \strng{namehash}{e73069a89f32799b054c4852f92acd55}
+      \strng{fullhash}{e73069a89f32799b054c4852f92acd55}
+      \strng{bibnamehash}{e73069a89f32799b054c4852f92acd55}
+      \strng{authorbibnamehash}{e73069a89f32799b054c4852f92acd55}
+      \strng{authornamehash}{e73069a89f32799b054c4852f92acd55}
+      \strng{authorfullhash}{e73069a89f32799b054c4852f92acd55}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{Uvicorn --- An {ASGI} Web Server}
+      \field{year}{2024}
+      \verb{urlraw}
+      \verb https://www.uvicorn.org
+      \endverb
+      \verb{url}
+      \verb https://www.uvicorn.org
+      \endverb
+    \endentry
+    \entry{fastapi}{misc}{}
+      \name{author}{1}{}{%
+        {{hash=f5305ee02dd2a5c6215b53401b4a10b0}{%
+           family={Ramírez},
+           familyi={R\bibinitperiod},
+           given={Sebastián},
+           giveni={S\bibinitperiod}}}%
+      }
+      \strng{namehash}{f5305ee02dd2a5c6215b53401b4a10b0}
+      \strng{fullhash}{f5305ee02dd2a5c6215b53401b4a10b0}
+      \strng{bibnamehash}{f5305ee02dd2a5c6215b53401b4a10b0}
+      \strng{authorbibnamehash}{f5305ee02dd2a5c6215b53401b4a10b0}
+      \strng{authornamehash}{f5305ee02dd2a5c6215b53401b4a10b0}
+      \strng{authorfullhash}{f5305ee02dd2a5c6215b53401b4a10b0}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{note}{Version 0.111}
+      \field{title}{{FastAPI} --- Modern, Fast Web Framework for Building {APIs} with Python}
+      \field{year}{2024}
+      \verb{urlraw}
+      \verb https://fastapi.tiangolo.com
+      \endverb
+      \verb{url}
+      \verb https://fastapi.tiangolo.com
+      \endverb
+    \endentry
+    \entry{rfc6455}{misc}{}
+      \name{author}{2}{}{%
+        {{hash=1057c0ce811151df0862cf5b26064896}{%
+           family={Fette},
+           familyi={F\bibinitperiod},
+           given={I.},
+           giveni={I\bibinitperiod}}}%
+        {{hash=2f848d58c5d28e172fbc9ab51a059f6e}{%
+           family={Melnikov},
+           familyi={M\bibinitperiod},
+           given={A.},
+           giveni={A\bibinitperiod}}}%
+      }
+      \list{organization}{1}{%
+        {Internet Engineering Task Force (IETF)}%
+      }
+      \strng{namehash}{a384119ffa0f3414225b956a30c34bd9}
+      \strng{fullhash}{a384119ffa0f3414225b956a30c34bd9}
+      \strng{bibnamehash}{a384119ffa0f3414225b956a30c34bd9}
+      \strng{authorbibnamehash}{a384119ffa0f3414225b956a30c34bd9}
+      \strng{authornamehash}{a384119ffa0f3414225b956a30c34bd9}
+      \strng{authorfullhash}{a384119ffa0f3414225b956a30c34bd9}
+      \field{sortinit}{2}
+      \field{sortinithash}{8b555b3791beccb63322c22f3320aa9a}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{howpublished}{RFC 6455}
+      \field{title}{The {WebSocket} Protocol}
+      \field{year}{2011}
+      \verb{urlraw}
+      \verb https://tools.ietf.org/html/rfc6455
+      \endverb
+      \verb{url}
+      \verb https://tools.ietf.org/html/rfc6455
+      \endverb
+    \endentry
+    \entry{scrumguide}{book}{}
+      \name{author}{2}{}{%
+        {{hash=ee6f08fcba839e09471a0bc69152b6a5}{%
+           family={Schwaber},
+           familyi={S\bibinitperiod},
+           given={Ken},
+           giveni={K\bibinitperiod}}}%
+        {{hash=6e3f26f6f816a26c6ab36bc7a899bcde}{%
+           family={Sutherland},
+           familyi={S\bibinitperiod},
+           given={Jeff},
+           giveni={J\bibinitperiod}}}%
+      }
+      \strng{namehash}{303ea1dc92fd8c772eac56316b2074ef}
+      \strng{fullhash}{303ea1dc92fd8c772eac56316b2074ef}
+      \strng{bibnamehash}{303ea1dc92fd8c772eac56316b2074ef}
+      \strng{authorbibnamehash}{303ea1dc92fd8c772eac56316b2074ef}
+      \strng{authornamehash}{303ea1dc92fd8c772eac56316b2074ef}
+      \strng{authorfullhash}{303ea1dc92fd8c772eac56316b2074ef}
+      \field{sortinit}{3}
+      \field{sortinithash}{ad6fe7482ffbd7b9f99c9e8b5dccd3d7}
+      \field{labelnamesource}{author}
+      \field{labeltitlesource}{title}
+      \field{title}{The Scrum Guide --- The Definitive Guide to Scrum: The Rules of the Game}
+      \field{year}{2020}
+      \verb{urlraw}
+      \verb https://scrumguides.org/scrum-guide.html
+      \endverb
+      \verb{url}
+      \verb https://scrumguides.org/scrum-guide.html
+      \endverb
+    \endentry
+  \enddatalist
+\endrefsection
 \endinput
 

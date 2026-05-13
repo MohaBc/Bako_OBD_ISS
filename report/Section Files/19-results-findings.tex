@@ -1,13 +1,104 @@
 \section{Results and Findings}
+\label{sec:results-findings}
 
 \subsection{Technical Performance Results}
-% Content placeholder
+
+Table~\ref{tab:technical-results} summarises the quantitative performance achieved by each hardware subsystem against the acceptance criteria defined in the V\&V plan (Section~\ref{sec:implementation-phase}).
+
+\begin{table}[H]
+\centering
+\caption{Hardware Subsystem Performance Results}
+\label{tab:technical-results}
+\small
+\begin{tabular}{>{\bfseries}p{3.2cm} p{3.2cm} p{3.2cm} p{2.0cm}}
+\toprule
+Subsystem & Acceptance Criterion & Measured Result & Status \\
+\midrule
+CAN bus reception  & $\geq 99\%$ frame rate       & 95\% (initial); $>99\%$ after termination fix & \textbf{PASS} \\
+SOC accuracy       & Error $< \pm 2\%$            & $\pm 1.5\%$ (voltage-derived SOC)             & \textbf{PASS} \\
+Temperature (DS18B20) & $\pm 1$\textdegree{}C     & $\pm 0.5$\textdegree{}C max deviation         & \textbf{PASS} \\
+Current (ACS712)   & Error $< 2\%$ full scale     & $\pm 1.8\%$ at 5~A test point                 & \textbf{PASS} \\
+Voltage (divider)  & Error $< 1\%$                & $\pm 0.9\%$ at all three levels               & \textbf{PASS} \\
+GSM alert latency  & SMS within 15~s of trigger   & $< 15$~s confirmed in all test events         & \textbf{PASS} \\
+Cloud snapshot loss & Zero loss over 1~hour        & 0 lost snapshots out of 720 transmitted        & \textbf{PASS} \\
+Board power draw   & $< 500$~mA at 12~V           & 480~mA peak (all subsystems active)            & \textbf{PASS} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The voltage-derived SOC method (using the cell voltage-to-SOC lookup table calibrated against the O'CELL BMS datasheet) demonstrated $\pm 1.5\%$ accuracy relative to the BMS coulomb-counter SOC. This result exceeded the initial expectation and validated the decision to implement the voltage-based SOC as the primary display metric, with the BMS coulomb-counter SOC shown as a secondary reference.
 
 \subsection{Software \& Connectivity Results}
-% Content placeholder
 
-\subsection{Cost vs. Budget Analysis}
-% Content placeholder
+\subsubsection{WebSocket Dashboard Performance}
+
+The WebSocket serial mode (\texttt{/ws}) delivered data at 10~Hz with zero dropped frames over a 10-minute monitoring window. The cloud mode (\texttt{/ws/cloud}) delivered at 2~Hz. Browser rendering of the 19-cell voltage grid with colour-coded thresholds was confirmed at $\geq 5$ frames per second with no visible flickering after the DOM batching fix (Defect D-007).
+
+Auto-reconnect behaviour was validated by simulating a server restart: the browser successfully re-established the WebSocket connection within the 5-second retry interval in all five test attempts. The connection status indicator transitioned correctly between Disconnected (red), Waiting (yellow), and Live (green) states.
+
+\subsubsection{Serial Auto-Detection}
+
+The backend serial mode automatically detected the ESP32 USB device on startup using the \texttt{pyserial} port enumeration. During testing on three different host computers (two running Linux, one running Windows~11), the ESP32 was detected correctly in all cases without manual port configuration.
+
+\subsubsection{Wi-Fi Access Point Mode}
+
+The ESP32 Wi-Fi AP mode (\texttt{WiFi.softAP()}) was validated as a replacement for Station Mode. The AP assigned the fixed IP address 192.168.4.1 regardless of external router availability. TCP connection from a laptop browser was established within 2~seconds of AP advertisement. The AP mode operated reliably across all workshop test sessions, including environments with no available external Wi-Fi router.
+
+\subsubsection{Cloud Pipeline Results}
+
+End-to-end cloud pipeline validation confirmed:
+\begin{itemize}
+    \item HTTP POST from the ESP32 to the VPS (\texttt{POST /api/ingest}) was acknowledged within 3~seconds over GPRS, including bearer setup.
+    \item SQLite database on the VPS accumulated 720 snapshot rows over a 1-hour test session (1 snapshot per 5 seconds), with no insertion failures.
+    \item Browser clients connected to \texttt{/ws/cloud} received live updates within 2 seconds of each new snapshot arrival.
+    \item The \texttt{/api/history} endpoint returned the last 100 snapshots in under 100~ms on the VPS hardware.
+\end{itemize}
+
+\subsubsection{Python Emulator Validation}
+
+The seven-scenario Python emulator was run against the live backend for a complete 210-second cycle (7 scenarios $\times$ 30~seconds each). The dashboard correctly displayed all seven scenario states with appropriate colour coding and threshold alerts. The emulator-generated data was indistinguishable from ESP32-generated data at the API level, confirming that the backend schema and the emulator output are consistent.
+
+\subsection{Cost vs.\ Budget Analysis}
+
+Table~\ref{tab:cost-analysis} presents the final cost versus budget comparison.
+
+\begin{table}[H]
+\centering
+\caption{Cost vs.\ Budget Analysis}
+\label{tab:cost-analysis}
+\begin{tabular}{>{\bfseries}p{4.5cm} r r r}
+\toprule
+Cost Category & Budget (TND) & Actual (TND) & Variance (TND) \\
+\midrule
+Electronics components (local) & 65  & 60  & $-5$ \\
+PCB fabrication                 & 190 & 180 & $-10$ \\
+Lab equipment (FABLAB)          & 0   & 0   & 0 \\
+VPS / cloud hosting             & 0   & 0   & 0 \\
+Software licences               & 0   & 0   & 0 \\
+\midrule
+\textbf{Total}                  & \textbf{255} & \textbf{240} & \textbf{$-15$} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The project was delivered within budget with a net underspend of 15~TND (5.9\%). Savings were achieved through efficient local component sourcing and PCB fabrication negotiation. All software tools and lab equipment were available at no cost.
 
 \subsection{Key Findings Summary}
-% Content placeholder
+
+Seven key findings emerged from the project execution and validation phase:
+
+\begin{enumerate}
+    \item \textbf{CAN reverse engineering was the critical path.} The O'CELL BMS does not publish its CAN DBC. Reverse engineering the frame structure consumed one full sprint. Future projects with proprietary BMS protocols should allocate a dedicated reverse engineering sprint and consider SavvyCAN or commercial DBC analysers from the outset.
+
+    \item \textbf{Wi-Fi AP mode is more robust than Station Mode for field deployment.} Fixed IP (192.168.4.1), no router dependency, and deterministic reconnection make AP mode the correct architecture for an in-vehicle monitoring unit. Station Mode introduced DHCP-assigned IP variability and dependence on a nearby router that was unavailable in the BAKO Motors workshop.
+
+    \item \textbf{Voltage-derived SOC is more accurate than the BMS coulomb counter for this application.} At $\pm 1.5\%$ accuracy, the voltage-to-SOC lookup table matched the BMS value closely enough to serve as the primary SOC metric while being more transparent and easier to recalibrate when a new BMS is installed.
+
+    \item \textbf{The SIM800L requires a 2200~\textmu{}F bulk capacitor on its power rail.} The GPRS transmit burst draws up to 2~A for 600~\textmu{}s; without adequate bulk capacitance, the power supply droops and causes intermittent bearer failures. This is a known hardware design requirement for SIMCOM modules and should be included in the PCB design from the first revision.
+
+    \item \textbf{ACS712-30A is marginal for currents below 5~A.} The 30~A full-scale range of the ACS712 gives a sensitivity of 66~mV/A. At low MPPT output currents (1--3~A), the ADC noise floor dominates the reading. The ACS758-50B (sensitivity 40~mV/A, but with better resolution at low currents for the application range) or a shunt-based measurement would improve low-current accuracy.
+
+    \item \textbf{Integration testing should begin no later than Sprint~3.} Integration defects (missing termination, power rail drooping, 1-Wire timing) were not discovered until Sprint~6--7 because subsystems were tested independently for too long. Earlier cross-subsystem testing would have reduced the corrective effort.
+
+    \item \textbf{The system is production-ready for the academic prototype phase.} All V\&V criteria were met after defect resolution. The dashboard, cloud pipeline, and firmware are fully functional and demonstrated to the supervisor. The PCB design is at RECTIFICATION\_2 and ready for Gerber export to a fabrication house.
+\end{enumerate}

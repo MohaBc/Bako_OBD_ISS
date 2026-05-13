@@ -1,19 +1,62 @@
 \section{Preparation Phase}
 
 \subsection{Project Governance \& Team Structure}
-% Content placeholder
+
+The project is supervised academically by \textbf{Dr. Mortadha Dahmani} and conducted in direct collaboration with \textbf{BAKO Motors} as the industrial partner. The development team consists of seven members: Mahdi Hachicha, Mohamed Baccouche, Yassine Mtibaa, Hana Gdoura, Selima Grissa, Fares Smaoui, and Khadija Ben Hamida. Tasks are distributed across five functional areas: hardware design and PCB, embedded firmware, dashboard and cloud back-end, documentation and reporting, and integration testing. Version control is managed through Git with a shared private repository; task tracking and sprint planning follow a product backlog structure aligned with the Agile methodology described in Chapter~13.
 
 \subsection{Development Environment Setup}
-% Content placeholder
+
+The embedded firmware is developed using \textbf{VS Code} with the \textbf{PlatformIO}~\cite{platformio} extension, targeting the ESP32 microcontroller with the Arduino-ESP32 framework. This toolchain provides dependency management, cross-compilation, and integrated serial monitoring in a single environment. PCB schematic capture and layout are performed in \textbf{KiCad 10.0}~\cite{kicad,snapeda,kicadforum}. The back-end server and Python sensor emulator are developed in \textbf{Python 3.11}. The cloud database runs on \textbf{SQLite} hosted on a Linux VPS, managed directly via the FastAPI server. All source code, PCB design files, and documentation are maintained in a private Git repository shared across the full team~\cite{github}. Component datasheets were retrieved from manufacturer websites and \texttt{alldatasheet.com}~\cite{alldatasheet}; tutorial resources were drawn from YouTube~\cite{youtube} and Google Scholar~\cite{googlescholar}. Technical writing assistance used Claude~AI~\cite{claudeai}.
 
 \subsection{Simulation \& Prototyping Environment}
-% Content placeholder
+
+A Python-based sensor emulator was developed to simulate the complete vehicle sensor network, generating realistic values for 12 sensors with smooth, continuous transitions between states. The emulator cycles through seven test scenarios every 30 seconds:
+
+\begin{itemize}
+    \item \textbf{Normal Driving} --- typical operational parameters across all sensors.
+    \item \textbf{Low Battery} --- state of charge below 20\%, reduced motor performance.
+    \item \textbf{Charging Mode} --- MPPT active, battery current positive.
+    \item \textbf{High Solar Input} --- peak solar irradiance, maximum MPPT throughput.
+    \item \textbf{Night Mode} --- no solar input, battery discharging only.
+    \item \textbf{Handbrake Fault} --- handbrake sensor engaged while vehicle is moving.
+    \item \textbf{Overheat Condition} --- motor and DC/DC converter temperatures above threshold.
+\end{itemize}
+
+The emulator outputs structured JSON payloads compatible with the back-end API, fully replacing the physical ESP32 for end-to-end testing. In addition, a breadboard prototype was assembled early in the project to validate CAN bus wiring with the MCP2515, DS18B20 one-wire reading, and voltage divider scaling before committing to PCB layout.
 
 \subsection{Risk Register (Initial)}
-% Content placeholder
+
+Initial risks identified at project outset included: the proprietary O'CELL BMS CAN protocol requiring reverse engineering before frame decoding could begin; ADC accuracy limitations on the ESP32 requiring dedicated calibration routines for precise voltage and current readings; component availability in Tunisia for specialised modules such as the SIM800L; LTE network compatibility of the chosen cellular module with Tunisian operators (Ooredoo and Orange); and PCB fabrication lead times from local and regional manufacturers. Each risk was assigned a likelihood rating, an impact severity level, and a set of mitigation strategies as part of the project governance framework. The full expanded risk register is presented in Chapter~18.
 
 \subsection{Procurement \& Vendor Selection}
-% Content placeholder
+
+All components were sourced through a two-channel strategy to balance cost, lead time, and availability. The ESP32-DEVKITC, MCP2515 SPI module, DS18B20 temperature sensors, ACS712 current sensors, passive components, and connectors were sourced locally in Tunisia from electronics distributors, keeping procurement costs low and eliminating import lead times. The SIM800L GSM/GPRS module was ordered through an online distributor with confirmed stock, given its unavailability in local markets. The PCB is specified for fabrication in FR-4, two copper layers, 1.6~mm board thickness, 35~\textmu m copper weight per layer, using standard KiCad Gerber RS-274X export for submission to the fabrication house.
 
 \subsection{Prototype Planning}
-% Content placeholder
+
+The prototype was developed through five sequential phases, each building on validated hardware from the previous stage.
+
+\textbf{Phase P1 --- Breadboard Proof of Concept (Weeks~3--6).}
+Individual subsystems were validated in isolation on a breadboard. A single MCP2515 module was wired to an ESP32 via SPI to confirm CAN frame reception from the O'CELL BMS. One DS18B20 sensor was read over 1-Wire and its output printed to the serial monitor. An ACS712 current sensor output was sampled through the ESP32 ADC and calibrated against a bench power supply. Voltage divider networks were assembled and the scaling coefficients verified with a multimeter. Success criterion: all four subsystems operational and producing plausible readings independently.
+
+\textbf{Phase P2 --- Integrated Breadboard (Weeks~7--9).}
+All validated subsystems were connected to a single ESP32 simultaneously. A cooperative main loop was implemented to sequentially poll CAN, 1-Wire, and ADC inputs. The SIM800L GSM/GPRS module was connected via UART and an SMS alert was successfully dispatched. A local display (TFT LCD) was added to show live sensor data without a connected computer. Success criterion: all subsystems operational together without starvation over a 30-minute run.
+
+\textbf{Phase P3 --- Semi-Permanent Stripboard Build (Week~10).}
+The integrated breadboard design was transferred to stripboard for mechanical stability during field testing at the BAKO Motors workshop. Wiring was shortened and secured, and connectors were added for the CAN bus, temperature sensors, and power supply. This build was used for the first on-vehicle test with the actual O'CELL BMS CAN bus. Success criterion: reliable operation during vehicle movement with no loose connections or intermittent failures.
+
+\textbf{Phase P4 --- Custom PCB Prototype (Weeks~10--13).}
+Lessons learned from the stripboard build were incorporated into a KiCad schematic and PCB layout. The two-layer FR-4 board (Revision RECTIFICATION\_2) includes functional zoning for power, digital, CAN, and sensor domains, ESD protection Zener diodes on CAN lines, and fuse protection on all supply rails. Three MCP2515 SPI module headers support multi-bus configurations. The board was submitted for fabrication and populated by the team. Success criterion: board powers up correctly; all subsystems reachable from the ESP32 without errors.
+
+\textbf{Phase P5 --- Integration Testing (Week~14).}
+The fully populated PCB was connected to the vehicle harness and the cloud back-end. All sensor data paths were verified end-to-end: CAN frames decoded and displayed on the dashboard, temperature and current readings visible in the browser, and cloud telemetry appearing in the SQLite database on the VPS. The Python emulator was run in parallel to validate that the back-end API processed both hardware and emulated data identically.
+
+\medskip
+\noindent\textbf{Quantitative success criteria applied across all phases:}
+\begin{itemize}
+    \item CAN frame reception rate $\geq 99\%$ over a 60-minute continuous test.
+    \item DS18B20 temperature accuracy within $\pm 1$\textdegree{}C of a reference thermometer.
+    \item ACS712 current measurement error $< 2\%$ of full scale.
+    \item Voltage divider readings within $\pm 1\%$ of the multimeter reference.
+    \item Cloud telemetry delivered to the VPS database with no snapshot loss over a 1-hour test.
+\end{itemize}

@@ -1,6 +1,16 @@
 \section{Cloud Connectivity \& IoT}
 
-This section describes the complete cloud telemetry pipeline designed and implemented for the Bako OBD ISS platform. The pipeline carries live battery data from the vehicle's CAN bus to a remote web dashboard through a sequence of embedded, network, server, and browser components. The architecture was designed to be hardware-independent: the same dashboard and backend serve both a direct USB serial connection (for lab use) and a cellular GPRS connection from the field.
+\subsection{End-to-End Pipeline Sequence}
+
+Figure~\ref{fig:diag-sequence} shows the complete message sequence for a single 5-second publish cycle, from CAN frame reception on the ESP32 through to dashboard rendering in the browser.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/diag-sequence.png}
+    \caption{End-to-end cloud telemetry sequence diagram: ESP32 CAN drain and JSON build, SIM800L AT command exchange, FastAPI ingest and SQLite write, WebSocket broadcast, and browser render --- one complete cycle every 5 seconds.}\label{fig:diag-sequence}
+\end{figure}
+
+This section describes the complete cloud telemetry pipeline designed and implemented for the Bako OBD ISS platform~\cite{evmonitoring}. The pipeline carries live battery data from the vehicle's CAN bus to a remote web dashboard through a sequence of embedded, network, server, and browser components. The architecture was designed to be hardware-independent: the same dashboard and backend serve both a direct USB serial connection (for lab use) and a cellular GPRS connection from the field.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{Telematics \& Data Acquisition}
@@ -15,7 +25,7 @@ The BMS transmits at two rates. High-priority operational frames (0x18FF28F4 and
 
 \subsubsection{Snapshot Aggregation and Publish Cadence}
 
-Because the SIM800L HTTP transaction takes up to 5 seconds over GPRS (bearer setup, DNS, TCP handshake, data transfer), it is not feasible to transmit every individual CAN frame to the cloud. Instead, the firmware implements a \textbf{snapshot model}: all incoming frames are decoded and merged into a single \texttt{BMSData} struct that always holds the most recent value for each field. Every 5 seconds, this struct is serialized into a single JSON document and sent as one HTTP POST to the VPS.
+Because the HTTP transaction over the cellular module takes up to 5 seconds (bearer setup, DNS, TCP handshake, data transfer), it is not feasible to transmit every individual CAN frame to the cloud. Instead, the firmware implements a \textbf{snapshot model}: all incoming frames are decoded and merged into a single \texttt{BMSData} struct that always holds the most recent value for each field. Every 5 seconds, this struct is serialized into a single JSON document and sent as one HTTP POST to the VPS.
 
 This approach has several advantages:
 \begin{itemize}
@@ -26,7 +36,7 @@ This approach has several advantages:
 
 \subsubsection{Cellular Connectivity — SIM800L GPRS}
 
-Wireless transmission is handled by a \textbf{SIM800L GSM/GPRS modem} connected to the ESP32 via HardwareSerial UART1. The modem establishes a GPRS bearer using the carrier's APN, then uses the AT+HTTP* command set to perform a standard HTTP POST to the VPS endpoint.
+Wireless transmission is handled by a \textbf{SIM800L GSM/GPRS module} connected to the ESP32 via HardwareSerial UART1. The module establishes an GPRS bearer using the carrier's APN, then uses the AT+HTTP* command set to perform a standard HTTP POST to the VPS endpoint.
 
 The connection lifecycle at startup is:
 \begin{enumerate}
@@ -60,7 +70,7 @@ The cloud backend runs on a \textbf{Virtual Private Server (VPS)} — a Linux in
 
 \subsubsection{Backend Runtime}
 
-The backend is a single Python file (\texttt{backend/server.py}) running under \textbf{Uvicorn}, an ASGI server. The application framework is \textbf{FastAPI}, which provides automatic OpenAPI documentation, WebSocket support, and asynchronous request handling. The dependencies are minimal by design:
+The backend is a single Python file (\texttt{backend/server.py}) running under \textbf{Uvicorn}~\cite{uvicorn}, an ASGI server. The application framework is \textbf{FastAPI}~\cite{fastapi}, which provides automatic OpenAPI documentation, WebSocket support~\cite{rfc6455}, and asynchronous request handling. The dependencies are minimal by design:
 
 \begin{table}[h]
     \centering
@@ -229,7 +239,7 @@ Communication between the SIM800L and the VPS uses plain HTTP. While this means 
     \item The API key protects against unauthorized data injection.
 \end{itemize}
 
-For a production deployment, upgrading to HTTPS requires either a SIM800L module with firmware $\geq$ R14.18 (\texttt{AT+HTTPSSL=1} support) or replacing the modem with a SIM7600/A7670 module that supports native TLS.
+For a production deployment, upgrading to HTTPS requires enabling TLS on the SIM800L (\texttt{AT+HTTPSSL=1}) and deploying a self-signed or CA-signed certificate, or using an Nginx reverse proxy with Let's Encrypt on the VPS side.
 
 \subsubsection{WebSocket and Dashboard Access}
 
@@ -273,7 +283,7 @@ The JSON body sent by the ESP32 to \texttt{POST /api/ingest} uses a \textbf{nest
         \midrule
         \texttt{device\_id}   & string & Configurable in \texttt{secrets.h} \\
         \texttt{timestamp}    & string & Network time from \texttt{AT+CCLK?} (or \texttt{uptime\_ms} fallback) \\
-        \texttt{source}       & string & Always \texttt{"esp32-sim800l"} \\
+        \texttt{source}       & string & Always \texttt{"esp32-sim7670e"} \\
         \texttt{connected}    & bool   & Always \texttt{true} when sent by the ESP32 \\
         \texttt{frame\_count} & int    & Cumulative CAN frames decoded since boot \\
         \texttt{fault\_level} & int    & 0 = normal, 1 = serious fault \\
