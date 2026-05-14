@@ -1,0 +1,23 @@
+sequenceDiagram
+    participant ESP as ESP32
+    participant GSM as SIM7670E
+    participant API as FastAPI (VPS)
+    participant DB as SQLite
+    participant WS as WebSocket
+    participant BR as Browser
+
+    note over ESP: Every 5 seconds
+    ESP->>ESP: Drain MCP2515 CAN buffer
+    ESP->>ESP: decodeFrame() × N
+    ESP->>ESP: buildJSON()
+    ESP->>GSM: AT+HTTPINIT / AT+HTTPPARA
+    ESP->>GSM: AT+HTTPDATA (JSON payload)
+    ESP->>GSM: AT+HTTPACTION=1 (POST)
+    GSM->>API: POST /api/ingest
+    API->>DB: INSERT INTO snapshots
+    DB-->>API: rowid
+    API-->>GSM: 200 OK
+    GSM-->>ESP: +HTTPACTION:1,200,N
+    API--)WS: broadcast(snapshot)
+    WS--)BR: JSON push (≤2 s)
+    BR->>BR: Render dashboard

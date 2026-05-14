@@ -52,7 +52,7 @@ The system supports four real-world use cases:
 │  O'CELL BMS  ──CAN 250kbps──  ESP32 + MCP2515  ──USB 115200──  PC │
 └───────────────────────────────────────────────────────────────────┘
                                                          │
-                                                  server.py (FastAPI)
+                                                  server_frame_parser_Json.py (FastAPI)
                                                   pyserial reader
                                                   J1939 frame decoder
                                                          │ WebSocket /ws
@@ -72,13 +72,11 @@ The system supports four real-world use cases:
 └──────────────────────────────────────────────────────────────────────┘
                                       │ HTTP POST every 5 s
                                       ▼
-                          VPS  server.py  POST /api/ingest
-                          SQLite bms_cloud.db  (history)
-                          in-memory _cloud_state (live)
-                                      │ WebSocket /ws/cloud
-                                      │ 2 Hz JSON push
-                              index.html (browser)
-                              CLOUD mode
+                          VPS  server_frame_parser_Json.py  POST /api/ingest
+                          in-memory state (live; no SQLite in current version)
+                                      │ WebSocket /ws
+                                      │ 10 Hz JSON push
+                              index.html (browser, Cloud mode)
 ```
 
 ### Log Replay (no hardware needed)
@@ -91,7 +89,7 @@ data/raw/bms_log_*.txt
    streams JSON snapshots)
         │ HTTP POST /api/ingest
         ▼
-  VPS server.py  ──→  /ws/cloud  ──→  browser CLOUD mode
+  VPS server_frame_parser_Json.py  ──→  /ws  ──→  browser (Cloud mode)
 ```
 
 ---
@@ -115,10 +113,10 @@ Bako_OBD_ISS/
 │       └── CAN_simulation_7_phases_wifi.ino
 │
 ├── backend/
-│   ├── server.py                      # FastAPI server — serial + cloud endpoints
+│   ├── server_frame_parser_Json.py    # FastAPI server — serial + Wi-Fi AP + cloud ingest
 │   ├── replay_to_cloud.py             # CAN log → decode → POST /api/ingest replay tool
 │   ├── requirements.txt               # Pinned pip dependencies
-│   └── bms_cloud.db                   # SQLite cloud snapshot store (auto-created)
+│   └── bms_cloud.db                   # SQLite file (legacy — not written by current server)
 │
 ├── frontend/
 │   └── index.html                     # Live dashboard (SERIAL / CLOUD toggle)
@@ -299,7 +297,7 @@ Values above 3387 mV (during active charging) are clamped to 100%.
 |------|------|----------------|-------------|
 | CLI parser | `data/battery_can_parser.py` | No | Parse a log file, print report or CSV |
 | Log-to-cloud replay | `backend/replay_to_cloud.py` | No | Replay log → POST /api/ingest → browser dashboard |
-| Live dashboard | `frontend/index.html` + `backend/server.py` | ESP32 (or log replay) | Real-time SERIAL / CLOUD dashboard |
+| Live dashboard | `frontend/index.html` + `backend/server_frame_parser_Json.py` | ESP32 (or log replay) | Real-time SERIAL / CLOUD dashboard |
 | Cloud firmware | `firmware/esp32_cloud_publisher/` | ESP32 + MCP2515 + SIM800L | Reads CAN, POSTs JSON to VPS via SIM800L GPRS |
 
 ---
@@ -311,26 +309,27 @@ Values above 3387 mV (during active charging) are clamped to 100%.
 ```bash
 cd backend
 pip install -r requirements.txt
-python3 server.py                        # auto-detects USB port
-python3 server.py --port /dev/ttyUSB0   # or specify port
+python3 server_frame_parser_Json.py                      # port 8765, auto-detects USB
+python3 server_frame_parser_Json.py --web-port 8787      # custom port
 ```
 
-Open `http://localhost:8765` — click **SERIAL** in the header.
+Open `http://localhost:8765` — the dashboard loads in Serial mode by default.
+Use the mode selector in the header to switch to Wi-Fi AP or Cloud mode.
 
 ### Cloud dashboard from a real log file (no ESP32 needed)
 
 **Terminal 1 — start backend:**
 ```bash
 cd /path/to/Bako_OBD_ISS
-python3 backend/server.py --cloud-only
+python3 backend/server_frame_parser_Json.py
 ```
 
 **Terminal 2 — replay the log to the backend:**
 ```bash
-python3 backend/replay_to_cloud.py --speed 5 --interval 5000
+python3 backend/replay_to_cloud.py --speed 5
 ```
 
-Open `http://localhost:8765` — click **CLOUD** in the header. The dashboard animates live as the log replays.
+Open `http://localhost:8765`. In the dashboard mode selector, choose **Cloud** mode. The dashboard updates live as the log replays.
 
 ### Offline log analysis (no server, no internet)
 
@@ -396,7 +395,7 @@ python3 data/battery_can_parser.py data/raw/bms_log_2026-03-10T10-20-02.txt --cs
 
 Reads a raw CAN log file, decodes every BMS frame using the same logic as the ESP32 firmware, builds a nested JSON snapshot, and POSTs it to `POST /api/ingest` on the backend — exactly what the real ESP32 does via SIM800L.
 
-Pipeline: `log file → decode frames → nested JSON → POST /api/ingest → server.py → /ws/cloud → browser`
+Pipeline: `log file → decode frames → nested JSON → POST /api/ingest → server_frame_parser_Json.py → /ws/cloud → browser`
 
 ### CLI Arguments
 
@@ -448,26 +447,27 @@ Replay complete.
 
 ## 10. Tool 3 — Live Dashboard
 
-**Files:** `backend/server.py` + `frontend/index.html`
+**Files:** `backend/server_frame_parser_Json.py` + `frontend/index.html`
 **Requirements:** Python 3.8+, `pip install -r backend/requirements.txt`
 
-### Source Toggle
+### Mode Selector
 
-The dashboard header has a **SERIAL / CLOUD** toggle:
+The dashboard header has a mode selector (Serial / Wi-Fi AP / Cloud):
 
 | Mode | Data source | WebSocket |
 |------|-------------|-----------|
-| SERIAL | ESP32 USB serial port | `/ws` — 10 Hz push |
-| CLOUD | Latest `/api/ingest` POST (in-memory) | `/ws/cloud` — 2 Hz push |
+| Serial | ESP32 USB serial port | `/ws` — 10 Hz push |
+| Wi-Fi AP | ESP32 TCP socket at `192.168.4.1:9000` | `/ws` — 10 Hz push |
+| Cloud | Latest `/api/ingest` POST (in-memory state) | `/ws` — 10 Hz push |
 
 ### Running
 
 ```bash
-# Serial mode (ESP32 connected via USB)
-python3 backend/server.py
+# Start the server (one command — mode is selected in the dashboard UI)
+python3 backend/server_frame_parser_Json.py
 
-# Cloud-only mode (no serial port required)
-python3 backend/server.py --cloud-only
+# Custom port
+python3 backend/server_frame_parser_Json.py --web-port 8787
 ```
 
 Open **http://localhost:8765**
@@ -496,17 +496,17 @@ ESP32 firmware (main.cpp)
     ├─ Builds JSON snapshot every 5 s
     └─ SIM800L HTTP POST → VPS POST /api/ingest
 
-backend/server.py  (running on VPS)
-    ├─ POST /api/ingest  stores to SQLite + updates in-memory state
-    └─ /ws/cloud WebSocket pushes in-memory state to browser every 2 s
+backend/server_frame_parser_Json.py  (running on VPS)
+    ├─ POST /api/ingest  updates in-memory state (no SQLite in current version)
+    └─ /ws  WebSocket pushes in-memory state to browser at 10 Hz
 
-index.html (CLOUD mode)
+index.html (Cloud mode via dashboard mode selector)
     └─ Receives and renders live BMS data
 ```
 
 ### JSON Snapshot Structure
 
-The ESP32 POSTs this JSON body to `/api/ingest` and the browser receives it unchanged via `/ws/cloud`:
+The ESP32 POSTs this JSON body to `/api/ingest` and the browser receives it via `/ws`:
 
 ```json
 {
@@ -583,12 +583,13 @@ The ESP32 POSTs this JSON body to `/api/ingest` and the browser receives it unch
 | Method | Path | Description |
 |--------|------|-------------|
 | `GET` | `/` | Serve dashboard HTML |
-| `WS` | `/ws` | Serial stream — 10 Hz |
-| `WS` | `/ws/cloud` | Cloud stream — in-memory state, 2 Hz |
+| `GET` | `/api/mode` | Return current mode + config + available serial ports |
+| `POST` | `/api/mode` | Switch mode: `{"mode": "serial"\|"wifi"\|"off"}` |
 | `POST` | `/api/ingest` | Receive BMS JSON from ESP32 (requires `X-Api-Key` header) |
-| `GET` | `/api/latest` | Most recent cloud snapshot |
-| `GET` | `/api/history?limit=N` | Last N snapshots from SQLite (default 100) |
-| `GET` | `/api/cloud-log` | Last 100 cloud communication events (polled by Cloud Log panel every 2 s) |
+| `GET` | `/api/latest_push` | Most recent snapshot received via `/api/ingest` |
+| `WS` | `/ws` | Full server state — 10 Hz push to browser |
+
+> **Note:** There is no `/ws/cloud`, `/api/history`, or `/api/cloud-log` endpoint in the current server. Data received via `/api/ingest` is kept in memory (lost on restart).
 
 ---
 
@@ -666,7 +667,7 @@ pio device monitor   # 115200 baud
 
 ### POST `/api/ingest`
 
-Receives a nested BMS snapshot from the ESP32. Stores in SQLite and updates the in-memory cloud state for `/ws/cloud`.
+Receives a nested BMS snapshot from the ESP32. Updates the in-memory server state (data is not written to SQLite in the current version).
 
 ```bash
 curl -X POST http://localhost:8765/api/ingest \
@@ -685,39 +686,46 @@ curl -X POST http://localhost:8765/api/ingest \
   }'
 ```
 
-Response: `{"status": "ok", "ts": "2026-04-15T09:32:11.123456"}`
+Response: `{"ok": true}`
 
-### GET `/api/latest`
+### GET `/api/latest_push`
 
-Returns the most recent cloud snapshot.
+Returns the most recent snapshot received via `/api/ingest`.
 
-### GET `/api/history?limit=100`
-
-Returns the last N snapshots from SQLite, newest first.
-
-### WebSocket `/ws/cloud`
-
-Connect from JS: `new WebSocket("ws://localhost:8765/ws/cloud")`
-
-Sends the same nested JSON structure as `/api/latest` every 2 seconds, sourced from the last `/api/ingest` POST.
-
-### GET `/api/cloud-log`
-
-Returns a JSON array of the last 100 timestamped cloud communication events. The Cloud Log panel in the dashboard polls this endpoint every 2 seconds independently of the SERIAL/CLOUD source toggle.
-
-```json
-[
-  "[08:20:39] [RECV] POST /api/ingest from 192.168.1.x — device=esp32-bms-001 cells=19 SOC=87.4% pack=62.3V",
-  "[08:20:40] [WS]   Browser connected to /ws/cloud from 127.0.0.1",
-  "[08:20:41] [ERR]  HTTP 401: Invalid API key"
-]
+```bash
+curl -s http://localhost:8765/api/latest_push | python3 -m json.tool
 ```
 
-| Level | Colour | Meaning |
-|-------|--------|---------|
-| `RECV` | Green | BMS snapshot received via `POST /api/ingest` |
-| `WS` | Yellow | Browser tab connected or disconnected from `/ws/cloud` |
-| `ERR` | Red | HTTP error or bad API key |
+Returns HTTP 404 if no snapshot has been received yet.
+
+### GET `/api/mode`
+
+Returns current reader mode, configuration, and list of available serial ports.
+
+### POST `/api/mode`
+
+Switches the reader mode at runtime. The new mode is saved to `mode_config.json`.
+
+```bash
+# Switch to off (VPS use — no local serial port)
+curl -X POST http://localhost:8765/api/mode \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "off"}'
+
+# Switch to serial with a specific port
+curl -X POST http://localhost:8765/api/mode \
+  -H "Content-Type: application/json" \
+  -d '{"mode": "serial", "serial": {"port": "/dev/ttyUSB0", "baud": 115200}}'
+```
+
+### WebSocket `/ws`
+
+The single WebSocket endpoint — pushes the full in-memory state at 10 Hz.
+
+```js
+const ws = new WebSocket("ws://localhost:8765/ws");
+ws.onmessage = e => console.log(JSON.parse(e.data));
+```
 
 ---
 
@@ -825,7 +833,7 @@ Current version: **v0.6.0** — 2026-04-18 — Nested JSON schema migration
 
 **APN varies by carrier** — The default APN is `"internet.ooredoo.tn"`. Maroc Telecom uses `"iam"`, Inwi uses `"inwi"`. Set yours in `include/secrets.h`.
 
-**Port already in use on server restart** — If `server.py` fails with `address already in use`, run: `lsof -ti :8765 | xargs kill -9`
+**Port already in use on server restart** — If `server_frame_parser_Json.py` fails with `address already in use`, run: `lsof -ti :8765 | xargs kill -9`
 
 **Report content** — sections §04, §08, §09 are written. The remaining section files contain `% Content placeholder` for other teams to fill.
 

@@ -5,7 +5,7 @@ This section describes the software developed for the Bako OBD ISS platform, cov
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{Firmware Architecture \& RTOS Integration}
 
-The ESP32 firmware is built on the \textbf{Arduino framework} using the \textbf{PlatformIO} build system, which provides dependency management, cross-compilation, and serial monitoring in a single toolchain. Although the Arduino framework does not expose the underlying FreeRTOS scheduler directly, the ESP32's dual-core architecture is leveraged implicitly: the Arduino \texttt{loop()} function executes on Core 1 while the Wi-Fi/Bluetooth stack occupies Core 0. All BMS-related tasks — CAN frame reception, state accumulation, and HTTP publishing — run sequentially on Core 1 without preemption, which simplifies state management and eliminates the need for mutexes at the firmware level.
+The ESP32 firmware is built on the \textbf{Arduino framework} using the \textbf{PlatformIO} build system~\cite{platformio}, which provides dependency management, cross-compilation, and serial monitoring in a single toolchain. Although the Arduino framework does not expose the underlying FreeRTOS scheduler directly, the ESP32's dual-core architecture is leveraged implicitly: the Arduino \texttt{loop()} function executes on Core 1 while the Wi-Fi/Bluetooth stack occupies Core 0. All BMS-related tasks — CAN frame reception, state accumulation, and HTTP publishing — run sequentially on Core 1 without preemption, which simplifies state management and eliminates the need for mutexes at the firmware level.
 
 The firmware follows a \textbf{cooperative, interrupt-driven} model. The MCP2515 CAN transceiver asserts an active-low \texttt{INT} line (GPIO 4) each time a new frame is placed in its receive buffer. The main loop polls this pin continuously and drains all pending frames before entering the timed publish cycle. This design ensures that no CAN frame is ever dropped due to buffer overflow, even during the longer HTTP transaction window.
 
@@ -18,17 +18,17 @@ The overall execution model is summarized in Figure~\ref{fig:fw-flow}.
     \label{fig:fw-flow}
 \end{figure}
 
-The SIM800L GSM modem is driven via \textbf{HardwareSerial UART1} (GPIO 16/17) at 9600 baud. HardwareSerial was chosen over SoftwareSerial because the SIM800L's AT+HTTP* responses can arrive as multi-line bursts that SoftwareSerial's byte-at-a-time interrupt handler occasionally corrupts at 9600 baud on a loaded CPU.
+The SIM800L GSM/GPRS module is driven via \textbf{HardwareSerial UART1} (GPIO 16/17) at 9600 baud. HardwareSerial was chosen over SoftwareSerial because the module's AT+HTTP* responses can arrive as multi-line bursts that SoftwareSerial's byte-at-a-time interrupt handler occasionally corrupts at 9600 baud on a loaded CPU.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{BMS Firmware}
 \label{sec:bms-firmware}
 
-The BMS firmware is responsible for reading raw CAN frames from the O'CELL IFS60.8-500-F-E3 battery management system, decoding them according to the \textbf{SAE J1939} standard, maintaining a live BMS state structure, and serializing that state to JSON for cloud upload.
+The BMS firmware is responsible for reading raw CAN frames from the O'CELL IFS60.8-500-F-E3 battery management system~\cite{ocellspec}, decoding them according to the \textbf{SAE J1939} standard~\cite{bakocan}, maintaining a live BMS state structure, and serializing that state to JSON for cloud upload.
 
 \subsubsection{CAN Bus Interface}
 
-The physical CAN interface uses a \textbf{MCP2515} controller connected to the ESP32 via the VSPI bus at 10 MHz. The bus operates at \textbf{250 kbps}, which is the standard J1939 baud rate for vehicle control networks. All frames from the O'CELL BMS use 29-bit extended CAN identifiers, formatted according to the J1939 Parameter Group Number (PGN) convention:
+The physical CAN interface uses a \textbf{MCP2515} controller connected to the ESP32 via the VSPI bus at 10 MHz. The bus operates at \textbf{250 kbps}, which is the standard J1939 baud rate for vehicle control networks~\cite{saej1939}. All frames from the O'CELL BMS use 29-bit extended CAN identifiers, formatted according to the J1939 Parameter Group Number (PGN) convention:
 
 \begin{equation}
     \label{eq:j1939-id}
@@ -105,7 +105,7 @@ This 100 ms frame carries the core operational state of the pack. The byte layou
 \end{table}
 
 \paragraph{Temperature Probes (0x18B428F4).}
-Up to eight thermal probes are encoded as single bytes using the formula $T[\text{°C}] = \text{raw} - 40$. A raw value of 0xFF indicates a disconnected sensor and is skipped. The O'CELL pack fitted to the vehicle contains four active probes.
+Up to eight thermal probes are encoded as single bytes using the formula $T[\text{°C}] = \text{raw} - 40$~\cite{ds18b20datasheet}. A raw value of 0xFF indicates a disconnected sensor and is skipped. The O'CELL pack fitted to the vehicle contains four active probes.
 
 \paragraph{Charging Request (0x18FFE5F4).}
 This frame is transmitted by the BMS toward the on-board charger. It specifies the maximum allowable terminal voltage (bytes 0--1, 0.1 V/bit) and maximum charge current (bytes 2--3, 0.1 A/bit). Bit 0 of byte 4 being clear signals that the BMS is requesting the charger to begin charging.
@@ -117,7 +117,7 @@ All decoded values are accumulated into a single \texttt{BMSData} struct that pe
 \subsubsection{SOC Calibration}
 \label{sec:soc-cal}
 
-The firmware uses a \textbf{voltage-based SOC estimate} derived from the average cell voltage. This method was selected because it correlates closely with the vehicle's own dashboard reading, unlike the BMS internal coulomb counter which can drift over time.
+The firmware uses a \textbf{voltage-based SOC estimate} derived from the average cell voltage~\cite{lifepo4soc}. This method was selected because it correlates closely with the vehicle's own dashboard reading, unlike the BMS internal coulomb counter which can drift over time~\cite{bmssoc}.
 
 The calibration was performed over four separate on-vehicle sessions, comparing the computed average cell voltage with the vehicle's onboard display:
 
@@ -150,7 +150,7 @@ Table~\ref{tab:soc-cal} shows the four calibration sessions used to arrive at th
 
 \subsubsection{Cloud Publishing via SIM800L}
 
-At every 5-second publish interval, the firmware calls \texttt{buildJSON()} to serialize the current \texttt{BMSData} struct into a nested JSON document using the ArduinoJson v7 library, then calls \texttt{httpPost()} to deliver it to the VPS backend via SIM800L GPRS.
+At every 5-second publish interval, the firmware calls \texttt{buildJSON()} to serialize the current \texttt{BMSData} struct into a nested JSON document using the ArduinoJson v7 library~\cite{arduinojson}, then calls \texttt{httpPost()} to deliver it to the VPS backend via SIM800L GPRS.
 
 The payload uses a five-section nested schema: a top-level envelope wraps \texttt{battery}, \texttt{temperatures}, \texttt{solar}, \texttt{dc\_dc}, and \texttt{vehicle} sub-objects. Individual cell voltages are encoded as a 1-based JSON array (\texttt{cells[0] = null}, \texttt{cells[1]\ldots cells[19] = \{mv, status\}}). Temperature probes follow the same convention in \texttt{temperatures.battery\_cells}. Sensors not yet instrumented (solar, DC/DC, vehicle) appear as \texttt{null}-valued fields so the schema remains stable as additional sensors are commissioned.
 
@@ -166,16 +166,16 @@ The HTTP transaction uses the SIM800L's native \textbf{AT+HTTP*} command set ove
     \item \texttt{AT+HTTPTERM} — close the session.
 \end{enumerate}
 
-During the AT+HTTPACTION wait loop (up to 30 s), the firmware continues draining CAN frames from the MCP2515 receive buffer so that no BMS data is lost while the modem is busy.
+During the AT+HTTPACTION wait loop (up to 30 s), the firmware continues draining CAN frames from the MCP2515 receive buffer so that no BMS data is lost while the module is busy.
 
 \subsubsection{Brownout Recovery}
 
-A known failure mode of the SIM800L is a mid-transaction power brownout caused by the $\sim$1.5 A peak current during GPRS transmission exceeding the supply rail's transient capability. When this occurs, the modem resets and emits an unsolicited \texttt{"Call Ready"} string in its UART output.
+A known failure mode of the SIM800L is a mid-transaction power brownout caused by the $\sim$1.5 A peak current during LTE transmission exceeding the supply rail's transient capability. When this occurs, the module resets and emits an unsolicited \texttt{"Call Ready"} string in its UART output.
 
 The firmware detects this string in every AT response buffer (both \texttt{sendAT()} and \texttt{sendATExpect()} and the \texttt{HTTPACTION} wait loop) and sets a global \texttt{g\_moduleRebooted} flag. When a publish cycle fails and this flag is set, the recovery sequence is:
 
 \begin{enumerate}
-    \item Wait 20 s for the SIM card and GSM stack to re-initialize.
+    \item Wait 20 s for the SIM card and LTE stack to re-initialize.
     \item Retry \texttt{AT+CPIN?} up to six times at 4-second intervals.
     \item Re-open the GPRS bearer and retry the publish once more.
 \end{enumerate}
@@ -184,15 +184,51 @@ The long-term hardware fix is to add a 1000 µF / 10 V bulk capacitor close to t
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{Motor Control Algorithms}
-% Content placeholder — to be completed by the Motor Control team
+
+Motor control algorithms are outside the scope of this monitoring system. The ESP32 firmware reads and monitors motor-related sensor data --- specifically motor temperature via DS18B20 and current draw via the ACS712/ACS758 sensors --- but does not interface with the motor controller or implement any drive control logic. Motor speed and torque management remain the responsibility of the existing vehicle control electronics. This boundary is intentional: the monitoring system observes and reports motor operating conditions without intervening in the drivetrain control loop.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{Vehicle Management Unit (VMU) Software}
-% Content placeholder — to be completed by the VMU team
+
+The Vehicle Management Unit (VMU) is implemented on the same ESP32 microcontroller and is responsible for the higher-level coordination layer above raw sensor acquisition. Specifically, the VMU software handles four functions:
+
+\begin{description}
+    \item[\textbf{Data aggregation}] Collecting decoded CAN frames from the BMS (cell voltages, SOC, pack current, temperatures, and fault flags) together with readings from external sensors (DC/DC voltage, MPPT current, motor temperature, and handbrake position) into a unified telemetry structure.
+
+    \item[\textbf{Data formatting}] Structuring all acquired telemetry into a consistent JSON schema for transmission to the dashboard over WebSocket or to the cloud back-end via the SIM800L GSM/GPRS module.
+
+    \item[\textbf{Communication management}] Switching between Wi-Fi Access Point mode (for local dashboard access) and Serial mode (for USB-connected debugging and development), based on the firmware build configuration.
+
+    \item[\textbf{Alert handling}] Monitoring configured thresholds --- including over-temperature limits for the motor and DC/DC converter, battery fault flags from the BMS, and handbrake engagement --- and updating the status LED outputs and dashboard warning panels accordingly.
+\end{description}
+
+The VMU software does not perform low-level motor control or BMS internal management; it only reads data from those systems and presents it to the operator.
 
 % ─────────────────────────────────────────────────────────────────────────────
-\subsection{OTA Update \& Secure Boot}
-% Content placeholder — to be completed by the embedded systems team
+\subsection{ESP32 Access Point Mode}
+
+The ESP32 operates in \textbf{Wi-Fi Access Point (AP) mode} for local dashboard access, having been migrated from an earlier Station Mode implementation. The ESP32 chip supports two distinct Wi-Fi operating modes: Station Mode (STA), where it joins an existing router and receives a DHCP-assigned IP; and Access Point Mode (AP), where it becomes the router, broadcasts its own SSID, and assigns addresses to connecting devices with no external router required.
+
+\subsubsection*{Why Station Mode Was Replaced}
+
+The original firmware connected the ESP32 to a home Wi-Fi router as a station. This introduced three practical drawbacks: the SSID and password were hardcoded, so using the system in a different location required reflashing; the router's DHCP server assigned a different IP address after every reboot, requiring firmware updates to match the PC's current address; and without a nearby router, the simulation environment required a mobile hotspot workaround that added extra configuration steps. AP mode resolves all three issues: the ESP32 brings its own network, the IP address 192.168.4.1 never changes, and the system operates in any location without code changes.
+
+\subsubsection*{AP Mode Internal Operation}
+
+When \texttt{WiFi.softAP()} is called, the ESP32 radio switches to infrastructure mode. The built-in DHCP server listens on 192.168.4.1 and issues leases from the pool 192.168.4.2--192.168.4.11. The application code opens a \texttt{WiFiServer} on port 9000. When a client connects to 192.168.4.1:9000, the lwIP stack completes the TCP three-way handshake and places the connection in the accept queue for the firmware to service.
+
+\subsubsection*{Firmware Changes}
+
+The migration from Station to AP mode required minimal changes, isolated entirely to the Wi-Fi and TCP layer. The simulation engine, phase logic, frame encoders, and timing are identical to the station-mode version. The key changes were:
+
+\begin{itemize}
+    \item \textbf{Removed:} \texttt{WIFI\_SSID}, \texttt{WIFI\_PASS}, \texttt{SERVER\_IP} constants; \texttt{ensureWiFi()} and \texttt{ensureTCP()} functions.
+    \item \textbf{Added:} \texttt{AP\_SSID}, \texttt{AP\_PASS}, \texttt{AP\_CHANNEL} constants; \texttt{WiFiServer server(TCP\_PORT)} global; \texttt{startAP()} and \texttt{ensureClient()} functions.
+    \item \texttt{setup()} now calls \texttt{startAP()} and \texttt{server.begin()} instead of \texttt{ensureWiFi()} and \texttt{ensureTCP()}.
+    \item \texttt{loop()} calls \texttt{ensureClient()} with a 50~ms yield when no client is connected, keeping the DHCP and beacon tasks running without burning CPU.
+\end{itemize}
+
+The \texttt{server.py} dashboard application required zero modifications. It accepts connections on any local interface, including the 192.168.4.x interface created when the PC joins the BAKO\_SMU network. The only operational change for the user is connecting the PC to the \texttt{BAKO\_SMU} Wi-Fi network before launching the server.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{Unit \& Integration Testing}
@@ -234,3 +270,203 @@ The live dashboard (\texttt{frontend/index.html}) was tested in both SERIAL and 
     \item[CLOUD mode] Data replayed from the log file through \texttt{/api/ingest}. The dashboard received snapshots via \texttt{/ws/cloud} at 2 Hz and all panels rendered correctly, including the cloud communication log panel which displayed timestamped RECV and WS events.
     \item[Reconnect behavior] The backend was deliberately stopped while the dashboard was open. The browser WebSocket closed, the connection status indicator turned red (Disconnected), and the overlay appeared. On server restart, the client automatically reconnected within 5 seconds and resumed live updates.
 \end{description}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection{Web Dashboard}
+
+The BAKO DIAGNOSTICS web dashboard is a dark-theme, single-page web application that provides a real-time overview of the entire vehicle monitoring state. It is served by the FastAPI back-end at the root URL (\texttt{/}) and communicates with the server via WebSocket (\texttt{/ws} in serial mode, \texttt{/ws/cloud} in cloud mode). The dashboard requires no installation; any browser that connects to the server IP receives the complete HTML, CSS, and JavaScript in a single response.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/dashboard-screenshot.png}
+    \caption{BAKO DIAGNOSTICS live dashboard --- dark-theme single-page interface showing SOC ring gauge, 19-cell voltage grid, temperature time-series chart, and external sensor panel.}
+    \label{fig:dashboard-screenshot}
+\end{figure}
+
+\subsubsection*{Panel Layout}
+
+The dashboard is organised into four panels arranged to give the engineer an at-a-glance view of all monitored subsystems. Table~\ref{tab:dashboard-panels} describes the content of each panel.
+
+\begin{table}[H]
+\centering
+\caption{Dashboard Panel Layout}
+\label{tab:dashboard-panels}
+\small
+\begin{tabular}{>{\bfseries}p{3.2cm} p{10.0cm}}
+\toprule
+Panel & Content \\
+\midrule
+Left panel &
+  SOC ring gauge (colour-coded: green $>$30\%, orange 15--30\%, red $<$15\%); pack voltage (V); pack current (A, signed); remaining capacity (Ah); State of Health (SoH) indicator. \\
+\midrule
+Central panel &
+  19-cell voltage bar chart with colour-coded per-cell thresholds (green: normal, orange: approaching limit, red: fault); minimum, maximum, and average cell voltage displayed below the grid; cell spread indicator (max $-$ min, mV). \\
+\midrule
+Temperature panel &
+  Four BMS temperature probe readings (individual bars); rolling 30-sample average trace; time-series line chart scrolling at 1 Hz; high-temperature threshold line drawn at the alert boundary. \\
+\midrule
+Right panel &
+  Extended sensor readings: DC/DC converter voltage, MPPT controller output current, motor temperature (DS18B20 external probe), handbrake state (Engaged / Released), connection status indicator (Live / Waiting / Disconnected), cloud communication event log. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{Threshold Colour Coding}
+
+Cell voltage bars transition through three colour states based on configurable per-cell thresholds: green when the cell is within its normal operating band (2900--3450~mV for LiFePO4), orange when the cell approaches either end of its safe range, and red when a threshold breach is detected. The SOC ring applies the same three-state scheme based on the pack-level SOC percentage. These thresholds are defined as JavaScript constants in \texttt{frontend/index.html} and can be adjusted without modifying the back-end.
+
+\subsubsection*{Data Export}
+
+The dashboard includes a \textbf{Download CSV} button that retrieves the last 100 snapshots from \texttt{/api/history} and writes them to a timestamped \texttt{.csv} file. The export covers all 19 cell voltages, all four temperature probes, pack SOC, pack voltage, pack current, and extended sensor readings in a single flat row per snapshot, suitable for import into spreadsheet or data analysis tools.
+
+\subsubsection*{Mode Selector}
+
+A mode pill in the dashboard header opens a modal dialog that lets the operator switch the active data source between Serial and Wi-Fi AP modes at runtime, without restarting the server. The mode selection is sent via \texttt{POST /api/mode} and persisted to \texttt{mode\_config.json} so that it is automatically restored on the next server launch.
+
+\begin{itemize}
+    \item \textbf{Serial mode} --- the operator selects or auto-detects the connected ESP32 USB port and sets the baud rate (default 115200). The server reads newline-delimited CAN frames from the serial stream.
+    \item \textbf{Wi-Fi AP mode} --- the operator enters the ESP32 AP address (default 192.168.4.1) and TCP port (default 9000), then clicks Apply. The PC must already be connected to the \texttt{BAKO\_SMU} Wi-Fi network.
+\end{itemize}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.85\textwidth]{images/mode-selector.png}
+    \caption{Dashboard mode selector dialog: Serial mode (left) and Wi-Fi AP mode (right). Mode is switched without restarting the server.}
+    \label{fig:mode-selector}
+\end{figure}
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection{Simulation \& Emulation}
+
+Two complementary simulation tools were developed to enable dashboard testing and firmware validation without requiring a live vehicle or a real O'CELL BMS. Both tools produce data that is indistinguishable from real hardware at the server API level.
+
+\subsubsection*{ESP32 CAN Frame Simulator}
+
+The firmware file \texttt{CAN\_simulation\_7\_phases/CAN\_simulation\_7\_phases.ino} runs on a standalone ESP32 and generates a complete stream of realistic O'CELL BMS CAN frames over USB Serial at 115200 baud, in the same \texttt{[Xms] ID: 0x... DLC: N Data: ...} format that the real vehicle produces.
+
+The simulator models a full charge/discharge lifecycle across seven sequential phases. Table~\ref{tab:sim-phases} describes each phase and its duration.
+
+\begin{table}[H]
+\centering
+\caption{ESP32 CAN Simulator --- 7-Phase Scenario Cycle}
+\label{tab:sim-phases}
+\small
+\begin{tabular}{c >{\bfseries}p{3.5cm} r p{6.0cm}}
+\toprule
+Phase & Name & Duration & Description \\
+\midrule
+0 & REST             & 20~s  & Pack idle at $\approx$72\% SOC; cells balanced; ambient temperature ($\approx$24\textdegree{}C). \\
+1 & BULK DISCHARGE   & 120~s & 38~A load; SOC falls 72\%$\to$30\%; temperatures climb; weak cells 7 and 14 develop 15~mV extra sag. \\
+2 & LOW SOC WARNING  & 25~s  & BMS throttles current 38~A$\to$12~A; SOC 30\%$\to$18\%; discharge limit ramps down to 15~A. \\
+3 & RECOVERY / REST  & 15~s  & Load removed; voltage bounce-back; temperatures plateau. \\
+4 & CC CHARGE        & 90~s  & 22~A constant-current charge; SOC climbs 18\%$\to$80\%; cells re-balance. \\
+5 & CV TAPER         & 40~s  & Pack near full; charge current tapers 22~A$\to$2~A; spread narrows. \\
+6 & FULL REST        & 20~s  & SOC 100\%; zero charge current; cells balanced ($\leq$8~mV spread); loop restarts. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+Each of the 19 cells has a fixed personality offset ($-20$~mV to $+12$~mV) so the cell spread is realistic and stable across frames. Cells 7 and 14 carry an additional $-18$~mV offset and a load-proportional extra sag, simulating weak cells that would trigger a threshold alert during heavy discharge. The thermal model tracks three sensors at different positions (centre, end-plate, BMS PCB) with individual heating and cooling rates. All six frame types are emitted every 500~ms: cell voltage groups (0x18C8--CC28F4), temperature (0x18B428F4), Basic Message~1 (0x18FF28F4), Basic Message~2 (0x18FE28F4), and charging request (0x18FFE5F4).
+
+\subsubsection{ESP32 Firmware Simulator \& System Interface}
+
+An ESP32-based firmware simulator and monitoring interface were developed to validate the BAKO system without requiring the physical vehicle during every testing session. The simulator reproduces realistic vehicle behaviour by generating sensor telemetry and transmitting it continuously to the monitoring dashboard.
+
+The implemented firmware simulates 12 external sensors, including current, voltage, temperature, handbrake, and GNSS data. To improve testing coverage, seven automated operating scenarios were integrated: Normal Driving, Low Battery Warning, Charging Mode, High Solar Input, Night Mode, Handbrake Fault, and Overheat Condition. The active scenario changes automatically every 30 seconds, while all sensor values are transmitted every 500~ms.
+
+The ESP32 communicates with the backend dashboard through WebSocket communication, enabling real-time updates directly inside the browser interface. The dashboard displays battery cell voltages, temperatures, state of charge (SOC), solar monitoring information, and handbrake status. In addition, telemetry logs can be exported in TXT or XLSX formats for later analysis and validation.
+
+This testing environment significantly reduces dependency on the physical vehicle during development and debugging phases. It also provides a reproducible and controlled platform for validating system behaviour, communication pipelines, and dashboard integration under multiple operating conditions.
+
+\subsubsection*{Python Log Replay Tool}
+
+The script \texttt{simulate.py} provides a complementary simulation path that uses a captured real-vehicle CAN log rather than synthetic data. It reads the log file \texttt{data/raw/bms\_log\_2026-03-10T10-20-02.txt} (containing 3197 frames from a real on-vehicle session) and pipes it into the live server over a virtual serial port, allowing the full dashboard to operate on authentic data without physical hardware.
+
+The replay sequence is:
+\begin{enumerate}
+    \item A virtual PTY (pseudo-terminal) pair is created using \texttt{socat}. One end is handed to the server as its serial port; the other is used by the feeder thread to write log lines.
+    \item The FastAPI server is launched as a subprocess on port 8765.
+    \item Once the server's \texttt{/api/mode} endpoint responds, the script posts \texttt{mode=serial} with the virtual PTY path, switching the server into serial-reader mode.
+    \item The browser is opened automatically at \texttt{http://localhost:8765}.
+    \item Log frames are streamed to the PTY feeder end with inter-frame delays derived from the original timestamps, scaled by a configurable speed multiplier (default 2$\times$). The log loops continuously until interrupted.
+\end{enumerate}
+
+The \texttt{--speed} argument allows accelerated replay (e.g., \texttt{--speed 10} for rapid regression testing) while \texttt{--no-browser} suppresses the automatic browser launch for headless test environments.
+
+\subsubsection{Python Emulator Extension: Local Storage and TCP Transmission}
+
+As an extension to the Python-based sensor emulator, a local storage and TCP communication layer was implemented to improve telemetry reliability and prepare the emulator for remote server integration.
+
+The emulator first generates realistic values for the 12 external sensors, including current, voltage, temperature, handbrake state, and GNSS data. Each generated record is then stored locally in a SQLite database before any transmission attempt. This ensures that telemetry data is preserved even if the network connection is unavailable.
+
+A TCP socket client was also developed to transmit unsent records to a remote server. During local testing, a simulated TCP server was used to reproduce the behaviour of the future VPS server. When the server is available, the client sends the stored telemetry records and marks them as sent in the local database. If the connection fails, the data remains stored locally and is retried automatically during the next transmission cycle.
+
+This architecture implements a \textbf{store-and-forward} mechanism. It allows the emulator to continue operating during internet outages while preventing telemetry loss. Once VPS access is provided, only the server IP address in the TCP client configuration needs to be replaced to enable remote deployment.
+
+The implemented extension therefore adds three key capabilities to the emulator:
+\begin{itemize}
+    \item local persistence of generated telemetry data using SQLite;
+    \item TCP socket transmission instead of WebSocket communication;
+    \item offline buffering and automatic retransmission after reconnection.
+\end{itemize}
+
+This work prepares the emulator for reliable remote telemetry testing and aligns it with the cloud connectivity objectives of the BAKO monitoring system.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection{Wi-Fi Dashboard Connection}
+\label{sec:wifi-dashboard}
+
+The \textbf{Wi-Fi dashboard connection} mode allows the FastAPI server to receive telemetry data from the ESP32 over a TCP socket rather than a USB serial port. This mode was implemented to support wireless monitoring sessions where connecting a USB cable to the vehicle is impractical.
+
+\subsubsection*{ReaderManager --- Runtime-Switchable Transport}
+
+The \texttt{ReaderManager} class in \texttt{server\_frame\_parser\_Json.py} owns a single background reader thread and exposes three selectable transport modes:
+
+\begin{description}
+    \item[\texttt{serial}] Opens the specified USB/UART serial port (auto-detected or manually specified) and reads newline-delimited CAN frame text.
+    \item[\texttt{wifi}] Opens a TCP client socket to the ESP32 AP at the configured IP and port, and reads the same frame format over Wi-Fi.
+    \item[\texttt{off}] No reader running; the dashboard displays the ``Disconnected'' state.
+\end{description}
+
+Mode selection is persisted to \texttt{mode\_config.json} and restored automatically on the next server launch. When the operator switches mode via the dashboard UI (Section~\ref{fig:mode-selector}), \texttt{ReaderManager} signals the current reader thread to stop (via a \texttt{threading.Event}), waits up to 4~seconds for it to join, then starts the new reader thread with updated configuration.
+
+\subsubsection*{Wi-Fi Reader Loop}
+
+The \texttt{wifi\_reader\_loop()} function implements the TCP client. Its behaviour is:
+
+\begin{enumerate}
+    \item Open a \texttt{socket.SOCK\_STREAM} TCP connection to the ESP32 at the configured IP and port (default 192.168.4.1:9000) with a 4-second connection timeout.
+    \item On successful connection, set \texttt{state["connected"] = True} and \texttt{state["mode"] = "wifi"} under the shared state lock.
+    \item Read the socket in 4096-byte chunks with a 1-second timeout. Split on newline boundaries and pass each complete line to \texttt{process\_line()}, the same CAN-frame parser used in serial mode. A partial final line is buffered until the next chunk arrives.
+    \item On any socket error or lost connection, set \texttt{state["connected"] = False}, log the error to \texttt{state["last\_error"]}, wait 2~seconds, and retry the TCP connection. This automatic reconnection handles the case where the ESP32 reboots or moves out of range.
+    \item On stop signal, close the socket and exit.
+\end{enumerate}
+
+Because the frame format emitted by the ESP32 over Wi-Fi TCP is identical to that emitted over USB Serial, the parsing layer (\texttt{process\_line()}) requires no modification for Wi-Fi mode. The dashboard connection status indicator correctly reflects the Wi-Fi connection state in real time.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection{BLE Companion Interface}
+\label{sec:ble}
+
+Bluetooth Low Energy (BLE) connectivity was designed to complement the Wi-Fi dashboard by providing a lightweight, phone-friendly monitoring channel for the vehicle operator. The ESP32 chip includes a built-in dual-mode Bluetooth radio supporting both Classic Bluetooth and BLE 4.2 / 5.0, making BLE a zero-hardware-cost addition to the platform.
+
+\subsubsection*{Design Overview}
+
+The proposed BLE implementation uses the ESP32 NimBLE stack (available via the Arduino \texttt{NimBLE-Arduino} library) to expose a custom GATT service. The GATT service is identified by a project-specific 128-bit UUID and contains three characteristics:
+
+\begin{description}
+    \item[Battery Status characteristic] Readable and notifiable; encodes pack SOC (uint8, 0--100\%), fault level (uint8), and error code (uint8) in a 3-byte payload. Updated at 2~Hz.
+    \item[Pack Data characteristic] Readable; encodes pack voltage (uint16, 0.1~V/bit) and pack current (int16, 0.1~A/bit, offset 0) in a 4-byte payload. Updated at 2~Hz.
+    \item[Cell Min/Max characteristic] Readable; encodes minimum and maximum cell voltages (uint16, 1~mV/bit each) in a 4-byte payload. Updated at 1~Hz.
+\end{description}
+
+A smartphone application subscribed to the Battery Status notification receives an alert whenever SOC drops below 20\% or a BMS fault code is asserted, allowing the rider to monitor the pack state without opening the full web dashboard.
+
+\subsubsection*{Coexistence with Wi-Fi}
+
+The ESP32 shares its radio between Wi-Fi and BLE using time-division multiplexing managed by the ESP-IDF coexistence driver. In practice, enabling BLE advertising alongside the Wi-Fi AP increases the Wi-Fi beacon interval slightly but does not affect the 9000-port TCP data stream. The firmware configures the coexistence policy to prioritise Wi-Fi when a TCP client is connected, allowing BLE notifications to continue at a reduced rate without dropping any telemetry frame.
+
+\subsubsection*{Implementation Status}
+
+The BLE GATT server design was completed and the characteristic schema validated against the NimBLE GATT API. Full firmware integration, pairing security (BLE passkey), and the companion smartphone application remain as short-term development items listed in the project roadmap (Section~\ref{sec:recommendations}).
+

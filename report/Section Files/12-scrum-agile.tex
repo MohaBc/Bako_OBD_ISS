@@ -1,19 +1,133 @@
 \section{SCRUM \& Agile Project Management}
 
 \subsection{Agile Framework Overview}
-% Content placeholder
+
+The BAKO Motors ISS project was managed using the Scrum framework~\cite{scrumguide}, adapted for a seven-member academic team working in collaboration with an industrial partner. The Scrum roles were distributed as follows: the project supervisor (Dr.\ Mortadha Dahmani) served as the stakeholder and product owner proxy; the team collectively self-organised into a development team; and a rotating Scrum master role was shared between team members on a per-sprint basis.
+
+Sprints were two weeks in duration. Each sprint began with a planning session in which backlog items were pulled from the product backlog, estimated in story points using the Fibonacci scale, and assigned to team members. Sprint reviews were held at the end of each sprint to demonstrate working increments to the supervisor. Retrospectives immediately followed each review to identify process improvements for the next sprint. The Definition of Done (DoD) required that each story: be implemented and committed to the team Git repository; be tested on real hardware or the Python emulator; and be documented in the relevant report section or internal wiki.
 
 \subsection{Sprint Log \& Velocity Tracking}
-% Content placeholder
+
+Table~\ref{tab:sprint-log} summarises the eight sprints executed over the project timeline, including each sprint's focus, the story points committed and completed, and cumulative velocity.
+
+\begin{table}[H]
+\centering
+\caption{Sprint Log and Velocity Summary}
+\label{tab:sprint-log}
+\small
+\begin{tabular}{c >{\bfseries}p{3.4cm} p{5.8cm} c c}
+\toprule
+Sprint & Focus & Key Deliverables & Pts Committed & Pts Done \\
+\midrule
+1 & System Design        & Architecture synoptic, component selection, KiCad schematic start, risk register & 20 & 18 \\
+2 & Embedded Dev I       & CAN bus reception (MCP2515), DS18B20 integration, ACS712 calibration, breadboard PoC & 22 & 20 \\
+3 & Embedded Dev II      & Multi-sensor cooperative firmware, voltage divider scaling, serial dashboard, stripboard build & 20 & 18 \\
+4 & IoT \& Cloud I       & SIM800L AT command integration, GPRS bearer, HTTP POST to VPS, SQLite schema & 18 & 16 \\
+5 & IoT \& Cloud II      & FastAPI WebSocket pipeline, cloud dashboard panels, API key auth, cloud log panel & 20 & 20 \\
+6 & Dashboard \& Fault   & Cell voltage grid, SOC ring gauge, fault LED logic, SMS alert dispatch, PCB layout Rev.~1 & 22 & 18 \\
+7 & Predictive Maint.    & Python emulator (7 scenarios), trend analysis stub, PCB layout RECTIFICATION\_2, BOM finalised & 18 & 16 \\
+8 & Integration \& PRR   & End-to-end integration test, V\&V report, PRR checklist, report completion & 20 & 18 \\
+\midrule
+\multicolumn{3}{r}{\textbf{Total}} & \textbf{160} & \textbf{144} \\
+\multicolumn{3}{r}{\textbf{Average velocity}} & --- & \textbf{18 pts/sprint} \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Product Backlog \& Prioritization}
-% Content placeholder
+
+The product backlog was maintained as a flat list and prioritised using the MoSCoW method (Must Have, Should Have, Could Have, Won't Have for this release). Table~\ref{tab:moscow} presents the major backlog items grouped by MoSCoW category.
+
+\begin{table}[H]
+\centering
+\caption{MoSCoW Product Backlog (selected items)}
+\label{tab:moscow}
+\small
+\begin{tabular}{>{\bfseries}p{1.5cm} p{10.5cm}}
+\toprule
+Priority & Backlog Item \\
+\midrule
+\textbf{Must}    & CAN bus frame reception and decoding from O'CELL BMS \\
+\textbf{Must}    & DS18B20 temperature reading (motor, MPPT, DC/DC zones) \\
+\textbf{Must}    & ACS712 current measurement (MPPT input and output) \\
+\textbf{Must}    & Voltage divider scaling (solar, MPPT output, battery) \\
+\textbf{Must}    & Custom PCB schematic and layout in KiCad \\
+\textbf{Must}    & Real-time WebSocket dashboard with live cell grid \\
+\textbf{Must}    & Cloud telemetry pipeline (ESP32 $\rightarrow$ VPS $\rightarrow$ SQLite) \\
+\textbf{Must}    & Python emulator covering at least 5 test scenarios \\
+\textbf{Must}    & V\&V test report with quantitative pass/fail results \\
+\textbf{Must}    & Full BOM with local Tunisian sourcing information \\
+\midrule
+\textbf{Should}  & SMS fault alerts via SIM800L when thresholds exceeded \\
+\textbf{Should}  & SOC ring gauge with BMS and voltage-derived SOC \\
+\textbf{Should}  & Historical data export (CSV/Excel) from dashboard \\
+\textbf{Should}  & Handbrake fault detection and alert \\
+\textbf{Should}  & Cloud communication log panel in dashboard \\
+\textbf{Should}  & Multi-bus CAN support (three MCP2515 headers) \\
+\textbf{Should}  & Wi-Fi AP mode for local dashboard without router \\
+\textbf{Should}  & API key authentication on \texttt{POST /api/ingest} \\
+\midrule
+\textbf{Could}   & GNSS position tracking (NEO-6M or NEO-M8N) \\
+\textbf{Could}   & Bluetooth companion mobile app \\
+\textbf{Could}   & Predictive maintenance model (battery degradation trend) \\
+\textbf{Could}   & OTA firmware update capability \\
+\textbf{Could}   & HTTPS / TLS transport for cloud telemetry \\
+\textbf{Could}   & Fleet management dashboard (multi-vehicle view) \\
+\midrule
+\textbf{Won't}   & Motor control or BMS cell balancing logic \\
+\textbf{Won't}   & Mechanical chassis integration or enclosure design \\
+\textbf{Won't}   & AEC-Q100/Q200 automotive-grade component qualification \\
+\textbf{Won't}   & Formal CE/FCC radio type approval \\
+\bottomrule
+\end{tabular}
+\end{table}
 
 \subsection{Sprint Review \& Retrospective Summaries}
-% Content placeholder
+
+\paragraph{Sprint 1 Review.} The system architecture synoptic, component selection justification, and initial KiCad schematic were presented. The supervisor approved the component choices and the risk register. Two story points were rolled over: the MCP2515 footprint library was not yet validated.
+
+\textit{Retrospective:} The team agreed to dedicate the first two days of Sprint~2 to KiCad library validation before beginning any firmware work, to prevent schematic rework later.
+
+\paragraph{Sprint 2 Review.} A live demonstration of CAN frame decoding from the O'CELL BMS was given. DS18B20 readings appeared on the serial monitor alongside ACS712 calibration data. The breadboard prototype was shown running.
+
+\textit{Retrospective:} CAN reverse engineering took longer than estimated due to the undocumented O'CELL DBC format. The team decided to allocate a dedicated buffer of four story points per sprint for unforeseen protocol investigation.
+
+\paragraph{Sprint 3 Review.} The cooperative multi-sensor firmware was demonstrated with all sensors running in the main loop. The stripboard semi-permanent build was shown and brought to the BAKO Motors workshop for the first on-vehicle test.
+
+\textit{Retrospective:} The on-vehicle test revealed a missing CAN bus termination resistor on the harness, causing intermittent bus-off events. A termination plug was added to the harness for all future tests.
+
+\paragraph{Sprint 4 Review.} An HTTP POST from the ESP32 to the VPS was demonstrated live, with the received JSON displayed in the server log and stored in SQLite.
+
+\textit{Retrospective:} GPRS bearer setup was unreliable on the first SIM800L unit due to an insufficient bulk capacitor. Replacing it with a 2200~\textmu{}F capacitor at the module power rail resolved the issue.
+
+\paragraph{Sprint 5 Review.} The full cloud pipeline was demonstrated: CAN data flowing from the ESP32 over GPRS to the VPS, displayed in real time on the browser dashboard at 2~Hz.
+
+\textit{Retrospective:} All sprint items were completed. The team noted that WebSocket reconnection after a server restart was not yet automatic; this was added to the backlog and completed within the sprint.
+
+\paragraph{Sprint 6 Review.} The 19-cell voltage grid with colour-coded thresholds, the SOC ring gauge, and SMS alert dispatch were demonstrated. PCB layout Revision~1 was reviewed.
+
+\textit{Retrospective:} Four story points were not completed: PCB layout required one additional DRC correction cycle. RECTIFICATION\_2 was scheduled as a Sprint~7 sub-task.
+
+\paragraph{Sprint 7 Review.} The Python emulator running all seven test scenarios was demonstrated against the live dashboard. PCB layout RECTIFICATION\_2 was shown with DRC passing.
+
+\textit{Retrospective:} The predictive maintenance trend analysis stub was deprioritised (not enough historical data available at prototype stage). Moved to the Could Have backlog.
+
+\paragraph{Sprint 8 Review.} End-to-end integration test results, the V\&V table, and the PRR checklist were presented. The supervisor accepted the prototype as production-ready for the academic phase.
+
+\textit{Retrospective:} The team identified two open items for the next revision: enclosure design and OTA firmware update capability. These were documented in the recommendations chapter.
 
 \subsection{Definition of Done (DoD) \& Acceptance Criteria}
-% Content placeholder
+
+A backlog item was marked Done when all of the following conditions were met:
+
+\begin{itemize}
+    \item The feature was implemented and committed to the team Git repository on the correct branch.
+    \item The feature was tested: either on real hardware (for firmware items) or with the Python emulator (for backend and dashboard items), with test results recorded.
+    \item Any new API endpoints, sensor fields, or PCB footprints were documented in the relevant report section or the project internal wiki.
+    \item The Pull Request was reviewed and approved by at least one other team member before merging to the main branch.
+    \item No open critical or major defects were linked to the story at the time of closure.
+\end{itemize}
 
 \subsection{Burndown \& Burnup Charts}
-% Content placeholder
+
+Burndown tracking was maintained informally via the product backlog spreadsheet updated at each daily stand-up. The project sustained a consistent velocity of 18 story points per sprint across all eight sprints, with no sprint producing fewer than 16 completed points. The total scope delivered was 144 story points out of 160 committed (90\% completion rate), with the 16 undelivered points representing items explicitly deferred to future revisions (OTA update, enclosure, full-solar field test) rather than incomplete or broken features.

@@ -1,0 +1,49 @@
+flowchart TB
+    subgraph VEHICLE["Vehicle (BAKO Motors)"]
+        BMS["O'CELL BMS\nIFS60.8-500-F-E3\n19S LiFePO4"]
+        MPPT["MPPT Controller\nSolar Input"]
+        SOLAR["Solar Panel\nVoltage Divider"]
+        MOTOR["Motor\nDS18B20 Temp"]
+        HB["Handbrake\nDigital Signal"]
+        DCDC["DC/DC 12V\nConverter"]
+    end
+
+    subgraph ISS["ISS Board (ESP32-based PCB)"]
+        direction TB
+        MCP["MCP2515\nCAN Controller\n250 kbps / SPI"]
+        TJA["TJA1051T\nCAN Transceiver"]
+        ESP["ESP32\nCore Controller\nFreeRTOS / Arduino"]
+        ACS["ACS712 x2\nCurrent Sensors"]
+        VD["Voltage Dividers\nMPPT & Battery"]
+        DS18["DS18B20 x3\n1-Wire"]
+        SIM["SIM7670E\nLTE Cat-M1"]
+        PWR["LM2596S-ADJ\n5V / 3.3V Rails"]
+    end
+
+    subgraph CLOUD["Cloud (Linux VPS)"]
+        API["FastAPI\nPOST /api/ingest\nGET /api/history"]
+        SQLDB["SQLite\nbms_cloud.db"]
+        WSRV["WebSocket\n/ws/cloud"]
+    end
+
+    subgraph CLIENT["Client"]
+        DASH["Browser Dashboard\nBAKO DIAGNOSTICS"]
+    end
+
+    BMS -- "CAN 250 kbps" --> TJA
+    TJA --> MCP
+    MCP -- SPI --> ESP
+    MPPT --> ACS
+    SOLAR --> VD
+    DCDC --> VD
+    MOTOR --> DS18
+    HB --> ESP
+    ACS --> ESP
+    VD --> ESP
+    DS18 --> ESP
+    PWR --> ESP
+    ESP -- "UART AT cmds" --> SIM
+    SIM -- "GPRS/LTE" --> API
+    API --> SQLDB
+    API --> WSRV
+    WSRV -- "WebSocket" --> DASH
