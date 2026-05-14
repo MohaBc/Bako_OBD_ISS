@@ -169,6 +169,8 @@ The full JSON payload is stored as a text column, which avoids schema migrations
     \item The database file can be copied directly from the VPS for offline analysis with standard tools.
 \end{itemize}
 
+A similar storage mechanism was also implemented on the Python emulator side, where generated telemetry records are stored locally in SQLite before being transmitted through a TCP socket client (Section~\ref{sec:software-implementation}).
+
 \subsubsection{In-Memory State and WebSocket Push}
 
 In addition to SQLite, the server maintains an in-memory dictionary (\texttt{\_cloud\_state}) that always holds the most recently received snapshot. This allows the \texttt{/ws/cloud} WebSocket handler to serve browser clients at 2 Hz with zero disk I/O per push.
@@ -186,12 +188,12 @@ The dashboard connects to the backend over \textbf{WebSocket}, which provides a 
 
 \subsubsection{Dashboard Panels}
 
-Table~\ref{tab:dashboard-panels} summarizes the information panels displayed by the dashboard.
+Table~\ref{tab:cloud-dashboard-panels} summarizes the information panels displayed by the dashboard.
 
 \begin{table}[h]
     \centering
     \caption{Dashboard Panel Summary}
-    \label{tab:dashboard-panels}
+    \label{tab:cloud-dashboard-panels}
     \begin{tabular}{lp{9cm}}
         \toprule
         \textbf{Panel} & \textbf{Contents} \\
