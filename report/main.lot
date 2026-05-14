@@ -1,30 +1,36 @@
-\contentsline {table}{\numberline {1}{\ignorespaces Applicable Standards and Regulatory Framework}}{9}{table.caption.5}%
-\contentsline {table}{\numberline {2}{\ignorespaces PCB Mechanical and Electrical Parameters}}{33}{table.caption.19}%
-\contentsline {table}{\numberline {3}{\ignorespaces Full Component Inventory --- Integrated Circuits and Connectors}}{34}{table.caption.20}%
-\contentsline {table}{\numberline {4}{\ignorespaces Full Component Inventory --- Passive Components}}{34}{table.caption.21}%
-\contentsline {table}{\numberline {5}{\ignorespaces ISS Enclosure Mechanical Parameters}}{39}{table.caption.25}%
-\contentsline {table}{\numberline {6}{\ignorespaces O'CELL BMS CAN Frame Map (SAE J1939, 250 kbps)}}{42}{table.caption.27}%
-\contentsline {table}{\numberline {7}{\ignorespaces BMS Fault Code Map (byte 7 of 0x18FF28F4)}}{43}{table.caption.28}%
-\contentsline {table}{\numberline {8}{\ignorespaces SOC Calibration Data — Four On-Vehicle Sessions}}{44}{table.caption.29}%
-\contentsline {table}{\numberline {9}{\ignorespaces Dashboard Panel Layout}}{50}{table.caption.31}%
-\contentsline {table}{\numberline {10}{\ignorespaces ESP32 CAN Simulator --- 7-Phase Scenario Cycle}}{52}{table.caption.33}%
-\contentsline {table}{\numberline {11}{\ignorespaces Backend Python Dependencies}}{59}{table.caption.35}%
-\contentsline {table}{\numberline {12}{\ignorespaces Server Environment Variables}}{60}{table.caption.36}%
-\contentsline {table}{\numberline {13}{\ignorespaces Dashboard Panel Summary}}{62}{table.caption.38}%
-\contentsline {table}{\numberline {14}{\ignorespaces Backend API Endpoint Reference}}{64}{table.caption.39}%
-\contentsline {table}{\numberline {15}{\ignorespaces ESP32 JSON Payload — Top-Level Envelope}}{64}{table.caption.40}%
-\contentsline {table}{\numberline {16}{\ignorespaces ESP32 JSON Payload — \texttt {battery} Object Fields}}{65}{table.caption.41}%
-\contentsline {table}{\numberline {17}{\ignorespaces V\&V Test Criteria and Results}}{68}{table.caption.44}%
-\contentsline {table}{\numberline {18}{\ignorespaces Sprint Log and Velocity Summary}}{72}{table.caption.45}%
-\contentsline {table}{\numberline {19}{\ignorespaces MoSCoW Product Backlog (selected items)}}{73}{table.caption.46}%
-\contentsline {table}{\numberline {20}{\ignorespaces Electronics Bill of Materials}}{76}{table.caption.47}%
-\contentsline {table}{\numberline {21}{\ignorespaces Software and Licensing Bill of Materials}}{77}{table.caption.48}%
-\contentsline {table}{\numberline {22}{\ignorespaces Human Resources and Responsibility Assignment}}{78}{table.caption.49}%
-\contentsline {table}{\numberline {23}{\ignorespaces Software Development Tools}}{79}{table.caption.50}%
-\contentsline {table}{\numberline {24}{\ignorespaces Resolved Blockers Summary}}{86}{table.caption.51}%
-\contentsline {table}{\numberline {25}{\ignorespaces Project Risk Register}}{88}{table.caption.52}%
-\contentsline {table}{\numberline {26}{\ignorespaces FMEA --- Top Four Failure Modes}}{89}{table.caption.53}%
-\contentsline {table}{\numberline {27}{\ignorespaces Defect Severity Classification}}{92}{table.caption.54}%
-\contentsline {table}{\numberline {28}{\ignorespaces Defect Log}}{93}{table.caption.55}%
-\contentsline {table}{\numberline {29}{\ignorespaces Hardware Subsystem Performance Results}}{94}{table.caption.56}%
-\contentsline {table}{\numberline {30}{\ignorespaces Cost vs.\ Budget Analysis}}{96}{table.caption.57}%
+\contentsline {table}{\numberline {1}{\ignorespaces Applicable Standards and Regulatory Framework}}{10}{table.caption.5}%
+\contentsline {table}{\numberline {2}{\ignorespaces Microcontroller Platform Comparison}}{11}{table.caption.6}%
+\contentsline {table}{\numberline {3}{\ignorespaces PCB Mechanical and Electrical Parameters}}{37}{table.caption.20}%
+\contentsline {table}{\numberline {4}{\ignorespaces Full Component Inventory --- Integrated Circuits and Connectors}}{38}{table.caption.21}%
+\contentsline {table}{\numberline {5}{\ignorespaces Full Component Inventory --- Passive Components}}{38}{table.caption.22}%
+\contentsline {table}{\numberline {6}{\ignorespaces ISS Enclosure Mechanical Parameters}}{44}{table.caption.29}%
+\contentsline {table}{\numberline {7}{\ignorespaces O'CELL BMS CAN Frame Map (SAE J1939, 250 kbps)}}{47}{table.caption.31}%
+\contentsline {table}{\numberline {8}{\ignorespaces BMS Fault Code Map (byte 7 of 0x18FF28F4)}}{48}{table.caption.32}%
+\contentsline {table}{\numberline {9}{\ignorespaces SOC Calibration Data — Four On-Vehicle Sessions}}{49}{table.caption.33}%
+\contentsline {table}{\numberline {10}{\ignorespaces BMS CAN Frame Parser --- SA = 0xF4 (O'CELL BMS)}}{51}{table.caption.34}%
+\contentsline {table}{\numberline {11}{\ignorespaces ESP32 Sensor Gateway CAN Frame Map --- SA = 0xAA}}{51}{table.caption.35}%
+\contentsline {table}{\numberline {12}{\ignorespaces Wi-Fi Connectivity Evolution Across Three Development Stages}}{54}{table.caption.36}%
+\contentsline {table}{\numberline {13}{\ignorespaces Dashboard Panel Layout}}{58}{table.caption.38}%
+\contentsline {table}{\numberline {14}{\ignorespaces ESP32 CAN Simulator --- 7-Phase Scenario Cycle}}{60}{table.caption.40}%
+\contentsline {table}{\numberline {15}{\ignorespaces BLE GATT Characteristic Map}}{63}{table.caption.41}%
+\contentsline {table}{\numberline {16}{\ignorespaces Backend Python Dependencies}}{68}{table.caption.43}%
+\contentsline {table}{\numberline {17}{\ignorespaces Server Environment Variables}}{69}{table.caption.44}%
+\contentsline {table}{\numberline {18}{\ignorespaces Dashboard Panel Summary}}{71}{table.caption.46}%
+\contentsline {table}{\numberline {19}{\ignorespaces Backend API Endpoint Reference}}{73}{table.caption.47}%
+\contentsline {table}{\numberline {20}{\ignorespaces ESP32 JSON Payload — Top-Level Envelope}}{73}{table.caption.48}%
+\contentsline {table}{\numberline {21}{\ignorespaces ESP32 JSON Payload — \texttt {battery} Object Fields}}{74}{table.caption.49}%
+\contentsline {table}{\numberline {22}{\ignorespaces V\&V Test Criteria and Results}}{77}{table.caption.52}%
+\contentsline {table}{\numberline {23}{\ignorespaces Sprint Log and Velocity Summary}}{81}{table.caption.53}%
+\contentsline {table}{\numberline {24}{\ignorespaces MoSCoW Product Backlog (selected items)}}{82}{table.caption.54}%
+\contentsline {table}{\numberline {25}{\ignorespaces Electronics Bill of Materials}}{85}{table.caption.55}%
+\contentsline {table}{\numberline {26}{\ignorespaces Software and Licensing Bill of Materials}}{86}{table.caption.56}%
+\contentsline {table}{\numberline {27}{\ignorespaces Full Project Cost Breakdown --- Material and Human Resources}}{87}{table.caption.57}%
+\contentsline {table}{\numberline {28}{\ignorespaces Human Resources and Responsibility Assignment}}{88}{table.caption.58}%
+\contentsline {table}{\numberline {29}{\ignorespaces Software Development Tools}}{89}{table.caption.59}%
+\contentsline {table}{\numberline {30}{\ignorespaces Resolved Blockers Summary}}{96}{table.caption.60}%
+\contentsline {table}{\numberline {31}{\ignorespaces Project Risk Register}}{98}{table.caption.61}%
+\contentsline {table}{\numberline {32}{\ignorespaces FMEA --- Top Four Failure Modes}}{99}{table.caption.62}%
+\contentsline {table}{\numberline {33}{\ignorespaces Defect Severity Classification}}{102}{table.caption.63}%
+\contentsline {table}{\numberline {34}{\ignorespaces Defect Log}}{103}{table.caption.64}%
+\contentsline {table}{\numberline {35}{\ignorespaces Hardware Subsystem Performance Results}}{104}{table.caption.65}%
+\contentsline {table}{\numberline {36}{\ignorespaces Cost vs.\ Budget Analysis}}{106}{table.caption.66}%
