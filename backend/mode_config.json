@@ -1,7 +1,7 @@
 {
   "mode": "serial",
   "serial": {
-    "port": null,
+    "port": "COM7",
     "baud": 115200
   },
   "wifi": {

@@ -1,89 +1,91 @@
-"schema_version": "2.0.0",
-"vehicle_id": 1,
-"seq": 1,
-"battery": {
-    "pack_v": 55.084,
-    "pack_current_a": 25.673,
-    "soc": 45.00,
-    "soc_bms": 45.00,
-    "max_disch_a": 100.0,
-    "cell_count": 19,
-    "cell_avg_mv": 2899.16,
-    "cell_min_mv": 2896,
-    "cell_max_mv": 2903,
-    "cell_spread_mv": 7,
-    "cells_voltages": [
-        2896,
-        2896,
-        2896,
-        2897,
-        2897,
-        2898,
-        2898,
-        2898,
-        2899,
-        2899,
-        2900,
-        2900,
-        2900,
-        2901,
-        2901,
-        2901,
-        2902,
-        2902,
-        2903
-    ],
-    "charge_limit": {
-        "max_charge_v": 69.3,
-        "max_charge_a": 0.0,
-        "enable": false
+{
+    "schema_version": "2.0.0",
+    "vehicle_id": 1,
+    "seq": 1,
+    "battery": {
+        "pack_v": 55.084,
+        "pack_current_a": 25.673,
+        "soc": 45.00,
+        "soc_bms": 45.00,
+        "max_disch_a": 100.0,
+        "cell_count": 19,
+        "cell_avg_mv": 2899.16,
+        "cell_min_mv": 2896,
+        "cell_max_mv": 2903,
+        "cell_spread_mv": 7,
+        "cells_voltages": [
+            2896,
+            2896,
+            2896,
+            2897,
+            2897,
+            2898,
+            2898,
+            2898,
+            2899,
+            2899,
+            2900,
+            2900,
+            2900,
+            2901,
+            2901,
+            2901,
+            2902,
+            2902,
+            2903
+        ],
+        "charge_limit": {
+            "max_charge_v": 69.3,
+            "max_charge_a": 0.0,
+            "enable": false
+        },
+        "status": {
+            "fault_level": 0,
+            "error_code": 0,
+            "ready": false,
+            "charging": false,
+            "discharging": true
+        }
     },
-    "status": {
-        "fault_level": 0,
-        "error_code": 0,
-        "ready": false,
-        "charging": false,
-        "discharging": true
-    }
-},
-"temperatures": {
-    "battery_avg_c": 31.17,
-    "battery_min_c": 30.59,
-    "battery_max_c": 32.33,
-    "battery_temps_c": [
-        31.2,
-        30.6,
-        30.6,
-        32.3
-    ],
-    "dcdc_temp_c": 56.19,
-    "motor_temp_c": 65.30,
-    "mppt_temp_c": 50.27
-},
-"solar": {
-    "pre_mppt": {
-        "voltage_v": 72.069,
-        "current_a": 4.540
+    "temperatures": {
+        "battery_avg_c": 31.17,
+        "battery_min_c": 30.59,
+        "battery_max_c": 32.33,
+        "battery_temps_c": [
+            31.2,
+            30.6,
+            30.6,
+            32.3
+        ],
+        "dcdc_temp_c": 56.19,
+        "motor_temp_c": 65.30,
+        "mppt_temp_c": 50.27
     },
-    "post_mppt": {
-        "current_a": 4.254
-    }
-},
-"dc_dc": {
-    "input_64v": {
-        "voltage_v": 55.084
+    "solar": {
+        "pre_mppt": {
+            "voltage_v": 72.069,
+            "current_a": 4.540
+        },
+        "post_mppt": {
+            "current_a": 4.254
+        }
     },
-    "output_12v": {
-        "voltage_v": 12.227
+    "dc_dc": {
+        "input_64v": {
+            "voltage_v": 55.084
+        },
+        "output_12v": {
+            "voltage_v": 12.227
+        }
+    },
+    "gnss": {
+        "lat": 36.8197060,
+        "lon": 10.1658039,
+        "alt_m": null,
+        "speed_kmh": 40.65,
+        "fix": true
+    },
+    "vehicle": {
+        "handbrake": false
     }
-},
-"gnss": {
-    "lat": 36.8197060,
-    "lon": 10.1658039,
-    "alt_m": null,
-    "speed_kmh": 40.65,
-    "fix": true
-},
-"vehicle": {
-    "handbrake": false
 }
