@@ -8,23 +8,23 @@
 \contentsline {table}{\numberline {8}{\ignorespaces SOC Calibration Data — Four On-Vehicle Sessions}}{44}{table.caption.29}%
 \contentsline {table}{\numberline {9}{\ignorespaces Dashboard Panel Layout}}{50}{table.caption.31}%
 \contentsline {table}{\numberline {10}{\ignorespaces ESP32 CAN Simulator --- 7-Phase Scenario Cycle}}{52}{table.caption.33}%
-\contentsline {table}{\numberline {11}{\ignorespaces Backend Python Dependencies}}{57}{table.caption.35}%
-\contentsline {table}{\numberline {12}{\ignorespaces Server Environment Variables}}{58}{table.caption.36}%
-\contentsline {table}{\numberline {13}{\ignorespaces Dashboard Panel Summary}}{60}{table.caption.38}%
-\contentsline {table}{\numberline {14}{\ignorespaces Backend API Endpoint Reference}}{62}{table.caption.39}%
-\contentsline {table}{\numberline {15}{\ignorespaces ESP32 JSON Payload — Top-Level Envelope}}{62}{table.caption.40}%
-\contentsline {table}{\numberline {16}{\ignorespaces ESP32 JSON Payload — \texttt {battery} Object Fields}}{63}{table.caption.41}%
-\contentsline {table}{\numberline {17}{\ignorespaces V\&V Test Criteria and Results}}{66}{table.caption.44}%
-\contentsline {table}{\numberline {18}{\ignorespaces Sprint Log and Velocity Summary}}{70}{table.caption.45}%
-\contentsline {table}{\numberline {19}{\ignorespaces MoSCoW Product Backlog (selected items)}}{71}{table.caption.46}%
-\contentsline {table}{\numberline {20}{\ignorespaces Electronics Bill of Materials}}{74}{table.caption.47}%
-\contentsline {table}{\numberline {21}{\ignorespaces Software and Licensing Bill of Materials}}{75}{table.caption.48}%
-\contentsline {table}{\numberline {22}{\ignorespaces Human Resources and Responsibility Assignment}}{76}{table.caption.49}%
-\contentsline {table}{\numberline {23}{\ignorespaces Software Development Tools}}{77}{table.caption.50}%
-\contentsline {table}{\numberline {24}{\ignorespaces Resolved Blockers Summary}}{84}{table.caption.51}%
-\contentsline {table}{\numberline {25}{\ignorespaces Project Risk Register}}{86}{table.caption.52}%
-\contentsline {table}{\numberline {26}{\ignorespaces FMEA --- Top Four Failure Modes}}{87}{table.caption.53}%
-\contentsline {table}{\numberline {27}{\ignorespaces Defect Severity Classification}}{90}{table.caption.54}%
-\contentsline {table}{\numberline {28}{\ignorespaces Defect Log}}{91}{table.caption.55}%
-\contentsline {table}{\numberline {29}{\ignorespaces Hardware Subsystem Performance Results}}{92}{table.caption.56}%
-\contentsline {table}{\numberline {30}{\ignorespaces Cost vs.\ Budget Analysis}}{94}{table.caption.57}%
+\contentsline {table}{\numberline {11}{\ignorespaces Backend Python Dependencies}}{59}{table.caption.35}%
+\contentsline {table}{\numberline {12}{\ignorespaces Server Environment Variables}}{60}{table.caption.36}%
+\contentsline {table}{\numberline {13}{\ignorespaces Dashboard Panel Summary}}{62}{table.caption.38}%
+\contentsline {table}{\numberline {14}{\ignorespaces Backend API Endpoint Reference}}{64}{table.caption.39}%
+\contentsline {table}{\numberline {15}{\ignorespaces ESP32 JSON Payload — Top-Level Envelope}}{64}{table.caption.40}%
+\contentsline {table}{\numberline {16}{\ignorespaces ESP32 JSON Payload — \texttt {battery} Object Fields}}{65}{table.caption.41}%
+\contentsline {table}{\numberline {17}{\ignorespaces V\&V Test Criteria and Results}}{68}{table.caption.44}%
+\contentsline {table}{\numberline {18}{\ignorespaces Sprint Log and Velocity Summary}}{72}{table.caption.45}%
+\contentsline {table}{\numberline {19}{\ignorespaces MoSCoW Product Backlog (selected items)}}{73}{table.caption.46}%
+\contentsline {table}{\numberline {20}{\ignorespaces Electronics Bill of Materials}}{76}{table.caption.47}%
+\contentsline {table}{\numberline {21}{\ignorespaces Software and Licensing Bill of Materials}}{77}{table.caption.48}%
+\contentsline {table}{\numberline {22}{\ignorespaces Human Resources and Responsibility Assignment}}{78}{table.caption.49}%
+\contentsline {table}{\numberline {23}{\ignorespaces Software Development Tools}}{79}{table.caption.50}%
+\contentsline {table}{\numberline {24}{\ignorespaces Resolved Blockers Summary}}{86}{table.caption.51}%
+\contentsline {table}{\numberline {25}{\ignorespaces Project Risk Register}}{88}{table.caption.52}%
+\contentsline {table}{\numberline {26}{\ignorespaces FMEA --- Top Four Failure Modes}}{89}{table.caption.53}%
+\contentsline {table}{\numberline {27}{\ignorespaces Defect Severity Classification}}{92}{table.caption.54}%
+\contentsline {table}{\numberline {28}{\ignorespaces Defect Log}}{93}{table.caption.55}%
+\contentsline {table}{\numberline {29}{\ignorespaces Hardware Subsystem Performance Results}}{94}{table.caption.56}%
+\contentsline {table}{\numberline {30}{\ignorespaces Cost vs.\ Budget Analysis}}{96}{table.caption.57}%

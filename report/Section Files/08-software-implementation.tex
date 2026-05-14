@@ -368,6 +368,16 @@ Phase & Name & Duration & Description \\
 
 Each of the 19 cells has a fixed personality offset ($-20$~mV to $+12$~mV) so the cell spread is realistic and stable across frames. Cells 7 and 14 carry an additional $-18$~mV offset and a load-proportional extra sag, simulating weak cells that would trigger a threshold alert during heavy discharge. The thermal model tracks three sensors at different positions (centre, end-plate, BMS PCB) with individual heating and cooling rates. All six frame types are emitted every 500~ms: cell voltage groups (0x18C8--CC28F4), temperature (0x18B428F4), Basic Message~1 (0x18FF28F4), Basic Message~2 (0x18FE28F4), and charging request (0x18FFE5F4).
 
+\subsubsection{ESP32 Firmware Simulator \& System Interface}
+
+An ESP32-based firmware simulator and monitoring interface were developed to validate the BAKO system without requiring the physical vehicle during every testing session. The simulator reproduces realistic vehicle behaviour by generating sensor telemetry and transmitting it continuously to the monitoring dashboard.
+
+The implemented firmware simulates 12 external sensors, including current, voltage, temperature, handbrake, and GNSS data. To improve testing coverage, seven automated operating scenarios were integrated: Normal Driving, Low Battery Warning, Charging Mode, High Solar Input, Night Mode, Handbrake Fault, and Overheat Condition. The active scenario changes automatically every 30 seconds, while all sensor values are transmitted every 500~ms.
+
+The ESP32 communicates with the backend dashboard through WebSocket communication, enabling real-time updates directly inside the browser interface. The dashboard displays battery cell voltages, temperatures, state of charge (SOC), solar monitoring information, and handbrake status. In addition, telemetry logs can be exported in TXT or XLSX formats for later analysis and validation.
+
+This testing environment significantly reduces dependency on the physical vehicle during development and debugging phases. It also provides a reproducible and controlled platform for validating system behaviour, communication pipelines, and dashboard integration under multiple operating conditions.
+
 \subsubsection*{Python Log Replay Tool}
 
 The script \texttt{simulate.py} provides a complementary simulation path that uses a captured real-vehicle CAN log rather than synthetic data. It reads the log file \texttt{data/raw/bms\_log\_2026-03-10T10-20-02.txt} (containing 3197 frames from a real on-vehicle session) and pipes it into the live server over a virtual serial port, allowing the full dashboard to operate on authentic data without physical hardware.
@@ -382,6 +392,25 @@ The replay sequence is:
 \end{enumerate}
 
 The \texttt{--speed} argument allows accelerated replay (e.g., \texttt{--speed 10} for rapid regression testing) while \texttt{--no-browser} suppresses the automatic browser launch for headless test environments.
+
+\subsubsection{Python Emulator Extension: Local Storage and TCP Transmission}
+
+As an extension to the Python-based sensor emulator, a local storage and TCP communication layer was implemented to improve telemetry reliability and prepare the emulator for remote server integration.
+
+The emulator first generates realistic values for the 12 external sensors, including current, voltage, temperature, handbrake state, and GNSS data. Each generated record is then stored locally in a SQLite database before any transmission attempt. This ensures that telemetry data is preserved even if the network connection is unavailable.
+
+A TCP socket client was also developed to transmit unsent records to a remote server. During local testing, a simulated TCP server was used to reproduce the behaviour of the future VPS server. When the server is available, the client sends the stored telemetry records and marks them as sent in the local database. If the connection fails, the data remains stored locally and is retried automatically during the next transmission cycle.
+
+This architecture implements a \textbf{store-and-forward} mechanism. It allows the emulator to continue operating during internet outages while preventing telemetry loss. Once VPS access is provided, only the server IP address in the TCP client configuration needs to be replaced to enable remote deployment.
+
+The implemented extension therefore adds three key capabilities to the emulator:
+\begin{itemize}
+    \item local persistence of generated telemetry data using SQLite;
+    \item TCP socket transmission instead of WebSocket communication;
+    \item offline buffering and automatic retransmission after reconnection.
+\end{itemize}
+
+This work prepares the emulator for reliable remote telemetry testing and aligns it with the cloud connectivity objectives of the BAKO monitoring system.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{Wi-Fi Dashboard Connection}
