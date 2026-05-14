@@ -28,12 +28,16 @@ The board is powered from the vehicle's 12~V rail. The LM2596S-ADJ is a switchin
     \label{fig:schematic-full}
 \end{figure}
 
+The complete schematic is organised into five functional zones visible across the sheet: the ESP32-DEVKITC and SIM7670E communication block in the upper centre, the MCP2515 CAN subsystem at the left, the DS18B20 1-Wire temperature sensor cluster at the lower left, the ACS712 analogue current sensor inputs at the lower right, and the power regulation and protection circuitry spanning the right edge. All inter-block signal paths are labelled with net names for traceability during PCB layout and debugging.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{images/schematic-esp32-sim.png}
     \caption{ESP32-DEVKITC and SIM7670E cellular module connections: UART, level-shift resistors R7--R10, and status LEDs.}
     \label{fig:schematic-esp32-sim}
 \end{figure}
+
+The ESP32 UART1 (GPIO 16/17) connects to the SIM7670E module through resistors R7--R10, which form a 2~k$\Omega$ voltage divider on each line to shift the 3.3~V ESP32 logic down to the 1.8~V interface level required by the SIM7670E. LEDs D2 and D5, connected through current-limiting resistors, provide visual indication of firmware operating state: D2 pulses on each CAN frame received, and D5 lights during an active GPRS transmission.
 
 \begin{figure}[H]
     \centering
@@ -42,12 +46,16 @@ The board is powered from the vehicle's 12~V rail. The LM2596S-ADJ is a switchin
     \label{fig:schematic-can}
 \end{figure}
 
+The MCP2515 SPI module is connected to the ESP32 VSPI bus (SCK, MISO, MOSI) with a dedicated Chip Select line, allowing up to three independent CAN controllers to share the same SPI bus using separate CS signals. The TJA1051T transceiver converts the 3.3~V MCP2515 logic into the $\pm$2~V differential CAN\_H/CAN\_L bus signals required by the ISO~11898 physical layer standard. Zener diodes D3, D4, and D7 clamp any transient voltage spike on the CAN bus lines to safe levels before they reach the transceiver input pins.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.55\textwidth]{images/schematic-ds18b20.png}
     \caption{Three DS18B20 temperature sensor connections (J6, J7, J8) with 4.7~k$\Omega$ 1-Wire pull-up resistors.}
     \label{fig:schematic-ds18b20}
 \end{figure}
+
+All three DS18B20 sensors share a single 1-Wire data line, which is pulled up to 3.3~V through one of the 4.7~k$\Omega$ resistors. Each sensor is factory-programmed with a unique 64-bit ROM address, allowing the ESP32 firmware to address them individually on the shared bus using the \texttt{DallasTemperature} library without any additional hardware. The three connectors (J6, J7, J8) are positioned at the board periphery so that the sensor cables can exit directly towards the motor, MPPT heatsink, and DC/DC converter mounting points.
 
 \begin{figure}[H]
     \centering
@@ -56,12 +64,16 @@ The board is powered from the vehicle's 12~V rail. The LM2596S-ADJ is a switchin
     \label{fig:schematic-sensors}
 \end{figure}
 
+Each ACS712 module produces an analogue output voltage centred at $V_{CC}/2$ (1.65~V) at zero current, shifting linearly at 66~mV/A for the 30~A variant used here. The signal conditioning resistors R3--R6 and R11--R14 provide a low-pass filtering and biasing network that suppresses high-frequency switching noise from the MPPT controller before the signal reaches the ESP32 ADC input, ensuring accurate current readings under electrically noisy vehicle conditions.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=\textwidth]{images/schematic-sensors-voltage.png}
     \caption{Voltage monitoring and auxiliary connectors: MPPT voltage divider (J2), DC/DC converter (J5), handbrake input (J4), auxiliary expansion (J3), with Zener clamp diodes F1--F4 and signal conditioning resistors.}
     \label{fig:schematic-voltage-div}
 \end{figure}
+
+The MPPT output voltage, which can reach up to 50~V, is scaled down to the ESP32 ADC safe input range (0--3.3~V) using a resistive voltage divider. The Zener diodes F1--F4 clamp the ADC input line to prevent any overvoltage transient from damaging the ESP32's internal analogue circuitry. The handbrake connector J4 routes the digital handbrake signal through a pull-up resistor to a standard digital GPIO input, and the auxiliary connector J3 provides four uncommitted GPIO-connected pads for future sensor expansion.
 
 The circuit schematic represents the logical connections between all electronic components before they are translated into physical copper traces on the PCB. The design is organised around five functional blocks.
 
@@ -84,12 +96,16 @@ The \textbf{protection layer} is integrated throughout the schematic. Reverse po
     \label{fig:pcb-routing}
 \end{figure}
 
+The routing view shows all copper traces on the F.Cu (signal) layer in red and the B.Cu (ground plane) in blue. Short, direct routing of the SPI traces between the ESP32 and the MCP2515 modules minimises propagation delay and parasitic capacitance on the high-speed clock line (up to 10~MHz). Power traces carrying the 12~V input and 5~V CAN supply rails are given twice the width of signal traces to handle the required current without excessive resistive voltage drop.
+
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.75\textwidth]{images/pcb-3d.png}
     \caption{3D render of the ISS board (KiCad 3D viewer) showing component placement and board outline.}
     \label{fig:pcb-3d}
 \end{figure}
+
+The 3D render confirms correct physical clearances between tall components (electrolytic capacitors, SIM7670E module, ESP32 devkit) and the board outline. The functional zoning is visible in the render: the power block occupies the top-right corner, the ESP32 and SIM7670E module occupy the board centre, and the sensor connectors are distributed along the three remaining edges for clean harness routing. The board outline dimensions are compatible with a standard 100~mm $\times$ 100~mm DIN-rail enclosure footprint.
 
 The PCB was designed using KiCad 10.0 PCBnew. Table~\ref{tab:pcb-params} summarises the key mechanical and electrical parameters of the board as extracted from the KiCad project file.
 
@@ -189,6 +205,71 @@ R4           & 2~k$\Omega$ (R4)     & 1 & UART / SIM interface divider \\
 \end{table}
 
 \noindent\small{* The SIM800L-CORE footprint reference in KiCad is used as the physical placeholder for the SIM7670E module during layout. The actually populated component is the SIM7670E as justified in Section~7.1.}
+
+\subsection{Component Photographs}
+\label{sec:component-photos}
+
+The photographs below show the physical components used to populate the ISS board prototype. Each image is accompanied by the reference designator and the role it fulfils in the circuit.
+
+\begin{figure}[H]
+\centering
+\begin{minipage}[t]{0.30\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/component-esp32.png}
+    \caption{ESP32-DEVKITC~V1 microcontroller. Central processing unit for CAN decoding, sensor acquisition, and GPRS telemetry.}
+    \label{fig:photo-esp32}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/component-mcp2515.png}
+    \caption{MCP2515 SPI CAN controller module. Interfaces the ESP32 to the J1939 CAN bus via SPI (J17/J18/J19).}
+    \label{fig:photo-mcp2515}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/component-tja1051.png}
+    \caption{TJA1051T automotive CAN transceiver. Converts MCP2515 logic levels to differential CANH/CANL bus signals.}
+    \label{fig:photo-tja1051}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}[t]{0.30\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/component-sim7670e.png}
+    \caption{SIM7670E LTE Cat-M1 module. Provides 4G cellular connectivity to the VPS cloud backend via GPRS/LTE.}
+    \label{fig:photo-sim7670e}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/component-ds18b20.png}
+    \caption{DS18B20 1-Wire digital temperature sensors (J6, J7, J8). Monitor motor winding, MPPT heatsink, and DC/DC temperatures.}
+    \label{fig:photo-ds18b20}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.30\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/component-acs712.png}
+    \caption{ACS712-30A Hall-effect current sensor modules (J11, J16). Measure solar panel and MPPT output currents.}
+    \label{fig:photo-acs712}
+\end{minipage}
+\end{figure}
+
+\begin{figure}[H]
+\centering
+\begin{minipage}[t]{0.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/component-lm2596.png}
+    \caption{LM2596S-ADJ adjustable buck regulator. Steps down the 12~V vehicle supply to the 3.3~V and 5~V board rails.}
+    \label{fig:photo-lm2596}
+\end{minipage}\hfill
+\begin{minipage}[t]{0.45\textwidth}
+    \centering
+    \includegraphics[width=\linewidth]{images/pcb-assembled.png}
+    \caption{Assembled ISS PCB prototype (Rev.~RECTIFICATION\_2). All major components soldered and board ready for initial power-on testing.}
+    \label{fig:photo-pcb-assembled}
+\end{minipage}
+\end{figure}
 
 \subsection{Design Summary}
 

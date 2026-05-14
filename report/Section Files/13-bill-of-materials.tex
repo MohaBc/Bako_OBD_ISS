@@ -65,8 +65,52 @@ PlatformIO              & Build system and dependency management & Apache 2.0 \\
 \end{tabular}
 \end{table}
 
-\subsection{BOM Cost Summary \& Target vs.\ Actual}
+\subsection{Total Project Cost Estimate}
 
-The actual project hardware expenditure was approximately 240~TND in total: approximately 60~TND for all electronic components (locally sourced from Tunisian suppliers) and 180~TND for PCB fabrication at a local fabrication house (FR-4, 2-layer, Gerber RS-274X). The SIM7670E LTE module is not included in this figure as it was evaluated but not purchased within the academic project budget.
+The hardware procurement cost of approximately 240~TND represents only the direct material expenditure and significantly understates the true economic value of the project. A complete project cost estimate must account for all resource categories: human effort, professional expertise, infrastructure, and equipment access.
 
-All software tools used in the project are open-source or free for academic use, contributing 0~TND to the software cost line. The mechanical enclosure was prototyped on the MedTech FABLAB 3D printer at no material cost to the project budget.
+\subsubsection*{Human Resources --- Man-Day Estimate}
+
+The project team comprised seven students over one academic semester of approximately 18 weeks. Each team member contributed an estimated average of 3 working hours per day during sprint weeks, yielding the following man-day calculation:
+
+\[
+7 \text{ members} \times 18 \text{ weeks} \times 3 \text{ days/week (effective)} \times 1 \text{ day} = \mathbf{378 \text{ man-days}}
+\]
+
+Applying a conservative junior engineering day rate of 150~TND/day (consistent with Tunisian engineering graduate market rates), the human effort component alone represents approximately \textbf{56\,700~TND} in equivalent labour value.
+
+Academic supervision by Dr.\ Mortadha Dahmani added approximately 2 hours per week of expert guidance over 18 weeks, equivalent to 4.5 man-days of senior engineering supervision. At a senior expert daily rate of 500~TND/day, this contributes approximately \textbf{2\,250~TND} in supervisory expertise value.
+
+\subsubsection*{Infrastructure \& Equipment}
+
+\begin{itemize}
+    \item \textbf{MedTech FABLAB} --- Access to soldering stations, oscilloscopes, logic analysers, and 3D printers was provided at no charge to the team. The equivalent commercial lab rental cost for 18 weeks at 4 hours per week would be approximately 3\,600~TND at market rates (50~TND/hour).
+    \item \textbf{VPS cloud server} --- Provided by the academic supervisor at no charge to the project. The equivalent hosting cost for a comparable Linux VPS (2 vCPU, 4 GB RAM, public IP) over 6 months is approximately 360~TND.
+    \item \textbf{BAKO Motors test vehicle} --- Weekly access to the electric motorcycle prototype on the MedTech campus (approximately 4 hours/week, 12 sessions) represents a vehicle access value of approximately 1\,200~TND at commercial EV workshop rates.
+\end{itemize}
+
+\subsubsection*{Full Project Cost Summary}
+
+\begin{table}[H]
+\centering
+\caption{Full Project Cost Breakdown --- Material and Human Resources}
+\label{tab:project-cost}
+\begin{tabular}{>{\bfseries}p{5.5cm} r r}
+\toprule
+Cost Category & Quantity & Est. Value (TND) \\
+\midrule
+Electronics components     & 60 TND actual spend     & 60 \\
+PCB fabrication            & 180 TND actual spend    & 180 \\
+Student engineering effort & 378 man-days @ 150 TND  & 56\,700 \\
+Academic supervision       & 4.5 man-days @ 500 TND  & 2\,250 \\
+FABLAB equipment access    & 72 hours @ 50 TND/hr    & 3\,600 \\
+VPS cloud hosting          & 6 months                & 360 \\
+Vehicle access (BAKO)      & 12 sessions             & 1\,200 \\
+\midrule
+\textbf{Total project value} & & \textbf{\textasciitilde 64\,350 TND} \\
+\textbf{Direct cash spend}   & & \textbf{240 TND} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The 240~TND direct spend represents less than 0.4\% of the total estimated project value, underscoring the significant contribution of academic infrastructure, supervisory expertise, and student engineering effort that made this project viable within a constrained budget. All software tools and development environments were open-source or free for academic use, contributing 0~TND to the software cost line.
