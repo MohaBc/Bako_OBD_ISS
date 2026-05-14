@@ -1,5 +1,29 @@
 \section{Research Phase}
 
+\subsection{State of the Art --- On-Board Diagnostics}
+
+\subsubsection*{OBD-II Standard and PIDs}
+
+On-Board Diagnostics version 2 (OBD-II) is a mandatory diagnostic interface standard for passenger vehicles sold in the United States since 1996, adopted by the European Union under the EOBD directive and widely applied globally. The standard defines a 16-pin diagnostic connector (SAE J1962), a set of communication protocols (ISO 9141-2, ISO 14230 KWP2000, SAE J1850, ISO 15765-4 CAN), and a standardised set of \textbf{Parameter IDs (PIDs)} that any compliant scan tool can query from the vehicle's Electronic Control Units (ECUs).
+
+PIDs are structured request-response pairs: the scan tool sends a request frame containing a service ID and a PID number; the ECU responds with the requested parameter. For example, PID 0x0D requests vehicle speed, PID 0x0C requests engine RPM, and PID 0x05 requests coolant temperature. Service 0x03 retrieves stored Diagnostic Trouble Codes (DTCs), and service 0x01 returns live powertrain data. The OBD-II framework is therefore a \emph{request-driven} diagnostic architecture: the scan tool controls what data is visible.
+
+\subsubsection*{ECU Architecture and Diagnostic Logic}
+
+A modern vehicle contains multiple ECUs interconnected on one or more CAN buses. Each ECU manages a specific vehicle domain: the Engine Control Module (ECM) governs fuel injection and ignition; the Transmission Control Module (TCM) controls gear selection; the Battery Management System (BMS) supervises the high-voltage battery pack in electric vehicles; and the Body Control Module (BCM) manages lighting, wipers, and comfort systems.
+
+Each ECU independently monitors its sensors, applies control algorithms, and stores fault events as DTCs when a measured parameter falls outside calibrated limits. The diagnostic gateway ECU arbitrates access between external scan tools (connected via the OBD-II port) and the internal vehicle network, translating standardised OBD-II PID requests into proprietary CAN messages addressed to the relevant ECU.
+
+\subsubsection*{Limitations of OBD-II for EV Monitoring}
+
+The OBD-II standard was originally designed around internal combustion engines and covers parameters such as RPM, coolant temperature, and fuel trim that have no direct equivalent in electric vehicles. While the ISO 15765-4 CAN transport layer used for OBD-II communication is directly compatible with EV CAN buses, the PID set defined by the standard does not cover electric-vehicle-specific data: battery cell voltages, per-cell temperature distribution, state of charge, MPPT solar input, or motor winding temperature.
+
+Electric vehicle manufacturers therefore transmit this EV-specific telemetry using proprietary CAN frame formats defined by their own DBC files. The \textbf{SAE J1939} standard, originally developed for heavy-duty commercial vehicles, is increasingly adopted by EV battery management systems (including the O'CELL IFS60.8 used in this project) as it provides a structured addressing scheme (Source Address, Function Code, Destination Address) and a well-defined 29-bit extended CAN ID format.
+
+\subsubsection*{Positioning of the BAKO ISS System}
+
+The BAKO ISS monitoring system operates in a complementary role to OBD-II rather than as a replacement. It communicates directly on the vehicle's J1939 CAN bus to capture high-resolution BMS telemetry (19 individual cell voltages, 4 temperature probes, SOC, pack current) that is invisible to any generic OBD-II scan tool. This approach --- passive CAN listening combined with active sensor polling --- gives the system access to data that reflects the true health of the electric powertrain rather than the OBD-II subset that regulatory compliance requires.
+
 \subsection{Market \& Competitor Analysis}
 
 \subsubsection*{Market Context}
@@ -73,6 +97,41 @@ Solar / MPPT           & IEC 62109-1            & Safety of power converters in 
 CAN bus lines require 120~$\Omega$ termination resistors at both ends of the bus. DS18B20 sensors require a 4.7~k$\Omega$ pull-up on the data line. Voltage dividers must be calculated to ensure no ADC input ever exceeds 3.3~V under any fault condition. The SIM800L requires compliance with local telecom authority regulations (ATI --- Agence Tunisienne des Infrastructures) for GSM transmission.
 
 \subsection{Technology Stack Selection}
+
+\subsubsection*{Microcontroller Selection: Why the ESP32?}
+
+The choice of microcontroller was the single most consequential design decision in the project, as it determines the available peripherals, firmware ecosystem, cost, and long-term maintainability. Three candidate platforms were evaluated before the ESP32 was selected.
+
+\begin{table}[H]
+\centering
+\caption{Microcontroller Platform Comparison}
+\label{tab:mcu-comparison}
+\small
+\begin{tabular}{>{\bfseries}p{2.8cm} p{2.8cm} p{2.8cm} p{2.8cm}}
+\toprule
+Criterion & ESP32 & Arduino Mega 2560 & STM32F4 (Nucleo) \\
+\midrule
+CPU speed      & 240~MHz dual-core & 16~MHz single-core & 168~MHz single-core \\
+Wi-Fi / BT     & Built-in (802.11 + BLE 4.2) & None & None (external module) \\
+UART count     & 3 hardware UARTs & 4 hardware UARTs & 3 hardware UARTs \\
+SPI buses      & 4 (VSPI, HSPI, …) & 1 & Multiple \\
+ADC            & 12-bit, 18 channels & 10-bit, 16 channels & 12-bit, 24 channels \\
+RAM            & 520~kB SRAM & 8~kB SRAM & 192~kB SRAM \\
+Flash          & 4~MB (external) & 256~kB & 1~MB \\
+Arduino-compat & Full (arduino-esp32) & Native & Partial \\
+Unit cost (TND)& \textasciitilde30 & \textasciitilde60 & \textasciitilde80 \\
+Local stock    & Available & Available & Rare \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+The \textbf{Arduino Mega 2560} was rejected primarily because of its 8-bit, 16~MHz processor and 8~kB SRAM, which are insufficient for simultaneous CAN frame decoding, JSON serialisation (which alone requires a 1~kB buffer), and AT command management for the cellular module. It also lacks built-in Wi-Fi and Bluetooth, which are required for the local dashboard connection.
+
+The \textbf{STM32F4 Nucleo} offers adequate processing power and ADC precision, but its Arduino compatibility layer is incomplete for the \texttt{mcp\_can} and \texttt{DallasTemperature} libraries used in this project. Its higher cost and near-zero availability in the Tunisian local market were additional disqualifying factors.
+
+The \textbf{ESP32} was selected because it uniquely satisfies all requirements simultaneously: sufficient processing speed for the cooperative multi-sensor loop, built-in Wi-Fi and BLE for local dashboard connectivity, three independent hardware UARTs (one for SIM800L, one for debugging, one spare), SPI for the MCP2515, and ADC channels for the analogue sensors. Its mature \texttt{arduino-esp32} framework gives access to every required library. At approximately 30~TND from local Tunisian suppliers, it is also the most cost-effective option.
+
+\subsubsection*{Key Module Selection Rationale}
 
 \begin{description}
     \item[\textbf{Core Microcontroller:}] ESP32 (Espressif) --- dual-core 240~MHz, built-in Wi-Fi + Bluetooth, multiple UARTs, SPI, I2C, 1-Wire support, 12-bit ADC. Selected for its versatility, community support, and low cost.

@@ -49,8 +49,8 @@
 
 // ─── SIM800L — UART1 (HardwareSerial avoids SoftwareSerial timing issues) ────
 HardwareSerial sim800l(1);
-constexpr uint8_t SIM_RX  = 16;
-constexpr uint8_t SIM_TX  = 17;
+constexpr uint8_t SIM_RX  = 19;
+constexpr uint8_t SIM_TX  = 18;
 constexpr uint8_t SIM_RST =  5;
 
 // ─── MCP2515 CAN ──────────────────────────────────────────────────────────────
@@ -118,6 +118,7 @@ struct BMSData {
 static BMSData       bms;
 static unsigned long lastPublish = 0;
 static bool          g_moduleRebooted = false;   // set when "Call Ready" URC detected
+static bool          g_canOK = false;            // set only if MCP2515 init succeeded
 
 MCP_CAN CAN0(CAN_CS);
 char    responseBuf[512];
@@ -400,8 +401,11 @@ bool publishToCloud() {
 bool httpRequest(const char* method, int methodId,
                  const char* url, const char* body, size_t bodyLen) {
 
-    // Always close any lingering HTTP session before opening a new one
+    // Close any lingering HTTP session — retry once if first attempt fails
+    // (session may still be alive from a previous timeout)
     sendAT("AT+HTTPTERM", 1000);
+    delay(500);
+    sendAT("AT+HTTPTERM", 1000);   // second call always succeeds once session is gone
 
     if (!sendATExpect("AT+HTTPINIT", "OK", 3000)) {
         Serial.println(F("[HTTP] HTTPINIT failed"));
@@ -447,13 +451,15 @@ bool httpRequest(const char* method, int methodId,
     unsigned long start = millis();
     while (millis() - start < 30000) {
         // Keep reading CAN frames during the HTTP wait
-        while (!digitalRead(CAN_INT)) {
-            unsigned long rxId = 0;
-            uint8_t rxLen = 0;
-            uint8_t rxBuf[8] = {};
-            if (CAN0.readMsgBuf(&rxId, &rxLen, rxBuf) == CAN_OK) {
-                if (rxId & 0x80000000) rxId &= 0x1FFFFFFF;
-                decodeFrame(rxId, rxLen, rxBuf);
+        if (g_canOK) {
+            while (!digitalRead(CAN_INT)) {
+                unsigned long rxId = 0;
+                uint8_t rxLen = 0;
+                uint8_t rxBuf[8] = {};
+                if (CAN0.readMsgBuf(&rxId, &rxLen, rxBuf) == CAN_OK) {
+                    if (rxId & 0x80000000) rxId &= 0x1FFFFFFF;
+                    decodeFrame(rxId, rxLen, rxBuf);
+                }
             }
         }
 
@@ -683,24 +689,43 @@ void getNetworkTime(char* buf, size_t bufLen) {
     }
 }
 
+// ─── SIM800L hardware reset via RST pin ───────────────────────────────────────
+void hardResetSIM800L() {
+    Serial.println(F("[GSM] Hardware reset via RST pin..."));
+    pinMode(SIM_RST, OUTPUT);
+    digitalWrite(SIM_RST, LOW);
+    delay(200);
+    digitalWrite(SIM_RST, HIGH);
+    delay(3000);   // module boot time after RST
+}
+
 // ─── Setup ────────────────────────────────────────────────────────────────────
 void setup() {
     Serial.begin(115200);
+
+    // Hardware-reset the SIM800L before UART init to clear any stuck state
+    hardResetSIM800L();
+
     sim800l.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
-    delay(3000);
+    delay(2000);
 
     Serial.println(F("\n========================================"));
     Serial.println(F("   ESP32 BMS Cloud Publisher (VPS)"));
+    Serial.printf ("   VPS  : %s:%s\n", VPS_HOST, VPS_PORT);
+    Serial.printf ("   APN  : %s\n", APN);
+    Serial.printf ("   DEV  : %s\n", DEVICE_ID);
     Serial.println(F("========================================\n"));
 
     // ── MCP2515 CAN ──────────────────────────────────────────────────────────
     Serial.print(F("[CAN] Init MCP2515... "));
     if (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK) {
         CAN0.setMode(MCP_NORMAL);
-        pinMode(CAN_INT, INPUT);
+        pinMode(CAN_INT, INPUT_PULLUP);   // pull-up prevents floating LOW when no bus
+        g_canOK = true;
         Serial.println(F("OK (250 kbps)"));
     } else {
-        Serial.println(F("FAILED — check CS/INT/SPI wiring"));
+        pinMode(CAN_INT, INPUT_PULLUP);   // still pull up to prevent crash in loop()
+        Serial.println(F("FAILED — check CS/INT/SPI wiring — running without CAN"));
     }
 
     // ── GPRS with retries ─────────────────────────────────────────────────────
@@ -708,7 +733,12 @@ void setup() {
     for (int attempt = 1; attempt <= MAX_RETRIES; attempt++) {
         Serial.printf("[GSM] Attempt %d/%d\n", attempt, MAX_RETRIES);
         if (connectGPRS() && openBearer()) { connected = true; break; }
-        delay(3000);
+        if (attempt < MAX_RETRIES) {
+            Serial.println(F("[GSM] Retrying after hardware reset..."));
+            hardResetSIM800L();
+            sim800l.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
+            delay(2000);
+        }
     }
     if (!connected) {
         Serial.println(F("[GSM] All retries failed — restarting in 10 s..."));
@@ -722,24 +752,21 @@ void setup() {
 // ─── Loop ─────────────────────────────────────────────────────────────────────
 void loop() {
     // Drain all pending CAN frames before the next publish
-    while (!digitalRead(CAN_INT)) {
-        unsigned long rxId = 0;
-        uint8_t  len  = 0;
-        uint8_t  buf[8] = {};
+    if (g_canOK) {
+        while (!digitalRead(CAN_INT)) {
+            unsigned long rxId = 0;
+            uint8_t  len  = 0;
+            uint8_t  buf[8] = {};
 
-        if (CAN0.readMsgBuf(&rxId, &len, buf) == CAN_OK) {
-            if (rxId & 0x80000000) rxId &= 0x1FFFFFFF;   // strip extended flag
-            decodeFrame(rxId, len, buf);
+            if (CAN0.readMsgBuf(&rxId, &len, buf) == CAN_OK) {
+                if (rxId & 0x80000000) rxId &= 0x1FFFFFFF;   // strip extended flag
+                decodeFrame(rxId, len, buf);
+            }
         }
     }
 
     if (millis() - lastPublish >= PUBLISH_INTERVAL) {
         lastPublish = millis();
-
-        if (bms.frame_count == 0) {
-            Serial.println(F("[CAN] No frames yet — waiting..."));
-            return;
-        }
 
         Serial.printf("[CAN] Frames: %lu  SOC: %.1f%%  Pack: %.2f V  "
                       "Cells: %d  Temps: %d\n",
@@ -747,19 +774,25 @@ void loop() {
                       bms.cell_count, bms.temp_count);
 
         if (!publishToCloud()) {
-            Serial.println(F("[CLOUD] Failed — reconnecting bearer..."));
-            // If the module rebooted (power brownout), give it time to settle
-            // before issuing any AT commands — SIM needs 15-20 s after reset.
-            if (g_moduleRebooted) {
-                Serial.println(F("[GSM] Module reboot detected — waiting 20 s for SIM..."));
-                delay(20000);
-                g_moduleRebooted = false;
-            }
+            Serial.println(F("[CLOUD] Publish failed — reconnecting bearer..."));
             closeBearer();
-            delay(2000);
+
+            if (g_moduleRebooted) {
+                // Power brownout: SIM needs full re-initialisation time
+                Serial.println(F("[GSM] Brownout recovery — hardware reset + 20 s SIM wait..."));
+                hardResetSIM800L();
+                sim800l.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
+                delay(17000);   // 3 s already elapsed in hardReset, total ~20 s
+                g_moduleRebooted = false;
+            } else {
+                delay(2000);
+            }
+
             if (connectGPRS() && openBearer()) {
                 if (!publishToCloud())
-                    Serial.println(F("[CLOUD] Retry also failed — skipping"));
+                    Serial.println(F("[CLOUD] Retry also failed — will retry next cycle"));
+            } else {
+                Serial.println(F("[GSM] Re-connect failed — will retry next cycle"));
             }
         }
     }

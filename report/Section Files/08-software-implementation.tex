@@ -183,6 +183,85 @@ The firmware detects this string in every AT response buffer (both \texttt{sendA
 The long-term hardware fix is to add a 1000 µF / 10 V bulk capacitor close to the SIM800L VCC pin.
 
 % ─────────────────────────────────────────────────────────────────────────────
+\subsection{CAN Frame Parser}
+\label{sec:can-frame-parser}
+
+The \texttt{parse\_can()} function in the Python backend implements the BAKO CAN Protocol Rev~1.0, decoding all frames broadcast by the BMS (SA = 0xF4) and all sensor gateway frames transmitted by the ESP32 (SA = 0xAA). A companion \texttt{parse\_sensor()} function handles the \texttt{SENSOR:} text-line fallback format emitted by the Python simulator.
+
+\subsubsection{BMS Frames (SA = 0xF4)}
+
+Table~\ref{tab:can-parser-bms} lists all five BMS frame types decoded by \texttt{parse\_can()}, with their CAN IDs, transmission cycles, decoded fields, and key decoding logic.
+
+\begin{table}[H]
+\centering
+\caption{BMS CAN Frame Parser --- SA = 0xF4 (O'CELL BMS)}
+\label{tab:can-parser-bms}
+\small
+\begin{tabular}{>{\ttfamily}p{3.5cm} c p{4.5cm} p{4.0cm}}
+\toprule
+\textbf{CAN ID} & \textbf{Cycle} & \textbf{Fields decoded} & \textbf{Key decoding logic} \\
+\midrule
+0x18FF28F4 & 100 ms & SOC\%, pack current, pack voltage, fault level, error code & Pack current: (uint16\_LE $-$ 5000) $\times$ 0.1~A; Pack voltage: uint16\_LE $\times$ 0.1~V \\
+\midrule
+0x18FE28F4 & 100 ms & Max/min cell voltage, max/min temp, max discharge current & Temperatures: uint8 $-$ 40~°C; 0xFF = not connected \\
+\midrule
+0x18C8--CC28F4 & 500 ms & All 19 cell voltages (4 per frame) & Big-endian uint16 mV pairs; PF byte determines group index (0xC8 = group 0 $\rightarrow$ cells 1--4) \\
+\midrule
+0x18B428F4 & 500 ms & Up to 8 temperature probe values & uint8 offset $-$40~°C; 0xFF = probe not connected \\
+\midrule
+0x18FFE5F4 & 1000 ms & Max charge voltage, max charge current & uint16\_LE $\times$ 0.1~V / 0.1~A \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{ESP32 Sensor Gateway Frames (SA = 0xAA)}
+
+In addition to receiving BMS frames, the ESP32 re-broadcasts external sensor readings as J1939-formatted CAN frames using its own source address (SA = 0xAA). This allows any device on the bus to consume solar, MPPT, thermal, and vehicle state data using a standard CAN interface. Table~\ref{tab:can-parser-esp32} lists all eight gateway frame types.
+
+\begin{table}[H]
+\centering
+\caption{ESP32 Sensor Gateway CAN Frame Map --- SA = 0xAA}
+\label{tab:can-parser-esp32}
+\small
+\begin{tabular}{>{\ttfamily}p{3.2cm} c p{8.0cm}}
+\toprule
+\textbf{CAN ID} & \textbf{Cycle} & \textbf{Content} \\
+\midrule
+0x18D001AA & 200 ms & Solar panel current before MPPT — raw + 5-cycle average (uint16\_LE $\times$ 0.1~A) \\
+0x18D101AA & 200 ms & Solar panel voltage + open-circuit $V_{oc}$ (uint16\_LE $\times$ 0.1~V) \\
+0x18D201AA & 200 ms & MPPT output current + mode (0=off / 1=track / 2=CV / 3=float) + efficiency~\% \\
+0x18D301AA & 200 ms & DC/DC 12~V output voltage ($\times$~0.01~V) + current ($\times$~0.1~A; 0xFFFF = not fitted) \\
+0x18D401AA & 1000 ms & Motor temperature (uint8 $-$ 40~°C) \\
+0x18D501AA & 1000 ms & MPPT heatsink temperature (uint8 $-$ 40~°C) \\
+0x18D601AA & 1000 ms & DC/DC heatsink temperature (uint8 $-$ 40~°C) \\
+0x18D701AA & 500 ms & Handbrake position: 0 = released, 1 = engaged, 0xFF = sensor fault; + debounce flag \\
+0x18D801AA & 500 ms & GNSS information (position, speed, heading) \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection{SOC Representations and SOH Calculation}
+
+Three distinct SOC representations are maintained simultaneously by the parser:
+
+\begin{description}
+    \item[\texttt{soc\_bms}] Raw coulomb-counter value from byte~2 of 0x18FF28F4. Directly reported by the BMS hardware; prone to drift over long charge/discharge cycles.
+
+    \item[\texttt{soc}] Voltage-based SOC derived from the average cell voltage using the calibrated formula (Equation~\ref{eq:soc}):
+    \[
+        \text{SOC} = \frac{\overline{V}_{\text{cell}} - 2500}{3387 - 2500} \times 100, \quad \text{clamped to } [0, 100]\%
+    \]
+    The upper reference (3387~mV) was calibrated from four real vehicle logs. This is the primary value displayed on the dashboard.
+
+    \item[\texttt{soc\_coulomb}] Accumulated Ah count from 0x18FFE5F4, used for charger control decisions.
+\end{description}
+
+State of Health (SoH) is calculated from the ratio of the measured actual capacity to the rated pack capacity:
+\[
+    \text{SoH} = \frac{C_{\text{actual}}}{C_{\text{rated}}} \times 100 = \frac{44.7}{50.0} \times 100 = 89.4\%
+\]
+
+% ─────────────────────────────────────────────────────────────────────────────
 \subsection{Motor Control Algorithms}
 
 Motor control algorithms are outside the scope of this monitoring system. The ESP32 firmware reads and monitors motor-related sensor data --- specifically motor temperature via DS18B20 and current draw via the ACS712/ACS758 sensors --- but does not interface with the motor controller or implement any drive control logic. Motor speed and torque management remain the responsibility of the existing vehicle control electronics. This boundary is intentional: the monitoring system observes and reports motor operating conditions without intervening in the drivetrain control loop.
@@ -229,6 +308,53 @@ The migration from Station to AP mode required minimal changes, isolated entirel
 \end{itemize}
 
 The \texttt{server.py} dashboard application required zero modifications. It accepts connections on any local interface, including the 192.168.4.x interface created when the PC joins the BAKO\_SMU network. The only operational change for the user is connecting the PC to the \texttt{BAKO\_SMU} Wi-Fi network before launching the server.
+
+% ─────────────────────────────────────────────────────────────────────────────
+\subsection{OTA Firmware Updates \& Web Configuration Portal}
+\label{sec:ota}
+
+This section documents the third and final stage of the Wi-Fi connectivity evolution. Following the migration from Station Mode to Access Point (AP) Mode, two complementary features were added: Over-The-Air (OTA) firmware flashing and a browser-based configuration portal. Together they make the system fully maintainable in the field without physical access to the PCB.
+
+\subsubsection*{Development Progression Summary}
+
+The connectivity stack evolved through three clearly defined stages. Table~\ref{tab:wifi-evolution} summarises each stage, its purpose, and the limitation that motivated the next iteration.
+
+\begin{table}[H]
+\centering
+\caption{Wi-Fi Connectivity Evolution Across Three Development Stages}
+\label{tab:wifi-evolution}
+\small
+\begin{tabular}{c >{\bfseries}p{2.5cm} p{4.5cm} p{4.5cm}}
+\toprule
+\textbf{Stage} & \textbf{Mode} & \textbf{What was achieved} & \textbf{Limitation that led to next stage} \\
+\midrule
+1 & Station Mode (STA) & ESP32 joins existing Wi-Fi router. DHCP-assigned IP. Dashboard PC on same LAN. & Router dependency, dynamic IP, hardcoded SSID/password in firmware. \\
+\midrule
+2 & Access Point Mode (AP) & ESP32 is its own router. Fixed IP 192.168.4.1. No external network needed. & Reflashing still required USB cable. Network parameters hardcoded. \\
+\midrule
+3 & AP + OTA + Web Config & Wireless firmware flashing from IDE. Browser portal to change all network settings without reflashing. & No further limitation — system is fully field-maintainable. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{Over-The-Air Firmware Update}
+
+The \textbf{ArduinoOTA} library was integrated into the ESP32 firmware to allow wireless firmware flashing directly from the Arduino IDE over the existing AP network. The OTA service runs as a lightweight background handler (\texttt{ArduinoOTA.handle()}) called at every loop iteration alongside the TCP and web servers, adding negligible overhead.
+
+\paragraph{Motivation.}
+Once the PCB is mounted inside a vehicle enclosure, accessing the USB port for reflashing is impractical. OTA eliminates this constraint: the technician connects a laptop to the \texttt{BAKO\_BMS} Wi-Fi network, selects the network port in the IDE, and clicks Upload — the new firmware is transmitted wirelessly, verified, and applied.
+
+\paragraph{OTA flashing procedure.}
+\begin{enumerate}
+    \item Power the ESP32 board (vehicle on, or bench supply connected).
+    \item Connect the laptop to the \texttt{BAKO\_BMS} Wi-Fi network broadcast by the ESP32.
+    \item Open Arduino IDE → Tools → Port. A network port labelled with the OTA hostname (\texttt{BAKO\_OTA} by default) appears automatically.
+    \item Select that port, compile, and click Upload as normal.
+    \item The IDE transmits the binary wirelessly. The ESP32 verifies integrity and reboots into the new firmware.
+\end{enumerate}
+
+\paragraph{Security.}
+The OTA service is password-protected to prevent unauthorised firmware injection. The password is configurable through the web portal and stored in NVS flash so it survives reboots. If an active TCP dashboard client is connected when an OTA session begins, the client socket is cleanly closed before flashing starts to prevent data corruption.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{Unit \& Integration Testing}
@@ -297,16 +423,25 @@ The dashboard is organised into four panels arranged to give the engineer an at-
 Panel & Content \\
 \midrule
 Left panel &
-  SOC ring gauge (colour-coded: green $>$30\%, orange 15--30\%, red $<$15\%); pack voltage (V); pack current (A, signed); remaining capacity (Ah); State of Health (SoH) indicator. \\
+  State of charge large ring gauge (colour-coded: green $>$30\%, orange 15--30\%, red $<$15\%); pack voltage (V); pack current (A, signed); remaining capacity (Ah); State of Health (SoH) indicator. \\
 \midrule
 Central panel &
-  19-cell voltage bar chart with colour-coded per-cell thresholds (green: normal, orange: approaching limit, red: fault); minimum, maximum, and average cell voltage displayed below the grid; cell spread indicator (max $-$ min, mV). \\
+  Individual cell voltage bars for all 19 cells with per-cell colour coding (overvoltage / full / balanced / nominal / low / undervoltage); minimum, maximum, and average cell voltage; cell spread indicator (max $-$ min, mV). \\
 \midrule
 Temperature panel &
-  Four BMS temperature probe readings (individual bars); rolling 30-sample average trace; time-series line chart scrolling at 1 Hz; high-temperature threshold line drawn at the alert boundary. \\
+  Four BMS internal temperature probe readings with individual bars; rolling average value; high-temperature threshold alert line. \\
+\midrule
+Temperature chart &
+  Time-series line chart displaying the four individual probe temperatures and their rolling average scrolling in real time. \\
 \midrule
 Right panel &
-  Extended sensor readings: DC/DC converter voltage, MPPT controller output current, motor temperature (DS18B20 external probe), handbrake state (Engaged / Released), connection status indicator (Live / Waiting / Disconnected), cloud communication event log. \\
+  Extended sensor readings: solar panel voltage and current, MPPT output current, MPPT mode and efficiency, DC/DC 12~V output, motor temperature, MPPT heatsink temperature, handbrake status. \\
+\midrule
+Serial monitor &
+  Live scrolling log of raw CAN frames and \texttt{SENSOR:} lines as received from the ESP32. \\
+\midrule
+File export &
+  Export full session log as \texttt{.TXT} or \texttt{.XLSX} with timestamp column. \\
 \bottomrule
 \end{tabular}
 \end{table}
@@ -324,8 +459,8 @@ The dashboard includes a \textbf{Download CSV} button that retrieves the last 10
 A mode pill in the dashboard header opens a modal dialog that lets the operator switch the active data source between Serial and Wi-Fi AP modes at runtime, without restarting the server. The mode selection is sent via \texttt{POST /api/mode} and persisted to \texttt{mode\_config.json} so that it is automatically restored on the next server launch.
 
 \begin{itemize}
-    \item \textbf{Serial mode} --- the operator selects or auto-detects the connected ESP32 USB port and sets the baud rate (default 115200). The server reads newline-delimited CAN frames from the serial stream.
-    \item \textbf{Wi-Fi AP mode} --- the operator enters the ESP32 AP address (default 192.168.4.1) and TCP port (default 9000), then clicks Apply. The PC must already be connected to the \texttt{BAKO\_SMU} Wi-Fi network.
+    \item \textbf{Serial mode} --- auto-detects the connected ESP32 USB port, or accepts manual port entry with a configurable baud rate. The server reads newline-delimited CAN frames from the serial stream.
+    \item \textbf{Wi-Fi mode} --- the operator enters the ESP32 IP address (default 192.168.4.1) and TCP port (default 9000), then clicks Apply. The PC must already be connected to the \texttt{BAKO\_SMU} Wi-Fi network.
 \end{itemize}
 
 \begin{figure}[H]
@@ -448,25 +583,80 @@ Because the frame format emitted by the ESP32 over Wi-Fi TCP is identical to tha
 \subsection{BLE Companion Interface}
 \label{sec:ble}
 
-Bluetooth Low Energy (BLE) connectivity was designed to complement the Wi-Fi dashboard by providing a lightweight, phone-friendly monitoring channel for the vehicle operator. The ESP32 chip includes a built-in dual-mode Bluetooth radio supporting both Classic Bluetooth and BLE 4.2 / 5.0, making BLE a zero-hardware-cost addition to the platform.
+Bluetooth Low Energy (BLE) connectivity was implemented to complement the Wi-Fi dashboard by providing a lightweight, phone-friendly monitoring channel for the vehicle operator. BLE was selected due to its low power consumption, wide smartphone compatibility, and sufficient data throughput for sensor-based telemetry. The ESP32 chip includes a built-in dual-mode Bluetooth radio supporting BLE 4.2 / 5.0, making BLE a zero-hardware-cost addition to the platform.
 
-\subsubsection*{Design Overview}
+\subsubsection*{Hardware and Software Platform}
 
-The proposed BLE implementation uses the ESP32 NimBLE stack (available via the Arduino \texttt{NimBLE-Arduino} library) to expose a custom GATT service. The GATT service is identified by a project-specific 128-bit UUID and contains three characteristics:
+The BLE module runs entirely on the ESP32 development board using the \textbf{NimBLE-Arduino} library, a lightweight and memory-efficient BLE stack well-suited to embedded firmware. Testing was performed using Android BLE scanner applications, including nRF Connect, and a custom Android companion application.
 
-\begin{description}
-    \item[Battery Status characteristic] Readable and notifiable; encodes pack SOC (uint8, 0--100\%), fault level (uint8), and error code (uint8) in a 3-byte payload. Updated at 2~Hz.
-    \item[Pack Data characteristic] Readable; encodes pack voltage (uint16, 0.1~V/bit) and pack current (int16, 0.1~A/bit, offset 0) in a 4-byte payload. Updated at 2~Hz.
-    \item[Cell Min/Max characteristic] Readable; encodes minimum and maximum cell voltages (uint16, 1~mV/bit each) in a 4-byte payload. Updated at 1~Hz.
-\end{description}
+\subsubsection*{GATT Architecture}
 
-A smartphone application subscribed to the Battery Status notification receives an alert whenever SOC drops below 20\% or a BMS fault code is asserted, allowing the rider to monitor the pack state without opening the full web dashboard.
+The communication follows a GATT (Generic Attribute Profile) client--server model. The ESP32 acts as the \textbf{GATT Server}, exposing a vehicle telemetry service; the Android application acts as the \textbf{GATT Client}, subscribing to and receiving characteristic notifications.
+
+The telemetry service is identified by a project-specific 128-bit base UUID \texttt{12345678-0000-0000-0000-0000000000xx}. Six characteristics are defined, each carrying one real-time sensor stream:
+
+\begin{table}[H]
+\centering
+\caption{BLE GATT Characteristic Map}
+\label{tab:ble-characteristics}
+\begin{tabular}{ll}
+\toprule
+\textbf{Parameter} & \textbf{Characteristic UUID} \\
+\midrule
+Speed       & \texttt{12345678-0000-0000-0000-000000000001} \\
+Voltage     & \texttt{12345678-0000-0000-0000-000000000002} \\
+SOC         & \texttt{12345678-0000-0000-0000-000000000003} \\
+Current     & \texttt{12345678-0000-0000-0000-000000000004} \\
+Temperature & \texttt{12345678-0000-0000-0000-000000000005} \\
+RPM         & \texttt{12345678-0000-0000-0000-000000000006} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{ESP32 Implementation}
+
+The BLE stack is initialised in \texttt{setup()} using the NimBLE API:
+
+\begin{enumerate}
+    \item \texttt{NimBLEDevice::init()} --- initialises BLE with the device name \textbf{BAKO-Dashboard}, which is broadcast in the advertising packet so that Android devices can discover the ESP32 by name.
+    \item \texttt{createServer()} --- creates the GATT server and registers connection callbacks.
+    \item \texttt{createService()} --- defines the vehicle telemetry service under its UUID.
+    \item \texttt{createCharacteristic()} --- defines each of the six data channels with \texttt{READ | NOTIFY} properties.
+    \item \texttt{startAdvertising()} --- makes the device continuously discoverable.
+\end{enumerate}
+
+Sensor values are updated every 500~ms in the main loop. Each value is converted to a string and pushed via \texttt{notify()}, which delivers it to any subscribed Android client in real time. Notifications are only sent when a client is connected, avoiding unnecessary radio activity.
+
+\subsubsection*{Connection Handling}
+
+A callback class overrides two methods to manage the BLE connection lifecycle:
+
+\begin{itemize}
+    \item \textbf{onConnect} --- triggered when an Android device establishes a connection; suspends advertising to dedicate bandwidth to the active client.
+    \item \textbf{onDisconnect} --- automatically restarts advertising so the ESP32 remains discoverable after the client disconnects or moves out of range.
+\end{itemize}
+
+This ensures continuous availability without manual reset.
+
+\subsubsection*{Android Integration}
+
+The Android companion application scans for BLE devices by advertised name. After connecting to \textbf{BAKO-Dashboard}:
+
+\begin{enumerate}
+    \item The app discovers the GATT telemetry service.
+    \item It subscribes to all six characteristics and enables notifications.
+    \item Live values (speed, SOC, voltage, current, temperature, RPM) are displayed on a real-time dashboard interface.
+\end{enumerate}
 
 \subsubsection*{Coexistence with Wi-Fi}
 
-The ESP32 shares its radio between Wi-Fi and BLE using time-division multiplexing managed by the ESP-IDF coexistence driver. In practice, enabling BLE advertising alongside the Wi-Fi AP increases the Wi-Fi beacon interval slightly but does not affect the 9000-port TCP data stream. The firmware configures the coexistence policy to prioritise Wi-Fi when a TCP client is connected, allowing BLE notifications to continue at a reduced rate without dropping any telemetry frame.
+The ESP32 shares its radio between Wi-Fi and BLE using time-division multiplexing managed by the ESP-IDF coexistence driver. Enabling BLE advertising alongside the Wi-Fi AP increases the Wi-Fi beacon interval slightly but does not affect the cloud GPRS data stream, which runs over the SIM800L UART and is entirely independent of the radio.
 
-\subsubsection*{Implementation Status}
+\subsubsection*{Challenges Encountered}
 
-The BLE GATT server design was completed and the characteristic schema validated against the NimBLE GATT API. Full firmware integration, pairing security (BLE passkey), and the companion smartphone application remain as short-term development items listed in the project roadmap (Section~\ref{sec:recommendations}).
+\paragraph{Device visibility on Android.}
+Initially the ESP32 BLE device did not appear consistently in BLE scanning applications. Investigation revealed that the advertising packet was missing a complete scan response entry for the device name. The issue was resolved by explicitly configuring the NimBLE advertising parameters to include the device name in both the advertising data and the scan response packet, and by ensuring that \texttt{startAdvertising()} is called only after the GATT service is fully initialised.
+
+\paragraph{Apple iOS compatibility.}
+Testing on iOS devices proved more restrictive. iOS enforces stricter BLE scanning rules than Android: devices may not appear unless they advertise complete service UUIDs, background scanning is limited, and some characteristics require explicit bonding before they become visible to the application layer. As a result, Android was adopted as the primary testing and deployment platform, where tools such as nRF Connect provide detailed GATT inspection and ease of debugging. iOS support is deferred to a future firmware and app revision.
 
