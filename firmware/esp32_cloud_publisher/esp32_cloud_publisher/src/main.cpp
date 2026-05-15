@@ -49,8 +49,8 @@
 
 // ─── SIM800L — UART1 (HardwareSerial avoids SoftwareSerial timing issues) ────
 HardwareSerial sim800l(1);
-constexpr uint8_t SIM_RX  = 19;
-constexpr uint8_t SIM_TX  = 18;
+constexpr uint8_t SIM_RX  = 16;
+constexpr uint8_t SIM_TX  = 17;
 constexpr uint8_t SIM_RST =  5;
 
 // ─── MCP2515 CAN ──────────────────────────────────────────────────────────────
@@ -384,17 +384,22 @@ String buildJSON(const char* timestamp) {
 
 // ─── VPS cloud publish (POST /api/ingest) ────────────────────────────────────
 bool publishToCloud() {
-    char timestamp[32] = "";
-    getNetworkTime(timestamp, sizeof(timestamp));
-
-    String body = buildJSON(timestamp);
-    Serial.printf("[JSON] %s\n", body.c_str());
-
-    // Build full URL: http://VPS_HOST:VPS_PORT/VPS_PATH
     char url[256];
     snprintf(url, sizeof(url), "http://%s:%s%s", VPS_HOST, VPS_PORT, VPS_PATH);
 
+#ifdef TEST_MINIMAL_JSON
+    // Plain-text hello — proves the GPRS → VPS path without any JSON
+    snprintf(url, sizeof(url), "http://%s:%s/hello", VPS_HOST, VPS_PORT);
+    const char* body = "Hello to Bako";
+    Serial.printf("[HELLO-TEST] sending: %s\n", body);
+    return httpPost(url, body, strlen(body));
+#else
+    char timestamp[32] = "";
+    getNetworkTime(timestamp, sizeof(timestamp));
+    String body = buildJSON(timestamp);
+    Serial.printf("[JSON] %s\n", body.c_str());
     return httpPost(url, body.c_str(), body.length());
+#endif
 }
 
 // ─── SIM800L HTTP service — PUT ────────────────────────────────────────────────
@@ -417,13 +422,17 @@ bool httpRequest(const char* method, int methodId,
     snprintf(urlCmd, sizeof(urlCmd), "AT+HTTPPARA=\"URL\",\"%s\"", url);
     sendAT(urlCmd, 1000);
 
+    #ifdef TEST_MINIMAL_JSON
+    sendAT("AT+HTTPPARA=\"CONTENT\",\"text/plain\"", 1000);
+    #else
     sendAT("AT+HTTPPARA=\"CONTENT\",\"application/json\"", 1000);
-    // Plain HTTP — no SSL.
-    // SIM800L AT+HTTPSSL=0 is the default; explicitly clear any leftover state.
+    #endif
     sendAT("AT+HTTPSSL=0", 500);
-    // Add API key as a custom request header
+
+    // USERDATA — no \r\n at the end; SIM800L adds CRLF automatically.
+    // Including \r\n in the value adds an extra blank line that shifts body offset.
     char hdrCmd[128];
-    snprintf(hdrCmd, sizeof(hdrCmd), "AT+HTTPPARA=\"USERDATA\",\"X-Api-Key: %s\\r\\n\"", VPS_API_KEY);
+    snprintf(hdrCmd, sizeof(hdrCmd), "AT+HTTPPARA=\"USERDATA\",\"X-Api-Key: %s\"", VPS_API_KEY);
     sendAT(hdrCmd, 500);
 
     // Upload body
@@ -435,8 +444,9 @@ bool httpRequest(const char* method, int methodId,
         return false;
     }
     sim800l.write((const uint8_t*)body, bodyLen);
-    delay(2000);
-    readResponse(responseBuf, sizeof(responseBuf), 3000);
+    delay(3000);   // extra time to ensure modem fully buffers body before HTTPACTION
+    readResponse(responseBuf, sizeof(responseBuf), 2000);
+    Serial.printf("[HTTP] after-data resp: %s\n", responseBuf);
 
     // Execute request — SIM800L supports 0=GET 1=POST 2=HEAD only (no native PUT)
     Serial.printf("[HTTP] >> AT+HTTPACTION=%d\n", methodId);
@@ -595,7 +605,14 @@ void closeBearer() {
 }
 
 // ─── AT helpers ───────────────────────────────────────────────────────────────
+static void flushRX() {
+    // Discard any stale bytes left in the UART RX buffer before a new command
+    delay(20);
+    while (sim800l.available()) sim800l.read();
+}
+
 void sendAT(const char* cmd, int waitMs) {
+    flushRX();
     Serial.printf(">> %s\n", cmd);
     sim800l.println(cmd);
     delay(waitMs);
@@ -612,6 +629,7 @@ void sendAT(const char* cmd, int waitMs) {
 }
 
 bool sendATExpect(const char* cmd, const char* expected, int waitMs) {
+    flushRX();
     Serial.printf(">> %s\n", cmd);
     sim800l.println(cmd);
 
@@ -717,16 +735,22 @@ void setup() {
     Serial.println(F("========================================\n"));
 
     // ── MCP2515 CAN ──────────────────────────────────────────────────────────
+    // NOTE: CAN0.begin() calls SPI.begin() which by default takes GPIO 18 (SCK)
+    // and GPIO 19 (MISO). If SIM_TX/SIM_RX share those pins, UART must be
+    // re-initialised after CAN init to reclaim them regardless of CAN result.
     Serial.print(F("[CAN] Init MCP2515... "));
     if (CAN0.begin(MCP_ANY, CAN_250KBPS, MCP_8MHZ) == CAN_OK) {
         CAN0.setMode(MCP_NORMAL);
-        pinMode(CAN_INT, INPUT_PULLUP);   // pull-up prevents floating LOW when no bus
+        pinMode(CAN_INT, INPUT_PULLUP);
         g_canOK = true;
         Serial.println(F("OK (250 kbps)"));
     } else {
-        pinMode(CAN_INT, INPUT_PULLUP);   // still pull up to prevent crash in loop()
+        pinMode(CAN_INT, INPUT_PULLUP);
         Serial.println(F("FAILED — check CS/INT/SPI wiring — running without CAN"));
     }
+    // Re-claim SIM800L UART pins after SPI.begin() may have reconfigured them
+    sim800l.begin(9600, SERIAL_8N1, SIM_RX, SIM_TX);
+    delay(500);
 
     // ── GPRS with retries ─────────────────────────────────────────────────────
     bool connected = false;

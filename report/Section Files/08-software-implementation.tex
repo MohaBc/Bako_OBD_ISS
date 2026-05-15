@@ -356,6 +356,90 @@ Once the PCB is mounted inside a vehicle enclosure, accessing the USB port for r
 \paragraph{Security.}
 The OTA service is password-protected to prevent unauthorised firmware injection. The password is configurable through the web portal and stored in NVS flash so it survives reboots. If an active TCP dashboard client is connected when an OTA session begins, the client socket is cleanly closed before flashing starts to prevent data corruption.
 
+\subsubsection*{Web Configuration Portal}
+
+To avoid hardcoding network parameters into the firmware — which would require a reflash every time the AP name, channel, TCP port, or OTA credentials needed changing — a browser-based configuration portal was implemented and served directly by the ESP32 on port~80 using the \textbf{WebServer} library.
+
+The portal is accessible at \texttt{http://192.168.4.1} from any device connected to the ESP32's AP network. It is styled with the BAKO green colour scheme and renders correctly on both desktop browsers and mobile devices.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\textwidth]{images/portal-login.png}
+    \caption{BAKO BMS web portal login page --- accessible from any browser on the AP network at \texttt{http://192.168.4.1/login}.}
+    \label{fig:portal-login}
+\end{figure}
+
+After successful login, the operator is directed to the configuration form at \texttt{/config}. Table~\ref{tab:portal-params} lists all configurable parameters.
+
+\begin{table}[H]
+\centering
+\caption{Configurable Parameters Exposed Through the BAKO Web Portal}
+\label{tab:portal-params}
+\small
+\begin{tabular}{>{\bfseries}p{2.8cm} p{2.5cm} p{7.5cm}}
+\toprule
+Parameter & Default & Description \\
+\midrule
+AP SSID        & \texttt{BAKO\_BMS}  & Wi-Fi network name broadcast by the ESP32. \\
+AP Password    & \texttt{12345678}   & Minimum 8 characters; leave blank for an open network. \\
+WiFi Channel   & \texttt{6}          & Selectable 1--13 to avoid interference with nearby networks. \\
+TCP Port       & \texttt{9000}       & Port the Python dashboard server connects to. \\
+OTA Hostname   & \texttt{BAKO\_OTA}  & Name visible in Arduino IDE → Tools → Port for OTA flashing. \\
+OTA Password   & \texttt{12345678}   & Protects the OTA endpoint against unauthorised firmware injection. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=0.55\textwidth]{images/portal-config.png}
+    \caption{Web configuration portal --- AP Configuration page showing SSID, password, Wi-Fi channel, TCP port, OTA hostname, and OTA password fields.}
+    \label{fig:portal-config}
+\end{figure}
+
+\subsubsection*{Web Portal Route Map}
+
+The web server runs on port~80 and handles the following routes. All routes except \texttt{/login} redirect to \texttt{/login} if no valid session cookie is present.
+
+\begin{table}[H]
+\centering
+\caption{Web Portal Route Map --- All Routes Protected by Session Authentication}
+\label{tab:portal-routes}
+\small
+\begin{tabular}{>{\ttfamily}p{2.8cm} p{2.0cm} p{8.0cm}}
+\toprule
+\textbf{Route} & \textbf{Method} & \textbf{Function} \\
+\midrule
+/              & GET        & Redirects to \texttt{/config} if session valid, otherwise to \texttt{/login}. \\
+/login         & GET / POST & GET: renders login form. POST: validates credentials; on success sets session cookie and redirects to \texttt{/config}. \\
+/config        & GET / POST & GET: renders configuration form (auth required). POST: validates and saves settings, triggers reboot. \\
+/logout        & POST       & Invalidates the session token and redirects to \texttt{/login}. \\
+/factoryreset  & POST       & Clears all NVS settings and reboots to defaults (auth required). Separate POST-only route prevents accidental GET trigger. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\subsubsection*{Simultaneous Services on the ESP32}
+
+After Stage~3 integration, the ESP32 operates four network services concurrently from a single \texttt{loop()} function without measurable impact on CAN frame timing or dashboard refresh rate.
+
+\begin{table}[H]
+\centering
+\caption{Four Network Services Running Simultaneously on the ESP32 After Stage~3 Integration}
+\label{tab:esp32-services}
+\small
+\begin{tabular}{>{\bfseries}p{3.0cm} p{1.5cm} p{3.0cm} p{5.0cm}}
+\toprule
+Service & Port & Handler in \texttt{loop()} & Purpose \\
+\midrule
+Wi-Fi Access Point  & N/A (radio)    & \texttt{WiFi.softAP()} (setup only)  & Broadcasts SSID, runs DHCP, assigns 192.168.4.x addresses. \\
+TCP CAN data server & 9000 (default) & \texttt{ensureClient()}               & Streams live CAN frames to the Python dashboard server. \\
+OTA update service  & 8266 (mDNS)    & \texttt{ArduinoOTA.handle()}          & Accepts wireless firmware uploads from Arduino IDE. \\
+HTTP web config portal & 80          & \texttt{webServer.handleClient()}     & Serves login \& config pages for changing all network settings. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{Unit \& Integration Testing}
 
@@ -505,13 +589,22 @@ Each of the 19 cells has a fixed personality offset ($-20$~mV to $+12$~mV) so th
 
 \subsubsection{ESP32 Firmware Simulator \& System Interface}
 
-An ESP32-based firmware simulator and monitoring interface were developed to validate the BAKO system without requiring the physical vehicle during every testing session. The simulator reproduces realistic vehicle behaviour by generating sensor telemetry and transmitting it continuously to the monitoring dashboard.
+An ESP32-based firmware simulator and monitoring interface were developed to validate the BAKO system without requiring the physical vehicle during each testing session. The simulator reproduces realistic vehicle behaviour by generating sensor telemetry and transmitting it continuously to the monitoring dashboard through TCP socket communication.
 
-The implemented firmware simulates 12 external sensors, including current, voltage, temperature, handbrake, and GNSS data. To improve testing coverage, seven automated operating scenarios were integrated: Normal Driving, Low Battery Warning, Charging Mode, High Solar Input, Night Mode, Handbrake Fault, and Overheat Condition. The active scenario changes automatically every 30 seconds, while all sensor values are transmitted every 500~ms.
+The implemented firmware simulates \textbf{14 configurable sensors}, including solar current and voltage, DC/DC converter measurements, motor and MPPT temperatures, battery state of charge (SOC), handbrake status, BMS temperatures, and GNSS speed data. To improve testing coverage, seven automated operating scenarios were integrated: \textit{Parked Idle}, \textit{Solar Charging}, \textit{Normal Driving}, \textit{Heavy Load}, \textit{Low Battery Warning}, \textit{Overheating}, and \textit{Handbrake Fault}. The active scenario changes automatically every 30 seconds, while telemetry data is generated and transmitted every 500~ms.
 
-The ESP32 communicates with the backend dashboard through WebSocket communication, enabling real-time updates directly inside the browser interface. The dashboard displays battery cell voltages, temperatures, state of charge (SOC), solar monitoring information, and handbrake status. In addition, telemetry logs can be exported in TXT or XLSX formats for later analysis and validation.
+In addition to the telemetry simulator, an embedded web server was implemented directly on the ESP32. This interface provides a real-time browser-based control panel allowing live sensor monitoring and dynamic parameter modification during testing sessions. Each sensor can operate in one of three modes: \textbf{automatic scenario mode}, \textbf{fixed manual override mode}, or \textbf{randomised range mode} for advanced validation and fault-injection testing.
 
-This testing environment significantly reduces dependency on the physical vehicle during development and debugging phases. It also provides a reproducible and controlled platform for validating system behaviour, communication pipelines, and dashboard integration under multiple operating conditions.
+\begin{figure}[H]
+    \centering
+    \includegraphics[width=\textwidth]{images/simulator-control-panel.png}
+    \caption{BAKO SMU Sensor Control Panel --- browser-based interface served by the ESP32 firmware simulator, showing all 14 sensor channels with live values, scenario mode selectors, and manual override controls.}
+    \label{fig:simulator-panel}
+\end{figure}
+
+To improve usability and persistence, all sensor configuration parameters are stored locally in \textbf{EEPROM} memory, allowing settings to remain available after reboot or power cycling. Furthermore, an offline telemetry buffering mechanism was implemented using the ESP32 \textbf{SPIFFS} internal flash filesystem. When the TCP connection becomes unavailable, telemetry data is temporarily stored locally and automatically retransmitted once connectivity is restored.
+
+This testing environment significantly reduces dependency on the physical vehicle during development and debugging phases. It also provides a reproducible and controlled platform for validating embedded communication pipelines, dashboard integration, telemetry visualisation, offline recovery behaviour, and system operation under multiple simulated conditions.
 
 \subsubsection*{Python Log Replay Tool}
 

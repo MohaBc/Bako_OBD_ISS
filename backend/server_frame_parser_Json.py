@@ -836,14 +836,26 @@ def _cell_status(mv: int, thresh: dict) -> str:
     if mv >= thresh["cell_bal"]: return "ok"
     return "low"
 
+@app.post("/hello")
+async def hello(request: Request):
+    body = await request.body()
+    text = body.decode("utf-8", errors="replace").strip()
+    print(f"[HELLO] {text}", flush=True)
+    return JSONResponse({"reply": f"Server received: {text}"})
+
+
 @app.post("/api/ingest")
 async def ingest(request: Request):
     key = request.headers.get("X-Api-Key", "")
     if key != INGEST_API_KEY:
         return JSONResponse({"error": "forbidden"}, status_code=403)
     try:
-        payload = await request.json()
-    except Exception:
+        raw = await request.body()
+        print(f"[INGEST] body_len={len(raw)} first_bytes={raw[:40]!r}", flush=True)
+        payload = json.loads(raw)
+    except Exception as e:
+        raw_preview = raw[:120] if 'raw' in dir() else b''
+        print(f"[INGEST] bad json: {e!r}  body_preview={raw_preview!r}", flush=True)
         return JSONResponse({"error": "bad json"}, status_code=400)
 
     bat   = payload.get("battery", {})
