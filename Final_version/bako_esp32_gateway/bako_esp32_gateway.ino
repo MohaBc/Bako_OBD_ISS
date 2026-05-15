@@ -6,10 +6,16 @@
 #include <ArduinoJson.h>
 
 // ── WiFi config ─────────────────────────────────────────────
-#define WIFI_SSID   "Ooredoo003CF8"
-#define WIFI_PASS   "DU7T979#Z@@G2"
-#define SERVER_IP   "192.168.1.14"
-#define SERVER_PORT 9000
+#define WIFI_SSID      "Ooredoo003CF8"
+#define WIFI_PASS      "DU7T979#Z@@G2"
+
+// ── Local server (laptop on same LAN) ───────────────────────
+#define LOCAL_HOST     "192.168.1.14"
+#define LOCAL_PORT     9000
+
+// ── Cloud VPS server ─────────────────────────────────────────
+#define VPS_HOST       "62.169.24.172"
+#define VPS_PORT       8787
 
 // ── Pins ────────────────────────────────────────────────────
 #define PIN_12V_DC_out      36
@@ -35,8 +41,11 @@
 OneWire           oneWire(ONE_WIRE_BUS);
 DallasTemperature sensors(&oneWire);
 MCP_CAN           can(MCP_CS);
-WiFiClient        tcp;
-unsigned long     tcpRetry = 0;
+
+WiFiClient tcpLocal;
+WiFiClient tcpCloud;
+unsigned long localRetry = 0;
+unsigned long cloudRetry = 0;
 
 // ── Helpers ─────────────────────────────────────────────────
 float adcToVoltage(int pin) { return (analogRead(pin) / ADC_RES) * ADC_REF; }
@@ -47,22 +56,35 @@ float readCurrent(int pin) {
   return (vOut - ACS712_VREF) / (ACS712_MV_PER_A / 1000.0);
 }
 
-void maintainTCP() {
-  if (WiFi.status() != WL_CONNECTED) { tcp.stop(); return; }
-  if (tcp.connected()) return;
-  if (millis() - tcpRetry < 3000) return;
-  tcpRetry = millis();
-  if (tcp.connect(SERVER_IP, SERVER_PORT)) {
-    Serial.println("[TCP] Connected");
+void maintainLocal() {
+  if (WiFi.status() != WL_CONNECTED) { tcpLocal.stop(); return; }
+  if (tcpLocal.connected()) return;
+  if (millis() - localRetry < 3000) return;
+  localRetry = millis();
+  if (tcpLocal.connect(LOCAL_HOST, LOCAL_PORT)) {
+    Serial.println("[LOCAL] Connected to local server");
     digitalWrite(PIN_LED2, HIGH);
   } else {
     digitalWrite(PIN_LED2, LOW);
   }
 }
 
+void maintainCloud() {
+  if (WiFi.status() != WL_CONNECTED) { tcpCloud.stop(); return; }
+  if (tcpCloud.connected()) return;
+  if (millis() - cloudRetry < 5000) return;
+  cloudRetry = millis();
+  if (tcpCloud.connect(VPS_HOST, VPS_PORT)) {
+    Serial.println("[CLOUD] Connected to VPS");
+  } else {
+    Serial.println("[CLOUD] VPS connection failed, will retry");
+  }
+}
+
 void emitLine(const String& line) {
   Serial.println(line);
-  if (tcp.connected()) tcp.println(line);
+  if (tcpLocal.connected()) tcpLocal.println(line);
+  if (tcpCloud.connected()) tcpCloud.println(line);
 }
 
 void receiveCAN() {
@@ -87,9 +109,9 @@ void setup() {
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db);
 
-  pinMode(PIN_LED1,      OUTPUT);
-  pinMode(PIN_LED2,      OUTPUT);
-  pinMode(MCP_INT,       INPUT);
+  pinMode(PIN_LED1, OUTPUT);
+  pinMode(PIN_LED2, OUTPUT);
+  pinMode(MCP_INT,  INPUT);
 
   while (can.begin(MCP_ANY, CAN_250KBPS, MCP_16MHZ) != CAN_OK) {
     Serial.println("[CAN] Init failed, retrying...");
@@ -99,20 +121,29 @@ void setup() {
 
   WiFi.mode(WIFI_STA);
   WiFi.begin(WIFI_SSID, WIFI_PASS);
+  Serial.print("[WiFi] Connecting to " WIFI_SSID);
   unsigned long t = millis();
   while (WiFi.status() != WL_CONNECTED && millis() - t < 15000) {
     delay(500);
+    Serial.print(".");
+  }
+  if (WiFi.status() == WL_CONNECTED) {
+    Serial.printf("\n[WiFi] Connected — IP: %s\n", WiFi.localIP().toString().c_str());
+  } else {
+    Serial.println("\n[WiFi] Not connected — serial-only mode");
   }
 
-  // DS18B20 LAST — after all other init
   sensors.begin();
   delay(1000);
   Serial.printf("[DS18B20] %d sensor(s)\n", sensors.getDeviceCount());
 
   Serial.println("=== BAKO Gateway Ready ===");
+  Serial.println("  Emitting to: Serial | Local(" LOCAL_HOST ") | VPS(" VPS_HOST ")");
 }
+
 void loop() {
-  maintainTCP();
+  maintainLocal();
+  maintainCloud();
   receiveCAN();
 
   sensors.requestTemperatures();
@@ -120,9 +151,6 @@ void loop() {
   float temp_mppt  = sensors.getTempCByIndex(0);
   float temp_dcdc  = sensors.getTempCByIndex(1);
   float temp_motor = sensors.getTempCByIndex(2);
-
-  Serial.printf("Temp MPPT: %.2f  Temp DC/DC: %.2f  Temp Motor: %.2f\n",
-                temp_mppt, temp_dcdc, temp_motor);
 
   float v12_dc_out    = read12V(PIN_12V_DC_out);
   float v12_handbrake = read12V(PIN_12V_Handbrake);
@@ -141,7 +169,6 @@ void loop() {
   doc["temp_mppt"]     = round(temp_mppt     * 10)  / 10.0;
   doc["temp_dcdc"]     = round(temp_dcdc     * 10)  / 10.0;
   doc["temp_motor"]    = round(temp_motor    * 10)  / 10.0;
-
 
   String json;
   serializeJson(doc, json);

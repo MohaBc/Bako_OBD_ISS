@@ -56,7 +56,8 @@ CONFIG_FILE = "mode_config.json"
 DEFAULT_CONFIG = {
     "mode": "serial",
     "serial": {"port": None, "baud": 115200},
-    "wifi":   {"esp_ip": "192.168.4.1", "esp_port": 9000},
+    "local":  {"listen_host": "0.0.0.0", "listen_port": 9000},
+    "cloud":  {"ws_url": "ws://62.169.24.172:8765/ws"},
 }
 
 def load_config() -> dict:
@@ -226,19 +227,19 @@ class ReaderManager:
                 daemon=True,
             )
             self.thread.start()
-        elif mode == "wifi":
-            ip   = self.config["wifi"]["esp_ip"]
-            port = self.config["wifi"]["esp_port"]
+        elif mode == "local":
+            host = self.config["local"]["listen_host"]
+            port = self.config["local"]["listen_port"]
             self.thread = threading.Thread(
-                target=wifi_reader_loop,
-                args=(ip, port, self.stop_event),
+                target=local_tcp_server_loop,
+                args=(host, port, self.stop_event),
                 daemon=True,
             )
             self.thread.start()
-        elif mode == "off":
+        elif mode in ("off", "cloud"):
             with state_lock:
                 state["connected"] = False
-                state["mode"]      = "off"
+                state["mode"]      = mode
                 state["port"]      = "—"
 
     def switch_to(self, new_cfg: dict) -> dict:
@@ -552,24 +553,42 @@ def serial_reader_loop(port_arg: Optional[str], baud: int, stop_event: threading
 
 
 # ─────────────────────────────────────────────────────────────────────────────
-#  WiFi reader
+#  Local TCP server — listens for ESP32 to connect over LAN
 # ─────────────────────────────────────────────────────────────────────────────
-def wifi_reader_loop(esp_ip: str, esp_port: int, stop_event: threading.Event):
-    print(f"[WiFi] Will connect to ESP32 at {esp_ip}:{esp_port}")
+def local_tcp_server_loop(host: str, port: int, stop_event: threading.Event):
+    srv = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    srv.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+    try:
+        srv.bind((host, port))
+        srv.listen(2)
+    except OSError as e:
+        with state_lock:
+            state["last_error"] = f"Local TCP bind failed: {e}"
+        print(f"[Local] Bind error: {e}")
+        return
+    srv.settimeout(1.0)
+    with state_lock:
+        state["connected"]  = False
+        state["mode"]       = "local"
+        state["port"]       = f"listening :{port}"
+        state["last_error"] = ""
+    print(f"[Local] Listening for ESP32 on {host}:{port}")
     while not stop_event.is_set():
-        conn = None
         try:
-            conn = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-            conn.settimeout(4.0)
-            conn.connect((esp_ip, esp_port))
-            conn.settimeout(1.0)
-            with state_lock:
-                state["connected"]  = True
-                state["mode"]       = "wifi"
-                state["port"]       = f"{esp_ip}:{esp_port}"
-                state["last_error"] = ""
-            print(f"[WiFi] Connected to {esp_ip}:{esp_port}")
-            buf = b""
+            conn, addr = srv.accept()
+        except socket.timeout:
+            continue
+        except Exception as e:
+            print(f"[Local] Accept error: {e}")
+            break
+        print(f"[Local] ESP32 connected from {addr[0]}:{addr[1]}")
+        with state_lock:
+            state["connected"]  = True
+            state["port"]       = f"esp32@{addr[0]}"
+            state["last_error"] = ""
+        conn.settimeout(1.0)
+        buf = b""
+        try:
             while not stop_event.is_set():
                 try:
                     chunk = conn.recv(4096)
@@ -585,26 +604,18 @@ def wifi_reader_loop(esp_ip: str, esp_port: int, stop_event: threading.Event):
                         continue
                     with state_lock:
                         process_line(line)
-        except (OSError, socket.timeout) as e:
-            with state_lock:
-                state["connected"]  = False
-                state["last_error"] = f"WiFi: {e}"
-            print(f"[WiFi] {e} — retry in 2s")
-            if stop_event.wait(2.0): break
         except Exception as e:
-            with state_lock:
-                state["connected"]  = False
-                state["last_error"] = f"WiFi: {e}"
-            print(f"[WiFi] {e}")
-            if stop_event.wait(2.0): break
+            print(f"[Local] Connection error: {e}")
         finally:
-            try:
-                if conn: conn.close()
-            except Exception:
-                pass
+            conn.close()
+        with state_lock:
+            state["connected"] = False
+            state["port"]      = f"listening :{port}"
+        print("[Local] ESP32 disconnected — waiting for new connection")
+    srv.close()
     with state_lock:
         state["connected"] = False
-    print("[WiFi] Reader stopped")
+    print("[Local] TCP server stopped")
 
 
 # ─────────────────────────────────────────────────────────────────────────────
@@ -617,7 +628,9 @@ app.add_middleware(CORSMiddleware, allow_origins=["*"],
 class ModeRequest(BaseModel):
     mode:   Optional[str]  = None
     serial: Optional[dict] = None
-    wifi:   Optional[dict] = None
+    wifi:   Optional[dict] = None   # kept for backward compat, maps to local
+    local:  Optional[dict] = None
+    cloud:  Optional[dict] = None
 
 @app.get("/")
 async def root():
@@ -634,14 +647,18 @@ async def get_mode():
 async def set_mode(req: ModeRequest):
     new_cfg = {}
     if req.mode is not None:
-        if req.mode not in ("serial", "wifi", "off"):
-            return JSONResponse({"error": "mode must be serial|wifi|off"},
+        if req.mode not in ("serial", "local", "cloud", "off"):
+            return JSONResponse({"error": "mode must be serial|local|cloud|off"},
                                 status_code=400)
         new_cfg["mode"] = req.mode
     if req.serial is not None:
         new_cfg["serial"] = req.serial
-    if req.wifi is not None:
-        new_cfg["wifi"] = req.wifi
+    if req.local is not None:
+        new_cfg["local"] = req.local
+    elif req.wifi is not None:
+        new_cfg["local"] = req.wifi   # backward compat
+    if req.cloud is not None:
+        new_cfg["cloud"] = req.cloud
     cfg = reader_mgr.switch_to(new_cfg)
     cfg["available_ports"]  = list_serial_ports()
     cfg["serial_available"] = SERIAL_AVAILABLE
@@ -680,9 +697,11 @@ def main():
     if cfg["mode"] == "serial":
         print(f"  Serial port : {cfg['serial']['port'] or 'auto-detect'}"
               f"  @ {cfg['serial']['baud']} baud")
-    elif cfg["mode"] == "wifi":
-        print(f"  ESP32 WiFi  : {cfg['wifi']['esp_ip']}:{cfg['wifi']['esp_port']}")
-        print(f"  (Connect your PC to the 'BAKO_SMU' WiFi network first)")
+    elif cfg["mode"] == "local":
+        port = cfg.get("local", {}).get("listen_port", 9000)
+        print(f"  Local TCP   : listening on :{port} (ESP32 connects to this machine)")
+    elif cfg["mode"] == "cloud":
+        print(f"  Cloud mode  : dashboard connects to VPS directly")
     print(f"  Dashboard   : http://localhost:{args.web_port}")
     print("  Ctrl+C to stop")
     print("=" * 64)

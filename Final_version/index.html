@@ -1238,9 +1238,13 @@
           <span class="opt-glyph">🔌</span>
           Serial
         </div>
-        <div class="mode-opt" data-mode="wifi">
+        <div class="mode-opt" data-mode="local">
           <span class="opt-glyph">📡</span>
-          WiFi&nbsp;AP
+          Local&nbsp;WiFi
+        </div>
+        <div class="mode-opt" data-mode="cloud">
+          <span class="opt-glyph">☁</span>
+          Cloud
         </div>
         <div class="mode-opt" data-mode="off">
           <span class="opt-glyph">⏻</span>
@@ -1267,12 +1271,16 @@
         </select>
       </div>
 
-      <div class="mode-section" id="wifi-section">
-        <label for="wifi-ip">ESP32 AP Address</label>
-        <input id="wifi-ip" type="text" value="192.168.4.1" />
-        <div class="mode-hint">First, join the "BAKO_SMU" WiFi network.</div>
-        <label for="wifi-port">TCP Port</label>
-        <input id="wifi-port" type="number" value="9000" min="1" max="65535" />
+      <div class="mode-section" id="local-section">
+        <div class="mode-hint">ESP32 connects to this machine over local WiFi. Make sure they are on the same network.</div>
+        <label for="local-port">Listen Port</label>
+        <input id="local-port" type="number" value="9000" min="1" max="65535" />
+      </div>
+
+      <div class="mode-section" id="cloud-section">
+        <div class="mode-hint">Dashboard connects directly to the cloud VPS. ESP32 must be online and connected to the VPS.</div>
+        <label for="cloud-ws">VPS WebSocket URL</label>
+        <input id="cloud-ws" type="text" value="ws://62.169.24.172:8765/ws" />
       </div>
 
       <div class="mode-actions">
@@ -2138,10 +2146,11 @@
       document.getElementById('frames-lbl').textContent = d.frame_count + ' frames';
       document.getElementById('port-lbl').textContent = d.port || '—';
 
-      // Mode pill — reflect server-reported active mode
+      // Mode pill — cloud is client-side; otherwise reflect server-reported mode
       if (d.mode) {
-        const modeIcon = { serial: '🔌', wifi: '📡', off: '⏻' }[d.mode] || '⚡';
-        const modeName = (d.mode || '—').toUpperCase();
+        const displayMode = cloudWsUrl ? 'cloud' : d.mode;
+        const modeIcon = { serial: '🔌', local: '📡', cloud: '☁', off: '⏻' }[displayMode] || '⚡';
+        const modeName = (displayMode || '—').toUpperCase();
         const mi = document.getElementById('mode-icon');
         const mn = document.getElementById('mode-name');
         if (mi) mi.textContent = modeIcon;
@@ -2150,8 +2159,9 @@
 
       const dot = document.getElementById('dot');
       const lbl = document.getElementById('conn-lbl');
-      if (d.connected) { dot.className = 'dot live'; lbl.textContent = 'Live'; }
-      else if (d.mode === 'off') { dot.className = 'dot'; lbl.textContent = 'Disabled'; }
+      if (cloudWsUrl) { dot.className = 'dot live'; lbl.textContent = 'Cloud'; }
+      else if (d.connected) { dot.className = 'dot live'; lbl.textContent = 'Live'; }
+      else if (d.mode === 'off' || d.mode === 'cloud') { dot.className = 'dot'; lbl.textContent = 'Disabled'; }
       else { dot.className = 'dot err'; lbl.textContent = 'Reconnecting…'; }
 
       // SOC ring
@@ -2278,17 +2288,21 @@
     const modeApply = document.getElementById('mode-apply');
     const modeOpts = document.querySelectorAll('.mode-opt');
     const serialSec = document.getElementById('serial-section');
-    const wifiSec = document.getElementById('wifi-section');
-    const portSelect = document.getElementById('serial-port');
-    const baudSelect = document.getElementById('serial-baud');
-    const wifiIp = document.getElementById('wifi-ip');
-    const wifiPort = document.getElementById('wifi-port');
+    const localSec  = document.getElementById('local-section');
+    const cloudSec  = document.getElementById('cloud-section');
+    const portSelect  = document.getElementById('serial-port');
+    const baudSelect  = document.getElementById('serial-baud');
+    const localPort   = document.getElementById('local-port');
+    const cloudWsInput = document.getElementById('cloud-ws');
 
     let selectedMode = 'serial';
+    // cloudWsUrl: when set, the WebSocket points here instead of localhost
+    let cloudWsUrl = localStorage.getItem('bakoCloudWsUrl') || null;
 
     function showSection(mode) {
       serialSec.classList.toggle('show', mode === 'serial');
-      wifiSec.classList.toggle('show', mode === 'wifi');
+      localSec.classList.toggle('show',  mode === 'local');
+      cloudSec.classList.toggle('show',  mode === 'cloud');
     }
 
     function setActiveOpt(mode) {
@@ -2300,6 +2314,8 @@
     modeOpts.forEach(o => o.addEventListener('click', () => setActiveOpt(o.dataset.mode)));
 
     async function openModeModal() {
+      // Determine current dashboard mode (cloud is client-side, not from server)
+      const currentDash = cloudWsUrl ? 'cloud' : null;
       try {
         const r = await fetch('/api/mode');
         const cfg = await r.json();
@@ -2315,15 +2331,11 @@
         });
 
         // Pre-fill values
-        if (cfg.serial) {
-          if (cfg.serial.baud) baudSelect.value = String(cfg.serial.baud);
-        }
-        if (cfg.wifi) {
-          if (cfg.wifi.esp_ip) wifiIp.value = cfg.wifi.esp_ip;
-          if (cfg.wifi.esp_port) wifiPort.value = cfg.wifi.esp_port;
-        }
+        if (cfg.serial && cfg.serial.baud) baudSelect.value = String(cfg.serial.baud);
+        if (cfg.local && cfg.local.listen_port) localPort.value = cfg.local.listen_port;
+        if (cloudWsUrl) cloudWsInput.value = cloudWsUrl;
 
-        // Disable serial option if pyserial isn't installed on the server
+        // Disable serial option if pyserial isn't installed
         const serialBtn = document.querySelector('.mode-opt[data-mode="serial"]');
         if (serialBtn) {
           if (cfg.serial_available === false) {
@@ -2337,9 +2349,10 @@
           }
         }
 
-        setActiveOpt(cfg.mode || 'serial');
+        setActiveOpt(currentDash || cfg.mode || 'serial');
       } catch (e) {
         console.error('Could not load /api/mode', e);
+        setActiveOpt(currentDash || 'serial');
       }
       modeModal.classList.add('open');
     }
@@ -2354,20 +2367,38 @@
     });
 
     modeApply.addEventListener('click', async () => {
+      modeApply.disabled = true;
+      modeApply.textContent = 'Switching…';
+
+      if (selectedMode === 'cloud') {
+        // Cloud mode: store WS URL client-side, tell local server to stop
+        const url = cloudWsInput.value.trim() || 'ws://62.169.24.172:8765/ws';
+        cloudWsUrl = url;
+        localStorage.setItem('bakoCloudWsUrl', url);
+        try { await fetch('/api/mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'off' }) }); } catch (_) {}
+        closeModeModal();
+        if (ws) ws.close(); // triggers reconnect with new cloudWsUrl
+        modeApply.disabled = false;
+        modeApply.textContent = 'Apply';
+        return;
+      }
+
+      // For serial / local / off: clear cloud mode and tell local server
+      cloudWsUrl = null;
+      localStorage.removeItem('bakoCloudWsUrl');
+
       const body = { mode: selectedMode };
       if (selectedMode === 'serial') {
         body.serial = {
           port: portSelect.value || null,
           baud: parseInt(baudSelect.value, 10) || 115200,
         };
-      } else if (selectedMode === 'wifi') {
-        body.wifi = {
-          esp_ip: wifiIp.value.trim() || '192.168.4.1',
-          esp_port: parseInt(wifiPort.value, 10) || 9000,
+      } else if (selectedMode === 'local') {
+        body.local = {
+          listen_host: '0.0.0.0',
+          listen_port: parseInt(localPort.value, 10) || 9000,
         };
       }
-      modeApply.disabled = true;
-      modeApply.textContent = 'Switching…';
       try {
         const r = await fetch('/api/mode', {
           method: 'POST',
@@ -2379,6 +2410,7 @@
           alert('Mode switch failed: ' + (err.error || r.statusText));
         } else {
           closeModeModal();
+          if (ws) ws.close(); // reconnect to local server
         }
       } catch (e) {
         alert('Network error: ' + e.message);
@@ -2393,7 +2425,8 @@
     let ws, retryMs = 1000;
 
     function connect() {
-      ws = new WebSocket(`ws://${location.host}/ws`);
+      const url = cloudWsUrl || `ws://${location.host}/ws`;
+      ws = new WebSocket(url);
       ws.onopen = () => { overlay.classList.add('hidden'); retryMs = 1000; };
       ws.onmessage = e => { try { update(JSON.parse(e.data)); } catch (err) { } };
       ws.onclose = ws.onerror = () => {
