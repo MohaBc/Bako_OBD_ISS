@@ -1,11 +1,18 @@
 {
-  "mode": "serial",
+  "mode": "local",
   "serial": {
     "port": null,
     "baud": 115200
   },
   "wifi": {
-    "esp_ip": "192.168.1.14",
+    "esp_ip": "192.168.1.7",
     "esp_port": 9000
+  },
+  "local": {
+    "listen_host": "0.0.0.0",
+    "listen_port": 9000
+  },
+  "cloud": {
+    "ws_url": "ws://62.169.24.172:8765/ws"
   }
 }

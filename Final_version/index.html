@@ -1242,7 +1242,7 @@
           <span class="opt-glyph">📡</span>
           Local&nbsp;WiFi
         </div>
-        <div class="mode-opt" data-mode="cloud">
+        <div class="mode-opt" data-mode="cloud" style="opacity:0.4;cursor:not-allowed;" title="Coming soon — VPS not deployed">
           <span class="opt-glyph">☁</span>
           Cloud
         </div>
@@ -2146,11 +2146,9 @@
       document.getElementById('frames-lbl').textContent = d.frame_count + ' frames';
       document.getElementById('port-lbl').textContent = d.port || '—';
 
-      // Mode pill — cloud is client-side; otherwise reflect server-reported mode
       if (d.mode) {
-        const displayMode = cloudWsUrl ? 'cloud' : d.mode;
-        const modeIcon = { serial: '🔌', local: '📡', cloud: '☁', off: '⏻' }[displayMode] || '⚡';
-        const modeName = (displayMode || '—').toUpperCase();
+        const modeIcon = { serial: '🔌', local: '📡', cloud: '☁', off: '⏻' }[d.mode] || '⚡';
+        const modeName = (d.mode || '—').toUpperCase();
         const mi = document.getElementById('mode-icon');
         const mn = document.getElementById('mode-name');
         if (mi) mi.textContent = modeIcon;
@@ -2159,8 +2157,7 @@
 
       const dot = document.getElementById('dot');
       const lbl = document.getElementById('conn-lbl');
-      if (cloudWsUrl) { dot.className = 'dot live'; lbl.textContent = 'Cloud'; }
-      else if (d.connected) { dot.className = 'dot live'; lbl.textContent = 'Live'; }
+      if (d.connected) { dot.className = 'dot live'; lbl.textContent = 'Live'; }
       else if (d.mode === 'off' || d.mode === 'cloud') { dot.className = 'dot'; lbl.textContent = 'Disabled'; }
       else { dot.className = 'dot err'; lbl.textContent = 'Reconnecting…'; }
 
@@ -2296,13 +2293,13 @@
     const cloudWsInput = document.getElementById('cloud-ws');
 
     let selectedMode = 'serial';
-    // cloudWsUrl: when set, the WebSocket points here instead of localhost
-    let cloudWsUrl = localStorage.getItem('bakoCloudWsUrl') || null;
+    // CLOUD MODE DISABLED — VPS not yet deployed
+    const cloudWsUrl = null;
 
     function showSection(mode) {
       serialSec.classList.toggle('show', mode === 'serial');
       localSec.classList.toggle('show',  mode === 'local');
-      cloudSec.classList.toggle('show',  mode === 'cloud');
+      // cloudSec intentionally never shown
     }
 
     function setActiveOpt(mode) {
@@ -2311,7 +2308,10 @@
       showSection(mode);
     }
 
-    modeOpts.forEach(o => o.addEventListener('click', () => setActiveOpt(o.dataset.mode)));
+    modeOpts.forEach(o => o.addEventListener('click', () => {
+      if (o.dataset.mode === 'cloud') return; // cloud not yet available
+      setActiveOpt(o.dataset.mode);
+    }));
 
     async function openModeModal() {
       // Determine current dashboard mode (cloud is client-side, not from server)
@@ -2333,8 +2333,6 @@
         // Pre-fill values
         if (cfg.serial && cfg.serial.baud) baudSelect.value = String(cfg.serial.baud);
         if (cfg.local && cfg.local.listen_port) localPort.value = cfg.local.listen_port;
-        if (cloudWsUrl) cloudWsInput.value = cloudWsUrl;
-
         // Disable serial option if pyserial isn't installed
         const serialBtn = document.querySelector('.mode-opt[data-mode="serial"]');
         if (serialBtn) {
@@ -2349,10 +2347,10 @@
           }
         }
 
-        setActiveOpt(currentDash || cfg.mode || 'serial');
+        setActiveOpt(cfg.mode || 'serial');
       } catch (e) {
         console.error('Could not load /api/mode', e);
-        setActiveOpt(currentDash || 'serial');
+        setActiveOpt('serial');
       }
       modeModal.classList.add('open');
     }
@@ -2367,25 +2365,10 @@
     });
 
     modeApply.addEventListener('click', async () => {
+      if (selectedMode === 'cloud') { closeModeModal(); return; } // cloud not yet available
+
       modeApply.disabled = true;
       modeApply.textContent = 'Switching…';
-
-      if (selectedMode === 'cloud') {
-        // Cloud mode: store WS URL client-side, tell local server to stop
-        const url = cloudWsInput.value.trim() || 'ws://62.169.24.172:8765/ws';
-        cloudWsUrl = url;
-        localStorage.setItem('bakoCloudWsUrl', url);
-        try { await fetch('/api/mode', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ mode: 'off' }) }); } catch (_) {}
-        closeModeModal();
-        if (ws) ws.close(); // triggers reconnect with new cloudWsUrl
-        modeApply.disabled = false;
-        modeApply.textContent = 'Apply';
-        return;
-      }
-
-      // For serial / local / off: clear cloud mode and tell local server
-      cloudWsUrl = null;
-      localStorage.removeItem('bakoCloudWsUrl');
 
       const body = { mode: selectedMode };
       if (selectedMode === 'serial') {
@@ -2425,8 +2408,7 @@
     let ws, retryMs = 1000;
 
     function connect() {
-      const url = cloudWsUrl || `ws://${location.host}/ws`;
-      ws = new WebSocket(url);
+      ws = new WebSocket(`ws://${location.host}/ws`);
       ws.onopen = () => { overlay.classList.add('hidden'); retryMs = 1000; };
       ws.onmessage = e => { try { update(JSON.parse(e.data)); } catch (err) { } };
       ws.onclose = ws.onerror = () => {

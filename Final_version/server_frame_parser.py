@@ -705,8 +705,11 @@ def main():
     print(f"  Dashboard   : http://localhost:{args.web_port}")
     print("  Ctrl+C to stop")
     print("=" * 64)
+    print(f"  >> Open http://localhost:{args.web_port} in your browser <<")
+    print("  (terminal will appear frozen — that is normal, server is running)")
+    print()
 
-    uvicorn.run(app, host=args.host, port=args.web_port, log_level="warning")
+    uvicorn.run(app, host=args.host, port=args.web_port, log_level="info")
 
 
 if __name__ == "__main__":

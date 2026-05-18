@@ -10,7 +10,7 @@
 #define WIFI_PASS      "DU7T979#Z@@G2"
 
 // ── Local server (laptop on same LAN) ───────────────────────
-#define LOCAL_HOST     "192.168.1.14"
+#define LOCAL_HOST     "192.168.1.7"
 #define LOCAL_PORT     9000
 
 // ── Cloud VPS server ─────────────────────────────────────────
