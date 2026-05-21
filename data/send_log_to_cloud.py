@@ -19,7 +19,7 @@ Usage
   python send_log_to_cloud.py --mode replay --speed 20
 
   # Remote VPS
-  python send_log_to_cloud.py --api-url http://1.2.3.4:8765/api/ingest
+  python send_log_to_cloud.py --api-url http://1.2.3.4:8787/api/ingest
 
   # Specify a different log file
   python send_log_to_cloud.py raw/bms_log_2026-03-10T10-20-02.txt
@@ -31,7 +31,7 @@ from datetime import datetime
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 DEFAULT_LOG      = Path(__file__).parent / "raw" / "bms_log_2026-03-10T10-20-02.txt"
-DEFAULT_API_URL  = "http://localhost:8765/api/ingest"
+DEFAULT_API_URL  = "http://localhost:8787/api/ingest"
 DEFAULT_API_KEY  = "bako-bms-2024"
 DEVICE_ID        = "esp32-bms-001"
 

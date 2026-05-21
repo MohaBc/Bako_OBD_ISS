@@ -5,7 +5,7 @@
 
 \subsubsection*{Vehicle Installation Context}
 
-The ISS board is installed inside the BAKO Motors electric vehicle chassis beneath the driver seat, directly adjacent to the MPPT controller. This position gives the board short cable runs to the battery CAN bus connector, the MPPT current/voltage sense lines, and the vehicle 12~V supply rail, while keeping it sheltered from direct exposure to rain and road debris. Figure~\ref{fig:bako-placement} shows the installation location on the vehicle frame.
+The ISS board is installed inside the BAKO Motors electric vehicle chassis beneath the driver seat, directly adjacent to the MPPT controller. This position gives the board short cable runs to the battery CAN bus connector, the MPPT current/voltage sense lines, and the vehicle 12~V supply rail, while keeping it sheGPRSred from direct exposure to rain and road debris. Figure~\ref{fig:bako-placement} shows the installation location on the vehicle frame.
 
 \begin{figure}[H]
     \centering
@@ -20,7 +20,7 @@ The custom PCB was populated and brought up using a structured nine-step sequenc
 \begin{enumerate}
     \item \textbf{Power-only verification.} The 12~V supply was connected with only the LM2596S-ADJ and the AMS1117 and LM7805 linear regulators populated. All three output rails (12~V, 5~V, 3.3~V) were measured and confirmed within $\pm 2\%$ of their target values before any other component was installed.
 
-    \item \textbf{ESP32 base bring-up.} The ESP32-DEVKITC module was inserted and a minimal ``blink'' firmware flashed over USB. Successful LED blink confirmed that the 3.3~V rail was stable and that the module was programmable via PlatformIO.
+    \item \textbf{ESP32 base bring-up.} The ESP32-DEVKITC module was inserted and a minimal ``blink'' firmware flashed over USB. Successful LED blink confirmed that the 3.3~V rail was stable and that the module was programmable via PlatformIO. The OTA web portal (Section~\ref{sec:ota}) was also flashed at this stage to enable wireless reflashing for all subsequent development.
 
     \item \textbf{MCP2515 SPI communication.} One MCP2515 SPI module header (J17) was populated and a loopback test was run. The MCP2515 read-back of its control registers confirmed SPI integrity. A second module (J18) was then added and addressed independently via its dedicated chip-select line.
 
@@ -37,7 +37,7 @@ The custom PCB was populated and brought up using a structured nine-step sequenc
     \item \textbf{Full integration smoke test.} All subsystems were enabled simultaneously. The firmware ran the cooperative main loop for 30~minutes with all sensors active. No watchdog triggers, stack overflows, or heap exhaustion events were observed. All sensor values appeared correctly on the WebSocket dashboard.
 \end{enumerate}
 
-Figure~\ref{fig:pcb-assembled} shows the physical outcome of the build: the bare PCB as received from the fabrication house (right) and the fully populated board after component soldering and module fitment (left). The assembled board carries the ESP32-DEVKITC, SIM800L GSM/GPRS cellular module, screw-terminal sensor connectors, and all passive components as specified in the BOM (Section~\ref{sec:components-inventory}).
+Figure~\ref{fig:pcb-assembled} shows the physical outcome of the build: the bare PCB as received from the fabrication house (right) and the fully populated board after component soldering and module fitment (left). The assembled board carries the ESP32-DEVKITC, SIM800L GPRS cellular module, screw-terminal sensor connectors, and all passive components as specified in the BOM (Section~\ref{sec:components-inventory}).
 
 \begin{figure}[H]
     \centering
@@ -96,7 +96,7 @@ Formal regulatory testing was not within the scope of this academic prototype pr
 \begin{itemize}
     \item \textbf{CISPR 25 / EN 55032} --- Radiated and conducted emissions from the switching regulator and CAN bus interface.
     \item \textbf{IEC 62368-1} --- General electronic safety for the monitoring unit enclosure.
-    \item \textbf{ETSI TS 51.010} --- Radio conformance for the SIM800L GSM/GPRS module (LTE module carries its own type approval).
+    \item \textbf{ETSI TS 51.010} --- Radio conformance for the SIM800L GSM/GPRS module (GPRS module carries its own type approval).
     \item \textbf{ATI} --- Agence Tunisienne des Infrastructures approval for cellular transmission on Tunisian networks.
 \end{itemize}
 
@@ -121,7 +121,7 @@ A Production Readiness Review was conducted at the end of Sprint~8. The followin
     \item[$\checkmark$] CAN decoding verified against O'CELL BMS live frames.
     \item[$\checkmark$] Cloud publish pipeline verified end-to-end (ESP32 $\rightarrow$ VPS $\rightarrow$ browser).
     \item[$\checkmark$] Firmware source code committed to the team Git repository with version tag.
-    \item[$\times$] OTA firmware update capability not yet implemented (deferred).
+    \item[$\checkmark$] OTA firmware update capability implemented (Section~\ref{sec:ota}): wireless flashing via ArduinoOTA and browser-based configuration portal deployed.
 \end{itemize}
 
 \textbf{Quality:}

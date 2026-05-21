@@ -17,7 +17,7 @@ ROOT    = Path(__file__).parent
 LOG     = ROOT / "data" / "raw" / "bms_log_2026-03-10T10-20-02.txt"
 SERVER  = ROOT / "backend" / "server_frame_parser_Json.py"
 VENV_PY = ROOT / "backend" / "venv" / "bin" / "python"
-PORT    = 8765
+PORT    = 8787
 
 PYTHON  = str(VENV_PY) if VENV_PY.exists() else sys.executable
 TS_RE   = re.compile(r'^\[(\d+)ms\]')

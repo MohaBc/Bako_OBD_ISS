@@ -18,7 +18,7 @@ The overall execution model is summarized in Figure~\ref{fig:fw-flow}.
     \label{fig:fw-flow}
 \end{figure}
 
-The SIM800L GSM/GPRS module is driven via \textbf{HardwareSerial UART1} (GPIO 16/17) at 9600 baud. HardwareSerial was chosen over SoftwareSerial because the module's AT+HTTP* responses can arrive as multi-line bursts that SoftwareSerial's byte-at-a-time interrupt handler occasionally corrupts at 9600 baud on a loaded CPU.
+The SIM800L GPRS module (driven via the SIM800L AT command protocol) is connected to \textbf{HardwareSerial UART1} (GPIO 16/17) at 9600 baud. HardwareSerial was chosen over SoftwareSerial because the module's AT+HTTP* responses can arrive as multi-line bursts that SoftwareSerial's byte-at-a-time interrupt handler occasionally corrupts at 9600 baud on a loaded CPU.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{BMS Firmware}
@@ -37,7 +37,7 @@ The physical CAN interface uses a \textbf{MCP2515} controller connected to the E
 
 where \texttt{FUNC} is the PGN function byte that identifies the frame type, \texttt{SUB} encodes sub-addressing or destination, and \texttt{SA} = 0xF4 is the source address of the BMS module.
 
-The MCP2515 library is configured in \texttt{MCP\_ANY} mask mode so that all frames on the bus are received without hardware filtering. Software-side filtering is performed in the \texttt{decodeFrame()} function by inspecting the \texttt{FUNC} and \texttt{SUB} bytes extracted from the 29-bit ID.
+The MCP2515 library is configured in \texttt{MCP\_ANY} mask mode so that all frames on the bus are received without hardware fiGPRSring. Software-side fiGPRSring is performed in the \texttt{decodeFrame()} function by inspecting the \texttt{FUNC} and \texttt{SUB} bytes extracted from the 29-bit ID.
 
 \subsubsection{Supported Frame Types}
 
@@ -170,17 +170,17 @@ During the AT+HTTPACTION wait loop (up to 30 s), the firmware continues draining
 
 \subsubsection{Brownout Recovery}
 
-A known failure mode of the SIM800L is a mid-transaction power brownout caused by the $\sim$1.5 A peak current during LTE transmission exceeding the supply rail's transient capability. When this occurs, the module resets and emits an unsolicited \texttt{"Call Ready"} string in its UART output.
+A known failure mode of the SIM800L is a mid-transaction power brownout caused by the $\sim$1.5 A peak current during GPRS transmission exceeding the supply rail's transient capability. When this occurs, the module resets and emits an unsolicited \texttt{"Call Ready"} string in its UART output.
 
-The firmware detects this string in every AT response buffer (both \texttt{sendAT()} and \texttt{sendATExpect()} and the \texttt{HTTPACTION} wait loop) and sets a global \texttt{g\_moduleRebooted} flag. When a publish cycle fails and this flag is set, the recovery sequence is:
+The firmware detects this string in all three response handlers: \texttt{sendAT()}, \texttt{sendATExpect()}, and the \texttt{HTTPACTION} wait loop and sets a global \texttt{g\_moduleRebooted} flag. When a publish cycle fails and this flag is set, the recovery sequence is:
 
 \begin{enumerate}
-    \item Wait 20 s for the SIM card and LTE stack to re-initialize.
+    \item Wait 20 s for the SIM card and GPRS stack to re-initialize.
     \item Retry \texttt{AT+CPIN?} up to six times at 4-second intervals.
     \item Re-open the GPRS bearer and retry the publish once more.
 \end{enumerate}
 
-The long-term hardware fix is to add a 1000 µF / 10 V bulk capacitor close to the SIM800L VCC pin.
+The hardware fix is to add a 2200~\textmu{}F / 6.3~V bulk capacitor close to the module VBAT pin, as incorporated into PCB Revision RECTIFICATION\_2.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{CAN Frame Parser}
@@ -253,7 +253,7 @@ Three distinct SOC representations are maintained simultaneously by the parser:
     \]
     The upper reference (3387~mV) was calibrated from four real vehicle logs. This is the primary value displayed on the dashboard.
 
-    \item[\texttt{soc\_coulomb}] Accumulated Ah count from 0x18FFE5F4, used for charger control decisions.
+    \item[\texttt{soc\_coulomb}] Charge request signal derived from 0x18FFE5F4 (the charging request frame), used for charger control decisions. The frame carries the BMS-requested maximum charge voltage and current; its \texttt{start\_signal} bit is monitored to track active charging state.
 \end{description}
 
 State of Health (SoH) is calculated from the ratio of the measured actual capacity to the rated pack capacity:
@@ -307,7 +307,7 @@ The migration from Station to AP mode required minimal changes, isolated entirel
     \item \texttt{loop()} calls \texttt{ensureClient()} with a 50~ms yield when no client is connected, keeping the DHCP and beacon tasks running without burning CPU.
 \end{itemize}
 
-The \texttt{server.py} dashboard application required zero modifications. It accepts connections on any local interface, including the 192.168.4.x interface created when the PC joins the BAKO\_SMU network. The only operational change for the user is connecting the PC to the \texttt{BAKO\_SMU} Wi-Fi network before launching the server.
+The \texttt{server.py} dashboard application required zero modifications. It accepts connections on any local interface, including the 192.168.4.x interface created when the PC joins the BAKO\_SMU network. The only operational change for the user is connecting the PC to the \texttt{BAKO\_BMS} Wi-Fi network before launching the server.
 
 % ─────────────────────────────────────────────────────────────────────────────
 \subsection{OTA Firmware Updates \& Web Configuration Portal}
@@ -349,7 +349,7 @@ Once the PCB is mounted inside a vehicle enclosure, accessing the USB port for r
     \item Power the ESP32 board (vehicle on, or bench supply connected).
     \item Connect the laptop to the \texttt{BAKO\_BMS} Wi-Fi network broadcast by the ESP32.
     \item Open Arduino IDE → Tools → Port. A network port labelled with the OTA hostname (\texttt{BAKO\_OTA} by default) appears automatically.
-    \item Select that port, compile, and click Upload as normal.
+    \item Select that port, compile, and click \textbf{Upload} as normal.
     \item The IDE transmits the binary wirelessly. The ESP32 verifies integrity and reboots into the new firmware.
 \end{enumerate}
 
@@ -544,7 +544,7 @@ A mode pill in the dashboard header opens a modal dialog that lets the operator 
 
 \begin{itemize}
     \item \textbf{Serial mode} --- auto-detects the connected ESP32 USB port, or accepts manual port entry with a configurable baud rate. The server reads newline-delimited CAN frames from the serial stream.
-    \item \textbf{Wi-Fi mode} --- the operator enters the ESP32 IP address (default 192.168.4.1) and TCP port (default 9000), then clicks Apply. The PC must already be connected to the \texttt{BAKO\_SMU} Wi-Fi network.
+    \item \textbf{Wi-Fi mode} --- the operator enters the ESP32 IP address (default 192.168.4.1) and TCP port (default 9000), then clicks Apply. The PC must already be connected to the \texttt{BAKO\_BMS} Wi-Fi network.
 \end{itemize}
 
 \begin{figure}[H]
@@ -602,7 +602,7 @@ In addition to the telemetry simulator, an embedded web server was implemented d
     \label{fig:simulator-panel}
 \end{figure}
 
-To improve usability and persistence, all sensor configuration parameters are stored locally in \textbf{EEPROM} memory, allowing settings to remain available after reboot or power cycling. Furthermore, an offline telemetry buffering mechanism was implemented using the ESP32 \textbf{SPIFFS} internal flash filesystem. When the TCP connection becomes unavailable, telemetry data is temporarily stored locally and automatically retransmitted once connectivity is restored.
+To improve usability and persistence, all sensor configuration parameters are stored locally in \textbf{EEPROM}, allowing settings to remain available after reboot or power cycling. Furthermore, an offline telemetry buffering mechanism was implemented using the ESP32 \textbf{SPIFFS} internal flash filesystem. When the TCP connection becomes unavailable, telemetry data is temporarily stored locally and automatically retransmitted once connectivity is restored.
 
 This testing environment significantly reduces dependency on the physical vehicle during development and debugging phases. It also provides a reproducible and controlled platform for validating embedded communication pipelines, dashboard integration, telemetry visualisation, offline recovery behaviour, and system operation under multiple simulated conditions.
 
@@ -613,9 +613,9 @@ The script \texttt{simulate.py} provides a complementary simulation path that us
 The replay sequence is:
 \begin{enumerate}
     \item A virtual PTY (pseudo-terminal) pair is created using \texttt{socat}. One end is handed to the server as its serial port; the other is used by the feeder thread to write log lines.
-    \item The FastAPI server is launched as a subprocess on port 8765.
+    \item The FastAPI server is launched as a subprocess on port 8787.
     \item Once the server's \texttt{/api/mode} endpoint responds, the script posts \texttt{mode=serial} with the virtual PTY path, switching the server into serial-reader mode.
-    \item The browser is opened automatically at \texttt{http://localhost:8765}.
+    \item The browser is opened automatically at \texttt{http://localhost:8787}.
     \item Log frames are streamed to the PTY feeder end with inter-frame delays derived from the original timestamps, scaled by a configurable speed multiplier (default 2$\times$). The log loops continuously until interrupted.
 \end{enumerate}
 
@@ -625,7 +625,7 @@ The \texttt{--speed} argument allows accelerated replay (e.g., \texttt{--speed 1
 
 As an extension to the Python-based sensor emulator, a local storage and TCP communication layer was implemented to improve telemetry reliability and prepare the emulator for remote server integration.
 
-The emulator first generates realistic values for the 12 external sensors, including current, voltage, temperature, handbrake state, and GNSS data. Each generated record is then stored locally in a SQLite database before any transmission attempt. This ensures that telemetry data is preserved even if the network connection is unavailable.
+The emulator first generates realistic values for the 14 external sensors, including current, voltage, temperature, handbrake state, and GNSS data. Each generated record is then stored locally in a SQLite database before any transmission attempt. This ensures that telemetry data is preserved even if the network connection is unavailable.
 
 A TCP socket client was also developed to transmit unsent records to a remote server. During local testing, a simulated TCP server was used to reproduce the behaviour of the future VPS server. When the server is available, the client sends the stored telemetry records and marks them as sent in the local database. If the connection fails, the data remains stored locally and is retried automatically during the next transmission cycle.
 

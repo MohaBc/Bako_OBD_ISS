@@ -6,7 +6,7 @@
 
 On-Board Diagnostics version 2 (OBD-II) is a mandatory diagnostic interface standard for passenger vehicles sold in the United States since 1996, adopted by the European Union under the EOBD directive and widely applied globally. The standard defines a 16-pin diagnostic connector (SAE J1962), a set of communication protocols (ISO 9141-2, ISO 14230 KWP2000, SAE J1850, ISO 15765-4 CAN), and a standardised set of \textbf{Parameter IDs (PIDs)} that any compliant scan tool can query from the vehicle's Electronic Control Units (ECUs).
 
-PIDs are structured request-response pairs: the scan tool sends a request frame containing a service ID and a PID number; the ECU responds with the requested parameter. For example, PID 0x0D requests vehicle speed, PID 0x0C requests engine RPM, and PID 0x05 requests coolant temperature. Service 0x03 retrieves stored Diagnostic Trouble Codes (DTCs), and service 0x01 returns live powertrain data. The OBD-II framework is therefore a \emph{request-driven} diagnostic architecture: the scan tool controls what data is visible.
+PIDs are structured request-response pairs: the scan tool sends a request frame containing a service ID and a PID; the ECU responds with the requested parameter. For example, PID 0x0D requests vehicle speed, PID 0x0C requests engine RPM, and PID 0x05 requests coolant temperature. Service 0x03 retrieves stored Diagnostic Trouble Codes (DTCs), and service 0x01 returns live powertrain data. The OBD-II framework is therefore a \emph{request-driven} diagnostic architecture: the scan tool controls what data is visible.
 
 \subsubsection*{ECU Architecture and Diagnostic Logic}
 
@@ -52,7 +52,7 @@ The ESP32 microcontroller is well-suited as the central processing unit. It supp
 
 The MCP2515 CAN controller communicates with the battery management system over standard CAN~2.0B at 250~kbps or 500~kbps, which are the most common rates in EV battery packs. Decoding cell voltages, current, and SOC from CAN frames is feasible once the BMS CAN DBC (database map) is known or reverse-engineered.
 
-DS18B20 sensors are well-proven for embedded thermal monitoring, supporting up to 127 sensors on a single 1-Wire bus --- more than sufficient for motor and MPPT placement. Current measurement via a shunt resistor or ACS712/ACS758 Hall-effect sensor on the MPPT output line is straightforward and accurate to within $\pm 1$--$2$\%.
+DS18B20 sensors are well-proven for embedded thermal monitoring, supporting up to 127 sensors on a single 1-Wire bus --- more than sufficient for motor and MPPT monitoring. Current measurement via a shunt resistor or ACS712/ACS758 Hall-effect sensor on the MPPT output line is straightforward and accurate to within $\pm 1$--$2$\%.
 
 Voltage divider networks are used to scale down MPPT output (typically 24--48~V), solar panel voltage (up to 50~V), and battery voltage into the 0--3.3~V safe range for the ESP32 ADC.
 
@@ -80,13 +80,13 @@ The following standards are relevant to the BAKO Motors Monitoring System:
 \toprule
 Domain & Standard & Relevance \\
 \midrule
-CAN Bus Communication  & ISO 11898-1/2          & CAN 2.0B protocol used with MCP2515 \\
+CAN Bus Communication & ISO 11898-1/2          & CAN 2.0B protocol used with MCP2515 \\
 Battery Data (BMS)     & CiA~447 / proprietary DBC & CAN frame structure for EV battery packs \\
 Temperature Sensing    & DS18B20 datasheet      & Accuracy class and operating range \\
 Electrical Safety      & IEC 62368-1            & General electronics safety for the monitoring unit \\
 EMC                    & CISPR~25               & Emissions from switching regulators and CAN lines \\
-GSM Module (SIM800L)   & ETSI TS~51.010         & Radio conformance for GSM/GPRS transmission \\
-RoHS                   & EU 2011/65/EU          & Lead-free component compliance \\
+GSM Module (SIM800L)  & ETSI TS~51.010         & Radio conformance for GPRS Cat-M1 transmission \\
+RoHS                   & Directive 2011/65/EU   & Lead-free component compliance \\
 Solar / MPPT           & IEC 62109-1            & Safety of power converters in PV systems \\
 \bottomrule
 \end{tabular}
@@ -94,7 +94,7 @@ Solar / MPPT           & IEC 62109-1            & Safety of power converters in 
 
 \subsubsection*{Key Design Implications}
 
-CAN bus lines require 120~$\Omega$ termination resistors at both ends of the bus. DS18B20 sensors require a 4.7~k$\Omega$ pull-up on the data line. Voltage dividers must be calculated to ensure no ADC input ever exceeds 3.3~V under any fault condition. The SIM800L requires compliance with local telecom authority regulations (ATI --- Agence Tunisienne des Infrastructures) for GSM transmission.
+CAN bus lines require 120~$\Omega$ termination resistors at both ends of the bus. DS18B20 sensors require a 4.7~k$\Omega$ pull-up on the data line. Voltage dividers must be calculated to ensure no ADC input ever exceeds 3.3~V under any fault condition. The SIM800L requires compliance with local telecom authority regulations (ANRT --- Autorité Nationale des Radiocommunications et des Fréquences) for GPRS transmission.
 
 \subsection{Technology Stack Selection}
 
@@ -136,7 +136,7 @@ The \textbf{ESP32} was selected because it uniquely satisfies all requirements s
 \begin{description}
     \item[\textbf{Core Microcontroller:}] ESP32 (Espressif) --- dual-core 240~MHz, built-in Wi-Fi + Bluetooth, multiple UARTs, SPI, I2C, 1-Wire support, 12-bit ADC. Selected for its versatility, community support, and low cost.
 
-    \item[\textbf{CAN Interface:}] MCP2515 (Microchip) + TJA1050 CAN transceiver --- SPI-connected to ESP32, supports CAN~2.0B up to 1~Mbps. Handles all battery communication frames.
+    \item[\textbf{CAN Interface:}] MCP2515 (Microchip) + TJA1051T CAN transceiver --- SPI-connected to ESP32, supports CAN~2.0B up to 1~Mbps. Handles all battery communication frames.
 
     \item[\textbf{Temperature Sensing:}] DS18B20 --- digital 1-Wire sensor, $\pm 0.5$\textdegree{}C accuracy, operating range $-55$\textdegree{}C to $+125$\textdegree{}C. Multiple units on a single GPIO line for DC/DC and MPPT zones.
 
@@ -144,7 +144,7 @@ The \textbf{ESP32} was selected because it uniquely satisfies all requirements s
 
     \item[\textbf{Voltage Measurement:}] Resistive voltage divider networks scaled to ESP32 ADC range (0--3.3~V) for three voltage measurement points: solar panel, MPPT output, battery.
 
-    \item[\textbf{GSM Connectivity:}] SIM800L (SIMCOM) --- UART-connected to ESP32 for remote SMS alerts and GPRS data push. Enables remote fleet monitoring.
+    \item[\textbf{GPRS Connectivity:}] SIM800L (SIMCOM) --- UART-connected to ESP32 for remote SMS alerts and GPRS data push. Supports 4G GPRS Cat-M1 and NB-IoT, confirmed compatible with Tunisian operators (Ooredoo and Orange). Enables remote fleet monitoring.
 
     \item[\textbf{Firmware Framework:}] Arduino-ESP32 or ESP-IDF with a cooperative main loop for sensor polling, CAN frame processing, display update, and cellular communication.
 
@@ -199,7 +199,7 @@ The BAKO Motors Monitoring System architecture is organised around the ESP32 as 
 
 % Bottom — Output
 \node[box,     below=1.6cm of esp32]       (comm)   {SIM800L (UART)\\+ Display (SPI/I2C)};
-\node[outnode, left=0.9cm  of comm]        (gsm)    {LTE\\Remote Alerts};
+\node[outnode, left=0.9cm  of comm]        (gsm)    {GPRS\\Remote Alerts};
 \node[outnode, right=0.9cm of comm]        (ui)     {Local UI\\(TFT/OLED)};
 \draw[arr] (esp32) -- (comm);
 \draw[arr] (comm)  -- (gsm);

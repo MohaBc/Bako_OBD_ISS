@@ -52,7 +52,7 @@ pip install -r requirements.txt
 python server.py
 ```
 
-Open `http://localhost:8765` in your browser.
+Open `http://localhost:8787` in your browser.
 
 ### Cloud mode
 

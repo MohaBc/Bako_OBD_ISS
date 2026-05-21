@@ -16,7 +16,7 @@ flowchart TB
         ACS["ACS712 x2\nCurrent Sensors"]
         VD["Voltage Dividers\nMPPT & Battery"]
         DS18["DS18B20 x3\n1-Wire"]
-        SIM["SIM7670E\nLTE Cat-M1"]
+        SIM["SIM800L\nGPRS Cat-M1"]
         PWR["LM2596S-ADJ\n5V / 3.3V Rails"]
     end
 
@@ -43,7 +43,7 @@ flowchart TB
     DS18 --> ESP
     PWR --> ESP
     ESP -- "UART AT cmds" --> SIM
-    SIM -- "GPRS/LTE" --> API
+    SIM -- "GPRS/GPRS" --> API
     API --> SQLDB
     API --> WSRV
     WSRV -- "WebSocket" --> DASH

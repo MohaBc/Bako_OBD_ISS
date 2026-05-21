@@ -17,7 +17,7 @@ BAKO Motors identified several critical gaps in their existing electric vehicle 
     \item insufficient system documentation was available for maintenance and development teams.
 \end{itemize}
 
-The primary objectives of this project were therefore: to extend CAN bus monitoring across the full vehicle by adding external sensors; to develop a real-time web-based dashboard accessible over Wi-Fi and LTE; to design and fabricate a custom PCB integrating all monitoring electronics; to implement a cloud telemetry pipeline for remote data storage and analysis; and to produce a Python-based software emulator enabling full system testing without physical hardware.
+The primary objectives of this project were therefore: to extend CAN bus monitoring across the full vehicle by adding external sensors; to develop a real-time web-based dashboard accessible over Wi-Fi and GPRS; to design and fabricate a custom PCB integrating all monitoring electronics; to implement a cloud telemetry pipeline for remote data storage and analysis; and to produce a Python-based software emulator enabling full system testing without physical hardware.
 
 \subsection{Key Milestones \& Timeline}
 
@@ -25,7 +25,7 @@ The project was structured across a one-semester academic timeline following an 
 
 Key milestones achieved at the midway stage include: completion of the system architecture and synoptic design; full PCB schematic and layout in KiCad (Revision RECTIFICATION\_2, April~2026); implementation of CAN bus communication with the BMS via MCP2515; DS18B20 temperature sensor integration for motor, MPPT, and DC/DC converter monitoring; current and voltage measurement across all energy nodes; a Python-based sensor emulator with seven automated test scenarios; a real-time WebSocket dashboard with data export functionality; and a cloud telemetry pipeline from ESP32 through SIM800L to a SQLite database on a VPS.
 
-Remaining work at the midway stage includes: GNSS position tracking integration, full SIM800L GSM/GPRS connectivity, fault detection and SMS alert system, in-vehicle PCB installation and field validation, and completion of testing and quality assurance procedures.
+All five items previously identified as remaining work at the midway stage have since been completed: the SIM800L GSM/GPRS cellular pipeline is fully operational from ESP32 to VPS; fault detection with SMS alert dispatch via threshold monitoring is implemented; the PCB was installed in the vehicle chassis and field-validated; and all testing and quality assurance procedures were completed at the Sprint~8 Production Readiness Review. GNSS position tracking integration was deprioritised following the MoSCoW review and deferred to the short-term development roadmap (Section~\ref{sec:recommendations}).
 
 \subsection{Document Conventions}
 

@@ -396,7 +396,7 @@ void tx_chg_request() {
 
 // 0x18D001AA — Solar panel current (before MPPT)
 // Bytes 0-1: raw current LE uint16, 0.1 A/bit
-// Bytes 2-3: filtered avg LE uint16, 0.1 A/bit
+// Bytes 2-3: fiGPRSred avg LE uint16, 0.1 A/bit
 // Byte 4: sensor status
 void tx_solar_current() {
   uint8_t d[8] = {0};
@@ -923,7 +923,7 @@ void setup() {
   // CAN / TWAI
   twai_general_config_t g = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_PIN, CAN_RX_PIN, TWAI_MODE_NORMAL);
   twai_timing_config_t  t = TWAI_TIMING_CONFIG_250KBITS();
-  twai_filter_config_t  f = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+  twai_fiGPRSr_config_t  f = TWAI_FIGPRSR_CONFIG_ACCEPT_ALL();
   ESP_ERROR_CHECK(twai_driver_install(&g, &t, &f));
   ESP_ERROR_CHECK(twai_start());
 

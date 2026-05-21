@@ -31,7 +31,7 @@
  * Config — edit secrets.h
  * ────────────────────────
  *   VPS_HOST     → IP or hostname of the VPS  (e.g. "203.0.113.42")
- *   VPS_PORT     → port the server listens on (default "8765")
+ *   VPS_PORT     → port the server listens on (default "8787")
  *   VPS_PATH     → ingest endpoint            (default "/api/ingest")
  *   VPS_API_KEY  → must match BMS_API_KEY env var on the VPS
  *   APN          → your SIM carrier APN  (e.g. "internet", "iam", "maroctel")

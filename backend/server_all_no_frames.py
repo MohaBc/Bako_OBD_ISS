@@ -671,7 +671,7 @@ def main():
     import argparse
     p = argparse.ArgumentParser(description="BAKO SMU Combined Server")
     p.add_argument("--host",     default="0.0.0.0")
-    p.add_argument("--web-port", default=8765, type=int, dest="web_port")
+    p.add_argument("--web-port", default=8787, type=int, dest="web_port")
     args = p.parse_args()
 
     reader_mgr.start()

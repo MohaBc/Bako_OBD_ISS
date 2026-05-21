@@ -2,7 +2,7 @@
 
 \subsection{Project Governance \& Team Structure}
 
-The project is supervised academically by \textbf{Dr. Mortadha Dahmani} and conducted in direct collaboration with \textbf{BAKO Motors} as the industrial partner. The development team consists of seven members: Mahdi Hachicha, Mohamed Baccouche, Yassine Mtibaa, Hana Gdoura, Selima Grissa, Fares Smaoui, and Khadija Ben Hamida. Tasks are distributed across five functional areas: hardware design and PCB, embedded firmware, dashboard and cloud back-end, documentation and reporting, and integration testing. Version control is managed through Git with a shared private repository; task tracking and sprint planning follow a product backlog structure aligned with the Agile methodology described in Chapter~13.
+The project is supervised academically by \textbf{Dr. Mortadha Dahmani} and conducted in direct collaboration with \textbf{BAKO Motors} as the industrial partner. The development team consists of seven members: Mahdi Hachicha, Mohamed Baccouche, Yassine Mtibaa, Hana Gdoura, Selima Grissa, Fares Smaoui, and Khadija Ben Hamida. Tasks are distributed across seven functional areas: hardware design and PCB, embedded firmware, GSM and cloud back-end, Wi-Fi and wireless dashboard, emulation and simulation, BLE wireless interface, and documentation and reporting. Version control is managed through Git with a shared private repository; task tracking and sprint planning follow a product backlog structure aligned with the Agile methodology described in Chapter~13.
 
 \subsection{Development Environment Setup}
 
@@ -10,7 +10,7 @@ The embedded firmware is developed using \textbf{VS Code} with the \textbf{Platf
 
 \subsection{Simulation \& Prototyping Environment}
 
-A Python-based sensor emulator was developed to simulate the complete vehicle sensor network, generating realistic values for 12 sensors with smooth, continuous transitions between states. The emulator cycles through seven test scenarios every 30 seconds:
+A Python-based sensor emulator was developed to simulate the complete vehicle sensor network, generating realistic values for 14 sensors with smooth, continuous transitions between states. The emulator cycles through seven test scenarios every 30 seconds:
 
 \begin{itemize}
     \item \textbf{Normal Driving} --- typical operational parameters across all sensors.
@@ -26,7 +26,7 @@ The emulator outputs structured JSON payloads compatible with the back-end API, 
 
 \subsection{Risk Register (Initial)}
 
-Initial risks identified at project outset included: the proprietary O'CELL BMS CAN protocol requiring reverse engineering before frame decoding could begin; ADC accuracy limitations on the ESP32 requiring dedicated calibration routines for precise voltage and current readings; component availability in Tunisia for specialised modules such as the SIM800L; LTE network compatibility of the chosen cellular module with Tunisian operators (Ooredoo and Orange); and PCB fabrication lead times from local and regional manufacturers. Each risk was assigned a likelihood rating, an impact severity level, and a set of mitigation strategies as part of the project governance framework. The full expanded risk register is presented in Chapter~18.
+Initial risks identified at project outset included: the proprietary O'CELL BMS CAN protocol requiring reverse engineering before frame decoding could begin; ADC accuracy limitations on the ESP32 requiring dedicated calibration routines for precise voltage and current readings; component availability in Tunisia for specialised modules such as the SIM800L; GPRS network compatibility of the chosen cellular module with Tunisian operators (Ooredoo and Orange); and PCB fabrication lead times from local and regional manufacturers. Each risk was assigned a likelihood rating, an impact severity level, and a set of mitigation strategies as part of the project governance framework. The full expanded risk register is presented in Chapter~18.
 
 \subsection{Procurement \& Vendor Selection}
 
@@ -58,5 +58,5 @@ The fully populated PCB was connected to the vehicle harness and the cloud back-
     \item DS18B20 temperature accuracy within $\pm 1$\textdegree{}C of a reference thermometer.
     \item ACS712 current measurement error $< 2\%$ of full scale.
     \item Voltage divider readings within $\pm 1\%$ of the multimeter reference.
-    \item Cloud telemetry delivered to the VPS database with no snapshot loss over a 1-hour test.
+    \nopagebreak[4]\item Cloud telemetry delivered to the VPS database with no snapshot loss over a 1-hour test.
 \end{itemize}

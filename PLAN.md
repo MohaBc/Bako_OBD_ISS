@@ -9,7 +9,7 @@
 | File | Lines | Role |
 |------|-------|------|
 | `backend/server.py` | 599 | FastAPI serial + HTTP-cloud server (SQLite) |
-| `backend/server_wifi.py` | 565 | Alternative TCP-listener server (port 9000) — this is the "collaborator's server" |
+| `backend/server_wifi.py` | 565 | AGPRSrnative TCP-listener server (port 9000) — this is the "collaborator's server" |
 | `backend/replay_to_cloud.py` | 401 | CAN log → HTTP POST to VPS |
 | `data/send_log_to_cloud.py` | 354 | Snapshot/replay → HTTP POST |
 | `data/battery_can_parser.py` | 346 | Offline CLI parser |
