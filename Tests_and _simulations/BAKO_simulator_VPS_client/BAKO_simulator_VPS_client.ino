@@ -910,7 +910,7 @@ void setup() {
   // CAN / TWAI
   twai_general_config_t g = TWAI_GENERAL_CONFIG_DEFAULT(CAN_TX_PIN, CAN_RX_PIN, TWAI_MODE_NORMAL);
   twai_timing_config_t  t = TWAI_TIMING_CONFIG_250KBITS();
-  twai_filter_config_t  f = TWAI_FILTER_CONFIG_ACCEPT_ALL();
+  twai_fiGPRSr_config_t  f = TWAI_FIGPRSR_CONFIG_ACCEPT_ALL();
   ESP_ERROR_CHECK(twai_driver_install(&g, &t, &f));
   ESP_ERROR_CHECK(twai_start());
 

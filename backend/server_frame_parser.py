@@ -442,7 +442,7 @@ def parse_can(id_hex: int, d: bytes) -> None:
 
     # ── 0x18D001AA — Solar panel current (before MPPT) ───────────────────────
     # Bytes 1-2: LE uint16 raw current,  0.1 A/bit
-    # Bytes 3-4: LE uint16 filtered avg, 0.1 A/bit
+    # Bytes 3-4: LE uint16 fiGPRSred avg, 0.1 A/bit
     # Byte  5  : sensor status
     if id_hex == 0x18D001AA and len(d) >= 5:
         raw_i = round(u16le(d, 0) * 0.1, 2)
@@ -813,7 +813,7 @@ def main():
     import argparse
     p = argparse.ArgumentParser(description="BAKO SMU Combined Server")
     p.add_argument("--host",     default="0.0.0.0")
-    p.add_argument("--web-port", default=8765, type=int, dest="web_port")
+    p.add_argument("--web-port", default=8787, type=int, dest="web_port")
     args = p.parse_args()
 
     reader_mgr.start()

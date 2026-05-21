@@ -15,7 +15,7 @@ ID & Risk Description & L & I & RPN & Mitigation / Outcome \\
 \midrule
 R-01 & Proprietary BMS CAN protocol requires reverse engineering --- no DBC published & 5 & 5 & 25 & Allocated dedicated sprint for SavvyCAN capture and frame analysis. \textbf{Occurred:} consumed Sprint~2 (Blocker B-001). \\
 \midrule
-R-02 & SIM800L 2G network sunset by Tunisian operators (Ooredoo, Orange) & 4 & 4 & 16 & Selected SIM800L (LTE Cat-M1) as primary module from the outset; SIM800L retained as schematic footprint only. \textbf{Avoided.} \\
+R-02 & SIM800L 2G network sunset by Tunisian operators (Ooredoo, Orange) & 4 & 4 & 16 & Selected SIM7670E (LTE Cat-M1) as primary hardware module from the outset; SIM800L-CORE retained as PCB footprint placeholder only. \textbf{Avoided.} \\
 \midrule
 R-03 & ADC nonlinearity limits current measurement accuracy & 3 & 3 & 9 & Calibration offset stored per unit; ACS712-30A selected for 2\% full-scale spec. Monitored --- accepted at $\pm 1.8\%$. \\
 \midrule
@@ -70,7 +70,7 @@ The ISS system transmits telemetry over plain HTTP (AT+HTTPSSL=0) with an API ke
     \item \textbf{Data confidentiality:} Low. HTTP traffic is unencrypted and visible to any party with access to the GPRS bearer. No personally identifiable information is transmitted; all data is vehicle telemetry. Risk accepted for the academic prototype phase.
     \item \textbf{API authentication:} Basic. The \texttt{X-Api-Key} header provides minimal protection against accidental ingestion from unrelated sources; it does not prevent a determined attacker who intercepts the key from injecting false data.
     \item \textbf{Recommended upgrade:} Enable HTTPS (AT+HTTPSSL=1 with CA certificate) and rotate API keys per vehicle before any production deployment. The FastAPI backend is already capable of TLS termination via a reverse proxy (nginx).
-    \item \textbf{Physical security:} The ISS board is mounted inside the vehicle chassis. USB programming access requires physical vehicle access. No remote firmware update vector exists in the current firmware (OTA deferred).
+    \item \textbf{Physical security:} The ISS board is mounted inside the vehicle chassis. USB programming access requires physical vehicle access. OTA firmware update is implemented over the Wi-Fi AP network; the transport is plain TCP (no TLS), which is acceptable within the vehicle's local AP range.
 \end{itemize}
 
 \subsection{Risk Review Cadence}

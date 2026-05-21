@@ -36,7 +36,7 @@ This approach has several advantages:
 
 \subsubsection{Cellular Connectivity — SIM800L GPRS}
 
-Wireless transmission is handled by a \textbf{SIM800L GSM/GPRS module} connected to the ESP32 via HardwareSerial UART1. The module establishes an GPRS bearer using the carrier's APN, then uses the AT+HTTP* command set to perform a standard HTTP POST to the VPS endpoint.
+Wireless transmission is handled by a \textbf{SIM800L GSM/GPRS module} connected to the ESP32 via HardwareSerial UART1. The module establishes a GPRS bearer using the carrier's APN, then uses the AT+HTTP* command set to perform a standard HTTP POST to the VPS endpoint.
 
 The connection lifecycle at startup is:
 \begin{enumerate}
@@ -109,7 +109,7 @@ Server behavior is controlled by three environment variables, summarized in Tabl
         \midrule
         \texttt{BMS\_API\_KEY} & \texttt{bako-bms-2024} & Shared secret for \texttt{POST /api/ingest} authentication \\
         \texttt{HOST}          & \texttt{0.0.0.0}       & Bind address (all interfaces on VPS) \\
-        \texttt{PORT}          & \texttt{8765}          & TCP port for HTTP and WebSocket traffic \\
+        \texttt{PORT}          & \texttt{8787}          & TCP port for HTTP and WebSocket traffic \\
         \bottomrule
     \end{tabular}
 \end{table}
@@ -169,7 +169,7 @@ The full JSON payload is stored as a text column, which avoids schema migrations
     \item The database file can be copied directly from the VPS for offline analysis with standard tools.
 \end{itemize}
 
-A similar storage mechanism was also implemented on the Python emulator side, where generated telemetry records are stored locally in SQLite before being transmitted through a TCP socket client (Section~\ref{sec:software-implementation}).
+A similar storage mechanism was also implemented on the Python emulator side, where generated telemetry records are stored locally in SQLite before being transmitted through a TCP socket client.
 
 \subsubsection{In-Memory State and WebSocket Push}
 
@@ -285,7 +285,7 @@ The JSON body sent by the ESP32 to \texttt{POST /api/ingest} uses a \textbf{nest
         \midrule
         \texttt{device\_id}   & string & Configurable in \texttt{secrets.h} \\
         \texttt{timestamp}    & string & Network time from \texttt{AT+CCLK?} (or \texttt{uptime\_ms} fallback) \\
-        \texttt{source}       & string & Always \texttt{"esp32-sim7670e"} \\
+        \texttt{source}       & string & Always \texttt{"esp32-SIM800L"} \\
         \texttt{connected}    & bool   & Always \texttt{true} when sent by the ESP32 \\
         \texttt{frame\_count} & int    & Cumulative CAN frames decoded since boot \\
         \texttt{fault\_level} & int    & 0 = normal, 1 = serious fault \\
@@ -331,7 +331,7 @@ The \texttt{temperatures} object contains \texttt{battery\_avg\_c}, \texttt{batt
 The following \texttt{curl} command simulates an ESP32 posting a snapshot to the server during testing:
 
 \begin{verbatim}
-curl -X POST http://YOUR_VPS_IP:8765/api/ingest \
+curl -X POST http://YOUR_VPS_IP:8787/api/ingest \
   -H "Content-Type: application/json"           \
   -H "X-Api-Key: bako-bms-2024"                \
   -d '{

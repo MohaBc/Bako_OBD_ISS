@@ -309,11 +309,11 @@ Values above 3387 mV (during active charging) are clamped to 100%.
 ```bash
 cd backend
 pip install -r requirements.txt
-python3 server_frame_parser_Json.py                      # port 8765, auto-detects USB
+python3 server_frame_parser_Json.py                      # port 8787, auto-detects USB
 python3 server_frame_parser_Json.py --web-port 8787      # custom port
 ```
 
-Open `http://localhost:8765` — the dashboard loads in Serial mode by default.
+Open `http://localhost:8787` — the dashboard loads in Serial mode by default.
 Use the mode selector in the header to switch to Wi-Fi AP or Cloud mode.
 
 ### Cloud dashboard from a real log file (no ESP32 needed)
@@ -329,7 +329,7 @@ python3 backend/server_frame_parser_Json.py
 python3 backend/replay_to_cloud.py --speed 5
 ```
 
-Open `http://localhost:8765`. In the dashboard mode selector, choose **Cloud** mode. The dashboard updates live as the log replays.
+Open `http://localhost:8787`. In the dashboard mode selector, choose **Cloud** mode. The dashboard updates live as the log replays.
 
 ### Offline log analysis (no server, no internet)
 
@@ -406,7 +406,7 @@ Pipeline: `log file → decode frames → nested JSON → POST /api/ingest → s
 | `--interval` / `-i` | `5000` | Snapshot interval in log-time ms |
 | `--loop` | off | Loop file forever |
 | `--host` | `localhost` | VPS host |
-| `--port` / `-p` | `8765` | VPS port |
+| `--port` / `-p` | `8787` | VPS port |
 
 ### Usage
 
@@ -418,7 +418,7 @@ python3 backend/replay_to_cloud.py
 python3 backend/replay_to_cloud.py --speed 5
 
 # Remote VPS
-python3 backend/replay_to_cloud.py --host 1.2.3.4 --port 8765
+python3 backend/replay_to_cloud.py --host 1.2.3.4 --port 8787
 
 # Custom log file, 10× speed, loop forever
 python3 backend/replay_to_cloud.py --log data/raw/my_log.txt --speed 10 --loop
@@ -431,7 +431,7 @@ python3 backend/replay_to_cloud.py --log data/raw/my_log.txt --speed 10 --loop
   BMS Log → VPS Cloud Pipeline
 -------------------------------------------------------
   Log      : data/raw/bms_log_2026-03-10T10-20-02.txt
-  Endpoint : http://localhost:8765/api/ingest
+  Endpoint : http://localhost:8787/api/ingest
   Speed    : 1.0×   interval: 5000 ms log-time
 -------------------------------------------------------
   3197 frames  (11455–139267 ms)
@@ -470,7 +470,7 @@ python3 backend/server_frame_parser_Json.py
 python3 backend/server_frame_parser_Json.py --web-port 8787
 ```
 
-Open **http://localhost:8765**
+Open **http://localhost:8787**
 
 ### Dashboard Panels
 
@@ -576,7 +576,7 @@ The ESP32 POSTs this JSON body to `/api/ingest` and the browser receives it via 
 |----------|---------|---------|
 | `BMS_API_KEY` | `bako-bms-2024` | API key for ESP32 → `/api/ingest` POST |
 | `HOST` | `0.0.0.0` | Bind address for the VPS server |
-| `PORT` | `8765` | TCP port the server listens on |
+| `PORT` | `8787` | TCP port the server listens on |
 
 ### Backend REST Endpoints
 
@@ -626,7 +626,7 @@ lib_deps =
 
 ```cpp
 const char VPS_HOST[]    = "YOUR_VPS_IP";   // IP or hostname of the VPS
-const char VPS_PORT[]    = "8765";
+const char VPS_PORT[]    = "8787";
 const char VPS_PATH[]    = "/api/ingest";
 const char VPS_API_KEY[] = "bako-bms-2024"; // must match BMS_API_KEY on the VPS
 const char DEVICE_ID[]   = "esp32-bms-001";
@@ -670,7 +670,7 @@ pio device monitor   # 115200 baud
 Receives a nested BMS snapshot from the ESP32. Updates the in-memory server state (data is not written to SQLite in the current version).
 
 ```bash
-curl -X POST http://localhost:8765/api/ingest \
+curl -X POST http://localhost:8787/api/ingest \
   -H "Content-Type: application/json" \
   -H "X-Api-Key: bako-bms-2024" \
   -d '{
@@ -693,7 +693,7 @@ Response: `{"ok": true}`
 Returns the most recent snapshot received via `/api/ingest`.
 
 ```bash
-curl -s http://localhost:8765/api/latest_push | python3 -m json.tool
+curl -s http://localhost:8787/api/latest_push | python3 -m json.tool
 ```
 
 Returns HTTP 404 if no snapshot has been received yet.
@@ -708,12 +708,12 @@ Switches the reader mode at runtime. The new mode is saved to `mode_config.json`
 
 ```bash
 # Switch to off (VPS use — no local serial port)
-curl -X POST http://localhost:8765/api/mode \
+curl -X POST http://localhost:8787/api/mode \
   -H "Content-Type: application/json" \
   -d '{"mode": "off"}'
 
 # Switch to serial with a specific port
-curl -X POST http://localhost:8765/api/mode \
+curl -X POST http://localhost:8787/api/mode \
   -H "Content-Type: application/json" \
   -d '{"mode": "serial", "serial": {"port": "/dev/ttyUSB0", "baud": 115200}}'
 ```
@@ -723,7 +723,7 @@ curl -X POST http://localhost:8765/api/mode \
 The single WebSocket endpoint — pushes the full in-memory state at 10 Hz.
 
 ```js
-const ws = new WebSocket("ws://localhost:8765/ws");
+const ws = new WebSocket("ws://localhost:8787/ws");
 ws.onmessage = e => console.log(JSON.parse(e.data));
 ```
 
@@ -833,7 +833,7 @@ Current version: **v0.6.0** — 2026-04-18 — Nested JSON schema migration
 
 **APN varies by carrier** — The default APN is `"internet.ooredoo.tn"`. Maroc Telecom uses `"iam"`, Inwi uses `"inwi"`. Set yours in `include/secrets.h`.
 
-**Port already in use on server restart** — If `server_frame_parser_Json.py` fails with `address already in use`, run: `lsof -ti :8765 | xargs kill -9`
+**Port already in use on server restart** — If `server_frame_parser_Json.py` fails with `address already in use`, run: `lsof -ti :8787 | xargs kill -9`
 
 **Report content** — sections §04, §08, §09 are written. The remaining section files contain `% Content placeholder` for other teams to fill.
 

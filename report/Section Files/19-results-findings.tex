@@ -26,7 +26,7 @@ Board power draw   & $< 500$~mA at 12~V           & 480~mA peak (all subsystems 
 \end{tabular}
 \end{table}
 
-The voltage-derived SOC method (using the cell voltage-to-SOC lookup table calibrated against the O'CELL BMS datasheet) demonstrated $\pm 1.5\%$ accuracy relative to the BMS coulomb-counter SOC. This result exceeded the initial expectation and validated the decision to implement the voltage-based SOC as the primary display metric, with the BMS coulomb-counter SOC shown as a secondary reference.
+The voltage-derived SOC method (using the linear calibration formula in Equation~\ref{eq:soc}, calibrated over four on-vehicle sessions against the vehicle dashboard display) demonstrated $\pm 1.5\%$ accuracy relative to the BMS coulomb-counter SOC. This result exceeded the initial expectation and validated the decision to implement the voltage-based SOC as the primary display metric, with the BMS coulomb-counter SOC shown as a secondary reference.
 
 \subsection{Software \& Connectivity Results}
 

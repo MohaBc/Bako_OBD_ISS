@@ -5,11 +5,11 @@
 \begin{figure}[H]
     \centering
     \includegraphics[width=0.85\textwidth]{images/arch-system-overview.png}
-    \caption{ISS system architecture --- ESP32 core controller interfacing with the O'CELL BMS via MCP2515 CAN, three DS18B20 temperature sensors (1-Wire), ACS712 current sensors, voltage dividers, SIM800L GSM/GPRS cellular module, and local TFT display.}
+    \caption{ISS system architecture --- ESP32 core controller interfacing with the O'CELL BMS via MCP2515 CAN, three DS18B20 temperature sensors (1-Wire), ACS712 current sensors, voltage dividers, SIM800L GPRS cellular module, and local TFT display.}
     \label{fig:system-overview}
 \end{figure}
 
-The system is organised around a central ESP32 hub with five primary data flows: CAN bus communication with the BMS via MCP2515 SPI; DS18B20 digital temperature sensing on motor, MPPT, and DC/DC; ACS712/ACS758 analogue current measurement on solar panel and MPPT output; resistive divider voltage measurement at four nodes; and NPN handbrake detection. Data transmits over two parallel channels: a local Wi-Fi WebSocket server for dashboard access and a cellular LTE/GPRS link to a cloud VPS via FastAPI into SQLite.
+The system is organised around a central ESP32 hub with five primary data flows: CAN bus communication with the BMS via MCP2515 SPI; DS18B20 digital temperature sensing on motor, MPPT, and DC/DC; ACS712/ACS758 analogue current measurement on solar panel and MPPT output; resistive divider voltage measurement at four nodes; and NPN handbrake detection. Data transmits over two parallel channels: a local Wi-Fi WebSocket server for dashboard access and a cellular GPRS/GPRS link to a cloud VPS via FastAPI into SQLite.
 
 \subsection{Detailed System Block Diagram}
 
@@ -33,13 +33,13 @@ The system also includes a DC/DC converter responsible for regulating voltage le
 
 Electrical measurements are performed using ACS712 and ACS758 current sensors together with voltage sensing modules based on analogue voltage division. In addition, DS18B20 digital temperature sensors are installed on critical components such as the MPPT heatsink and DC/DC converter to supervise thermal behaviour and prevent overheating conditions.
 
-The ESP32 microcontroller serves as the central processing and acquisition unit. It periodically collects sensor measurements and transmits the data through communication interfaces including CAN Bus, Wi-Fi, Bluetooth BLE, and GSM/GPRS connectivity.
+The ESP32 microcontroller serves as the central processing and acquisition unit. It periodically collects sensor measurements and transmits the data through communication interfaces including CAN Bus, Wi-Fi, BLE, and GPRS/GPRS cellular connectivity.
 
 \subsection{Electronic Control Units (ECUs)}
 
 The monitoring platform integrates several Electronic Control Units (ECUs) responsible for data acquisition, communication, and system supervision. These units ensure reliable real-time monitoring of the vehicle's electrical and thermal parameters.
 
-The main control unit of the system is the ESP32 microcontroller. It collects sensor measurements, decodes CAN Bus messages, processes data, and transmits information to the monitoring dashboard. Its integrated Wi-Fi and Bluetooth capabilities make it suitable for embedded IoT applications.
+The main control unit of the system is the ESP32 microcontroller. It collects sensor measurements, decodes CAN Bus messages, processes data, and transmits information to the monitoring dashboard. Its integrated Wi-Fi and BLE capabilities make it suitable for embedded IoT applications.
 
 The Battery Management System (BMS) supervises the battery pack by monitoring parameters such as voltage, current, temperature, state of charge (SOC), and fault conditions. Communication between the BMS and the ESP32 is achieved through the CAN Bus network using the MCP2515 CAN controller module.
 
@@ -58,7 +58,7 @@ The software is divided into five logical layers, shown in Figure~\ref{fig:sw-la
 
 \begin{figure}[H]
     \centering
-    \includegraphics[width=0.25\textwidth]{images/sw-layers.png}
+    \includegraphics[width=0.45\textwidth]{images/sw-layers.png}
     \caption{ESP32 embedded software layer diagram}
     \label{fig:sw-layers}
 \end{figure}
@@ -82,7 +82,7 @@ The software is divided into five logical layers, shown in Figure~\ref{fig:sw-la
 
 \subsubsection{Key Design Decisions}
 
-\textbf{No RTOS.} A FreeRTOS task structure was considered but rejected because the single-responsibility loop handles all timing requirements naturally: CAN frames arrive at 100--500 ms intervals, and the publish cycle runs every 5 seconds. Adding preemptive scheduling would have introduced stack management and mutex overhead without any functional benefit.
+\textbf{No explicit RTOS task management.} A FreeRTOS multi-task structure was considered but rejected because the single-responsibility loop handles all timing requirements naturally: CAN frames arrive at 100--500 ms intervals, and the publish cycle runs every 5 seconds. Adding preemptive scheduling would have introduced stack management and mutex overhead without any functional benefit.
 
 \textbf{CAN drain during HTTP wait.} The \texttt{AT+HTTPACTION} response can take up to 30 seconds over a cellular link. To prevent the MCP2515 receive buffer (6 frames deep) from overflowing during this window, the HTTP wait loop polls the CAN \texttt{INT} pin and drains frames continuously, calling \texttt{decodeFrame()} in-place. This ensures the \texttt{BMSData} struct is fully up-to-date when the next publish cycle begins.
 
@@ -107,8 +107,8 @@ The cloud and connectivity architecture connects the on-vehicle ESP32 to a remot
     \item[ESP32 + MCP2515 (On-vehicle edge node)]
     Reads and decodes SAE J1939 CAN frames from the BMS at up to 10 frames per second, aggregates them into a snapshot, and transmits one JSON document to the VPS every 5 seconds.
 
-    \item[SIM800L GSM/GPRS Module]
-    Provides wide-area cellular connectivity using the carrier GPRS network. Communicates with the ESP32 via AT commands over UART. Handles TCP/IP, HTTP, and DNS entirely on-chip using the AT+HTTP* service, so the ESP32 only needs to manage the AT command dialogue.
+    \item[SIM800L GPRS Module]
+    Provides wide-area cellular connectivity over GPRS Cat-M1 using the carrier network. Communicates with the ESP32 via AT commands over UART. Handles TCP/IP, HTTP, and DNS entirely on-chip using the AT+HTTP* service, so the ESP32 only needs to manage the AT command dialogue. The SIM800L-CORE footprint is used as the PCB layout placeholder; the physically populated component is the SIM800L.
 
     \item[VPS Backend (FastAPI + Uvicorn)]
     Acts as the single ingestion point and real-time relay for all cloud data. Receives POST requests from the ESP32, stores them to SQLite for persistence, and maintains an in-memory state that is pushed to connected browser clients via WebSocket at 2 Hz. The server also handles the SERIAL mode WebSocket, allowing the same dashboard to be used with a direct USB connection.
@@ -126,7 +126,7 @@ The cloud and connectivity architecture connects the on-vehicle ESP32 to a remot
     \item O'CELL BMS $\rightarrow$ CAN bus (250 kbps, SAE J1939)
     \item ESP32 + MCP2515 $\rightarrow$ decode all frames $\rightarrow$ \texttt{BMSData} struct
     \item ESP32 $\rightarrow$ \texttt{buildJSON()} $\rightarrow$ JSON document
-    \item ESP32 $\rightarrow$ SIM800L AT+HTTPACTION=1 $\rightarrow$ \texttt{POST /api/ingest} (HTTP, LTE)
+    \item ESP32 $\rightarrow$ SIM800L AT+HTTPACTION=1 $\rightarrow$ \texttt{POST /api/ingest} (HTTP, GPRS)
     \item VPS server $\rightarrow$ validate API key $\rightarrow$ SQLite insert + in-memory update
     \item VPS server $\rightarrow$ \texttt{/ws/cloud} WebSocket push every 2 s
     \item Browser $\rightarrow$ render panels (SOC, cells, temperatures, faults, cloud log)

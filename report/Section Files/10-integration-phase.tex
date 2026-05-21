@@ -1,16 +1,97 @@
 \section{Integration Phase}
 
 \subsection{Hardware-Software Integration (HSI)}
-% Content placeholder
 
+Hardware-software integration was performed incrementally, following the nine-step bring-up sequence detailed in Section~\ref{sec:implementation-phase}. Each subsystem was validated at the firmware interface level before the next was enabled, so that any integration defect could be localised to the most recently activated hardware path.
+
+\paragraph{MCP2515-to-ESP32 SPI Interface.}
+The SPI link between the ESP32 VSPI bus and the MCP2515 CAN controller was verified by reading back the MCP2515 control registers at 10~MHz. A successful register read confirmed that SPI clock polarity, phase, and chip-select timing were correctly configured in the \texttt{mcp\_can} library. MCP2515 loopback mode was then used to verify frame transmission and reception on the SPI bus without connecting to the vehicle CAN bus.
+
+\paragraph{TJA1051T CAN Transceiver.}
+After SPI verification, the TJA1051T transceiver was enabled and the CAN connector J1 was wired to the O'CELL BMS. The firmware was operated in listen-only mode (no ACK) to avoid bus interference during initial testing. Decoded 0x18FF28F4 pack-voltage frames appeared on the serial monitor within 2~seconds of power-up, confirming correct physical layer integration.
+
+\paragraph{DS18B20 1-Wire Bus.}
+The ESP32 1-Wire bus driver (\texttt{DallasTemperature} library) was validated by enumerating all three DS18B20 ROM addresses. A 5~ms initialisation delay was added to \texttt{setup()} to resolve a cold-boot enumeration defect~(Defect D-003) discovered at this integration step.
+
+\paragraph{ACS712 and Voltage Dividers.}
+Analogue sensor paths were validated by comparing ESP32 ADC readings against reference instruments (clamp meter for current, calibrated bench multimeter for voltage) at three known operating points. Calibration offsets were stored as firmware constants following this procedure.
+
+\paragraph{SIM7670E UART and GPRS Bearer.}
+HardwareSerial UART1 communication with the SIM7670E module was tested by sending AT commands and parsing multi-line responses. Bearer open was confirmed with \texttt{AT+SAPBR=2,1} returning a valid IP address. The first successful HTTP POST to the VPS endpoint was recorded as the cellular subsystem integration acceptance event.
+
+% ─────────────────────────────────────────────────────────────────────────────
 \subsection{Sub-system Integration Testing}
-% Content placeholder
 
+Sub-system integration testing verified that all sensor acquisition paths function correctly in parallel within the cooperative main loop without blocking, starvation, or data corruption.
+
+\paragraph{Cooperative Loop Timing.}
+All subsystems were activated simultaneously: CAN frame reception at 10~ms polling, DS18B20 conversion at 1~s, ACS712 sampling at 500~ms, and SIM7670E HTTP publish at 5~s intervals. The firmware was monitored for watchdog timer resets, stack overflow, and heap exhaustion events over a 30-minute sustained run. None were observed, confirming that the single-threaded cooperative design correctly interleaves all workloads within timing budget.
+
+\paragraph{CAN Drain During HTTP Transaction.}
+The SIM7670E AT+HTTPACTION response can take up to 30~seconds over a cellular link, during which the MCP2515 receive buffer~(6 frames deep) would overflow if not drained. Integration testing confirmed that the CAN drain loop --- which polls the INT pin and calls \texttt{decodeFrame()} continuously during the HTTP wait --- prevents any frame loss. After a 30-second forced HTTP delay injected via a debug flag, the \texttt{BMSData} struct contained values decoded from frames received during the wait.
+
+\paragraph{Simultaneous Wi-Fi AP and CAN Reception.}
+The ESP32 Wi-Fi Access Point and the CAN reception loop were activated in parallel with a TCP dashboard client connected and the live data stream flowing at 10~Hz. No CAN frame loss or elevated error rate was observed, confirming that the RF and SPI peripherals operate independently without mutual interference.
+
+\paragraph{OTA and Portal Alongside CAN.}
+The ArduinoOTA and HTTP web configuration portal services (Section~\ref{sec:ota}) were tested while CAN frames were being decoded at full rate. No frame timing degradation was measured, confirming that the four concurrent services (Wi-Fi AP, TCP data server, OTA, web portal) operate within the ESP32's scheduling budget.
+
+% ─────────────────────────────────────────────────────────────────────────────
 \subsection{Cloud-to-Vehicle Integration}
-% Content placeholder
 
+End-to-end cloud integration testing connected the physical vehicle CAN bus, through the ESP32 and SIM7670E, to the VPS backend, verifying the complete data path from sensor to browser.
+
+\paragraph{Pipeline Verification.}
+With the ESP32 registered on the GPRS bearer and connected to the O'CELL BMS, a 1-hour cloud integration test was run. The VPS server log was monitored in parallel via SSH. All 720 expected snapshots (one per 5 seconds) were received and stored in the SQLite database with zero insertion failures, confirming end-to-end pipeline integrity.
+
+\paragraph{API Authentication.}
+During testing, an incorrect API key was deliberately submitted to \texttt{POST /api/ingest}. The server correctly returned HTTP 401 and logged an \texttt{[ERR]} event in the cloud log panel, confirming that the authentication layer functions as designed.
+
+\paragraph{Live Dashboard in Cloud Mode.}
+A browser was opened at the VPS public IP\@. The \texttt{/ws/cloud} WebSocket connected and the dashboard updated at 2~Hz with live BMS data from the vehicle. Cell voltage bars, the SOC ring gauge, temperature probes, and fault status all rendered correctly during a 20-minute live session.
+
+% ─────────────────────────────────────────────────────────────────────────────
 \subsection{Mechanical-Electrical Assembly Integration}
-% Content placeholder
 
+The ISS PCB (Revision RECTIFICATION\_2) was test-fitted in the 3D-printed ABS enclosure designed in Chapter~7 prior to vehicle installation. The following mechanical integration checks were performed:
+
+\begin{itemize}
+    \item All four corner M3 mounting bosses aligned with the PCB mounting holes without binding.
+    \item The rectangular cable egress slot on the right side wall cleared the CAN connector J1 and power connector J9 without stressing the PCB edge connectors.
+    \item The USB programming port of the ESP32-DEVKITC was accessible through the front face slot for firmware flashing without removing the PCB from the enclosure.
+    \item The SIM7670E cellular module antenna connector was reachable at the top edge of the board with the enclosure open face up.
+\end{itemize}
+
+The assembled board was subsequently installed in the BAKO Motors vehicle chassis beneath the driver seat as described in Section~\ref{sec:implementation-phase}, with short harness runs to the battery CAN bus connector, MPPT current/voltage sense lines, and the 12~V supply rail.
+
+% ─────────────────────────────────────────────────────────────────────────────
 \subsection{Integration Test Report}
-% Content placeholder
+
+Table~\ref{tab:integration-results} summarises the outcomes of all integration tests performed across the four integration domains.
+
+\begin{table}[H]
+\centering
+\caption{Integration Test Results Summary}\label{tab:integration-results}
+\small
+\begin{tabular}{>{\bfseries}p{3.2cm} p{4.8cm} p{2.6cm} p{1.5cm}}
+\toprule
+Domain & Test & Method & Result \\
+\midrule
+Hardware-Software & MCP2515 SPI register read-back & SPI loopback & \textbf{PASS} \\
+Hardware-Software & DS18B20 cold-boot ROM enumeration (+ 5~ms fix) & Serial monitor & \textbf{PASS} \\
+Hardware-Software & ACS712 calibration vs.\ clamp meter & Bench comparison & \textbf{PASS} \\
+Hardware-Software & Voltage divider scaling at 12, 24, 48~V & Multimeter & \textbf{PASS} \\
+Sub-system & Cooperative loop 30-min sustained run & Watchdog monitor & \textbf{PASS} \\
+Sub-system & CAN drain during HTTP wait & Frame counter diff & \textbf{PASS} \\
+Sub-system & Wi-Fi AP + CAN simultaneous & Frame error rate & \textbf{PASS} \\
+Sub-system & OTA + portal + CAN simultaneous & Frame timing & \textbf{PASS} \\
+Cloud-to-Vehicle & 1-hour pipeline (720 snapshots) & Server log vs.\ counter & \textbf{PASS} \\
+Cloud-to-Vehicle & API key rejection (HTTP 401) & Deliberate bad key & \textbf{PASS} \\
+Cloud-to-Vehicle & Live dashboard cloud mode (20~min) & Browser observation & \textbf{PASS} \\
+Mechanical & PCB fit in enclosure & Physical inspection & \textbf{PASS} \\
+Mechanical & Cable egress and USB access clearance & Physical inspection & \textbf{PASS} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+All thirteen integration tests passed. The three defects discovered during this phase --- D-001 (CAN bus missing termination), D-002 (SIM800L power rail bulk capacitance), and D-003 (DS18B20 cold-boot timing) --- were identified, root-caused, and resolved before the Production Readiness Review at Sprint~8.

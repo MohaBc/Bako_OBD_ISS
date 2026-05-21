@@ -14,7 +14,7 @@ Usage:
     python replay_to_cloud.py --speed 5            # 5× real-time
     python replay_to_cloud.py --interval 5000      # POST every 5 s of log time
     python replay_to_cloud.py --loop               # loop file forever
-    python replay_to_cloud.py --host 1.2.3.4 --port 8765
+    python replay_to_cloud.py --host 1.2.3.4 --port 8787
 """
 
 import re, sys, time, json, argparse
@@ -24,7 +24,7 @@ from pathlib import Path
 
 # ─── VPS credentials ─────────────────────────────────────────────────────────
 VPS_HOST   = "localhost"
-VPS_PORT   = 8765
+VPS_PORT   = 8787
 VPS_PATH   = "/api/ingest"
 VPS_API_KEY = "bako-bms-2024"
 DEVICE_ID  = "esp32-bms-001"

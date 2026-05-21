@@ -447,7 +447,7 @@ def parse_can(id_hex: int, d: bytes) -> None:
 
     # ── 0x18D001AA — Solar panel current (before MPPT) ───────────────────────
     # Bytes 1-2: LE uint16 raw current,  0.1 A/bit
-    # Bytes 3-4: LE uint16 filtered avg, 0.1 A/bit
+    # Bytes 3-4: LE uint16 fiGPRSred avg, 0.1 A/bit
     # Byte  5  : sensor status
     if id_hex == 0x18D001AA and len(d) >= 5:
         raw_i = round(u16le(d, 0) * 0.1, 2)
@@ -836,14 +836,26 @@ def _cell_status(mv: int, thresh: dict) -> str:
     if mv >= thresh["cell_bal"]: return "ok"
     return "low"
 
+@app.post("/hello")
+async def hello(request: Request):
+    body = await request.body()
+    text = body.decode("utf-8", errors="replace").strip()
+    print(f"[HELLO] {text}", flush=True)
+    return JSONResponse({"reply": f"Server received: {text}"})
+
+
 @app.post("/api/ingest")
 async def ingest(request: Request):
     key = request.headers.get("X-Api-Key", "")
     if key != INGEST_API_KEY:
         return JSONResponse({"error": "forbidden"}, status_code=403)
     try:
-        payload = await request.json()
-    except Exception:
+        raw = await request.body()
+        print(f"[INGEST] body_len={len(raw)} first_bytes={raw[:40]!r}", flush=True)
+        payload = json.loads(raw)
+    except Exception as e:
+        raw_preview = raw[:120] if 'raw' in dir() else b''
+        print(f"[INGEST] bad json: {e!r}  body_preview={raw_preview!r}", flush=True)
         return JSONResponse({"error": "bad json"}, status_code=400)
 
     bat   = payload.get("battery", {})
@@ -927,7 +939,7 @@ def main():
     import argparse
     p = argparse.ArgumentParser(description="BAKO SMU Combined Server")
     p.add_argument("--host",     default="0.0.0.0")
-    p.add_argument("--web-port", default=8765, type=int, dest="web_port")
+    p.add_argument("--web-port", default=8787, type=int, dest="web_port")
     args = p.parse_args()
 
     reader_mgr.start()

@@ -8,8 +8,8 @@
 \paragraph{DS18B20 External Power Mode.}
 The current firmware uses the DS18B20 parasitic power mode, which draws operating current from the data line during conversion. In electrically noisy environments (near switching regulators or CAN bus transients), this can cause spurious conversion failures. Rewiring the DS18B20 VDD pin to the 3.3~V rail (external power mode) eliminates parasitic-power timing constraints and increases measurement reliability. The PCB should include a dedicated 3.3~V pad at each DS18B20 connector for this purpose in the next revision.
 
-\paragraph{SIM800L Bulk Capacitor.}
-A 2200~\textmu{}F, 6.3~V electrolytic capacitor should be placed on the SIM800L power supply rail, as close to the module's VBAT pins as possible. This is a mandatory requirement identified during integration testing (Defect D-002) and is consistent with SIMCOM module hardware design guidelines. The capacitor prevents the GPRS transmit burst from drooping the supply below the module's minimum operating voltage and is already incorporated into PCB Revision RECTIFICATION\_2.
+\paragraph{SIM800L Bulk Capacitor (Already Incorporated).}
+A 2200~\textmu{}F, 6.3~V electrolytic capacitor was added to the SIM800L power supply rail close to the module VBAT pins, resolving Defect D-002 and incorporated into PCB Revision RECTIFICATION\_2. This design note is recorded here so that any future board re-spin retains this component; omitting it will cause intermittent bearer failures under GPRS transmit load.
 
 \paragraph{Replace ACS712-30A with ACS758-50B.}
 The ACS712-30A has a sensitivity of 66~mV/A, which produces a low signal-to-noise ratio at MPPT currents below 5~A. The ACS758-50B offers a sensitivity of 40~mV/A in a PCB-mount package with improved linearity and lower noise floor at small currents. Alternatively, a shunt resistor (e.g., 5~m$\Omega$) with a dedicated instrumentation amplifier (INA219) would provide 12-bit precision current measurement independent of ADC nonlinearity.
@@ -52,7 +52,7 @@ The dashboard and firmware error messages are currently in English only. Given t
 \begin{itemize}
     \item \textbf{Historical Cloud Dashboard}: add time-series charting to the cloud dashboard (Chart.js or ECharts) to display battery SOC, cell temperatures, and MPPT current trends over the last 24~hours, 7~days, and 30~days. Add date-range CSV export.
     \item \textbf{Predictive Maintenance Model}: use the accumulated SQLite telemetry history to train a simple battery degradation model (e.g., linear regression on cell spread over time). Deploy the model as a FastAPI background task that emits a ``battery health'' score updated daily.
-    \item \textbf{LTE Firmware Optimisation}: refine the SIM800L AT+HTTP* command sequence to take advantage of LTE Cat-M1 throughput, including increasing the publish frequency from the current 5-second interval to 1~Hz and enabling persistent bearer mode to reduce per-transaction setup overhead.
+    \item \textbf{GPRS Firmware Optimisation}: refine the SIM800L AT+HTTP* command sequence to take advantage of GPRS Cat-M1 throughput, including increasing the publish frequency from the current 5-second interval to 1~Hz and enabling persistent bearer mode to reduce per-transaction setup overhead.
 \end{itemize}
 
 \paragraph{Long-Term (18+ Months).}

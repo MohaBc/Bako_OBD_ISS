@@ -12,22 +12,22 @@
   <script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
   <style>
     :root {
-      --bg: #060a0d;
-      --surface: #0b1117;
-      --card: #0f1820;
-      --border: #0f1214;
-      --border2: #1e3045;
-      --accent: #9bc8b2;
-      --accent2: #0099bb;
-      --green: #00ff88;
-      --yellow: #ffcc00;
-      --orange: #ff7722;
-      --red: #d52943;
-      --blue: #29b6f6;
-      --purple: #9c6fde;
-      --dim: #2a4560;
-      --dim2: #cbe09c;
-      --text: #dde5eb;
+      --bg: #050d1a;
+      --surface: #0a1628;
+      --card: #0d1e35;
+      --border: #122240;
+      --border2: #1e3a5f;
+      --accent: #38bdf8;
+      --accent2: #818cf8;
+      --green: #34d399;
+      --yellow: #fbbf24;
+      --orange: #fb923c;
+      --red: #f87171;
+      --blue: #60a5fa;
+      --purple: #a78bfa;
+      --dim: #1e3a5f;
+      --dim2: #94a3b8;
+      --text: #e0f2fe;
       --mono: 'Share Tech Mono', monospace;
       --ui: 'Exo 2', sans-serif;
     }
@@ -40,18 +40,19 @@
       padding: 0
     }
 
-    html,
-    body {
-      height: 100%;
-      overflow: hidden
+    html {
+      min-height: 100%;
+      overflow-y: auto;
     }
 
     body {
+      min-height: 100%;
+      overflow-y: auto;
       background: var(--bg);
       color: var(--text);
       font-family: var(--ui);
       display: flex;
-      flex-direction: column
+      flex-direction: column;
     }
 
     /* grid bg */
@@ -59,11 +60,11 @@
       content: '';
       position: fixed;
       inset: 0;
-      background-image: linear-gradient(rgba(0, 212, 255, .02) 1px, transparent 1px),
-        linear-gradient(90deg, rgba(0, 212, 255, .02) 1px, transparent 1px);
+      background-image: linear-gradient(rgba(56, 189, 248, .025) 1px, transparent 1px),
+        linear-gradient(90deg, rgba(56, 189, 248, .025) 1px, transparent 1px);
       background-size: 44px 44px;
       pointer-events: none;
-      z-index: 0
+      z-index: 0;
     }
 
     /* ── Header ── */
@@ -76,7 +77,7 @@
       justify-content: space-between;
       padding: 10px 20px;
       border-bottom: 1px solid var(--border2);
-      background: linear-gradient(180deg, #0d1a24 0%, transparent 100%);
+      background: linear-gradient(180deg, #071524 0%, transparent 100%);
     }
 
     .logo {
@@ -97,7 +98,7 @@
       letter-spacing: 4px;
       text-transform: uppercase;
       color: var(--accent);
-      text-shadow: 0 0 20px rgba(0, 212, 255, .5)
+      text-shadow: 0 0 20px rgba(56, 189, 248, .55)
     }
 
     .logo sub {
@@ -159,7 +160,7 @@
       padding: 4px 10px;
       border: 1px solid var(--border2);
       border-radius: 12px;
-      background: rgba(0, 153, 187, .08);
+      background: rgba(56, 189, 248, .08);
       cursor: pointer;
       transition: all .2s;
       font-family: var(--mono);
@@ -171,8 +172,8 @@
     }
 
     .mode-pill:hover {
-      background: rgba(0, 153, 187, .18);
-      border-color: var(--accent2);
+      background: rgba(56, 189, 248, .18);
+      border-color: var(--accent);
     }
 
     .mode-pill .mode-icon {
@@ -260,10 +261,10 @@
     }
 
     .mode-opt.active {
-      background: rgba(0, 153, 187, .2);
+      background: rgba(56, 189, 248, .18);
       border-color: var(--accent);
       color: var(--accent);
-      box-shadow: 0 0 8px rgba(0, 153, 187, .3) inset;
+      box-shadow: 0 0 8px rgba(56, 189, 248, .25) inset;
     }
 
     .mode-opt .opt-glyph {
@@ -361,13 +362,11 @@
     main {
       position: relative;
       z-index: 1;
-      flex: 1;
-      min-height: 0;
       display: grid;
       grid-template-columns: 300px 1fr 220px 220px;
-      grid-template-rows: 1fr 200px;
-      gap: 10px;
-      padding: 10px;
+      grid-template-rows: minmax(500px, auto) minmax(220px, auto);
+      gap: 12px;
+      padding: 12px;
     }
 
     /* ── Cards ── */
@@ -566,7 +565,8 @@
       grid-template-columns: repeat(auto-fill, minmax(58px, 1fr));
       gap: 5px;
       overflow-y: auto;
-      height: calc(100% - 56px);
+      min-height: 280px;
+      max-height: 420px;
       padding-right: 4px;
     }
 
@@ -635,8 +635,8 @@
       display: flex;
       flex-direction: column;
       gap: 12px;
-      height: 100%;
-      overflow-y: auto
+      min-height: 200px;
+      overflow-y: auto;
     }
 
     .temp-row {
@@ -928,7 +928,7 @@
     .exp-btn:hover {
       border-color: var(--accent);
       color: var(--accent);
-      background: rgba(0, 212, 255, .06);
+      background: rgba(56, 189, 248, .08);
     }
 
     .exp-btn-csv:hover {
@@ -1071,10 +1071,10 @@
     }
 
     .chart-btn:hover {
-      border-color: var(--accent2);
-      color: var(--accent2);
-      background: rgba(0, 153, 187, .1);
-      box-shadow: 0 0 12px rgba(0, 153, 187, .15);
+      border-color: var(--accent);
+      color: var(--accent);
+      background: rgba(56, 189, 248, .1);
+      box-shadow: 0 0 12px rgba(56, 189, 248, .15);
     }
 
     /* ── Temp Chart Modal ── */
@@ -1103,7 +1103,7 @@
       background: var(--card);
       border: 1px solid var(--border2);
       border-radius: 6px;
-      box-shadow: 0 8px 60px rgba(0, 0, 0, .6), 0 0 40px rgba(0, 153, 187, .08);
+      box-shadow: 0 8px 60px rgba(0, 0, 0, .6), 0 0 40px rgba(56, 189, 248, .08);
       display: flex;
       flex-direction: column;
       overflow: hidden;

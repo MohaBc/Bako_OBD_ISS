@@ -35,7 +35,7 @@ pyserial==3.5
 ## Starting the Server
 
 ```bash
-# Default — port 8765, all interfaces
+# Default — port 8787, all interfaces
 python3 server_frame_parser_Json.py
 
 # Custom port (e.g. 8787 on the VPS)
@@ -50,7 +50,7 @@ python3 server_frame_parser_Json.py --host 127.0.0.1 --web-port 8787
 | Argument | Default | Description |
 |----------|---------|-------------|
 | `--host` | `0.0.0.0` | Bind address |
-| `--web-port` | `8765` | TCP port |
+| `--web-port` | `8787` | TCP port |
 
 > There is no `--cloud-only`, `--port`, or `--mode` argument.
 > Mode (serial / wifi / off) is set via the dashboard UI or the `/api/mode` REST call.
