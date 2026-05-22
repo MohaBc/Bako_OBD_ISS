@@ -57,7 +57,7 @@ DEFAULT_CONFIG = {
     "mode": "serial",
     "serial": {"port": None, "baud": 115200},
     "local":  {"listen_host": "0.0.0.0", "listen_port": 9000},
-    "cloud":  {"ws_url": "ws://62.169.24.172:8765/ws"},
+    "cloud":  {"ws_url": "ws://62.169.24.172:8787/ws"},
 }
 
 def load_config() -> dict:
