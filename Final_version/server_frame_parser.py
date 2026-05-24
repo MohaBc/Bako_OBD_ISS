@@ -30,12 +30,12 @@ REST API:
 Requirements: pip install fastapi uvicorn pyserial
 """
 
-import asyncio, json, os, re, socket, threading, time, copy
+import asyncio, json, os, pathlib, re, socket, threading, time, copy
 from collections import deque
 from typing import Optional
 
 import uvicorn
-from fastapi import FastAPI, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Request, WebSocket, WebSocketDisconnect
 from fastapi.responses import FileResponse, JSONResponse
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
@@ -785,7 +785,7 @@ class ModeRequest(BaseModel):
 
 @app.get("/")
 async def root():
-    return FileResponse("../Final_version/index.html")
+    return FileResponse(str(pathlib.Path(__file__).parent / "index.html"))
 
 @app.get("/api/mode")
 async def get_mode():
@@ -814,6 +814,23 @@ async def set_mode(req: ModeRequest):
     cfg["available_ports"]  = list_serial_ports()
     cfg["serial_available"] = SERIAL_AVAILABLE
     return JSONResponse(cfg)
+
+INGEST_API_KEY = os.environ.get("BMS_API_KEY", "bako-bms-2024")
+
+@app.post("/api/ingest")
+async def ingest(request: Request):
+    if request.headers.get("X-Api-Key", "") != INGEST_API_KEY:
+        return JSONResponse({"error": "forbidden"}, status_code=403)
+    try:
+        data = await request.json()
+    except Exception:
+        return JSONResponse({"error": "bad json"}, status_code=400)
+    with state_lock:
+        parse_cloud_json(data)
+        state["connected"] = True
+        state["mode"]      = "cloud"
+        state["port"]      = f"GPRS seq={data.get('seq', '?')}"
+    return JSONResponse({"status": "ok", "ts": time.strftime("%Y-%m-%dT%H:%M:%S")})
 
 @app.websocket("/ws")
 async def ws_endpoint(websocket: WebSocket):

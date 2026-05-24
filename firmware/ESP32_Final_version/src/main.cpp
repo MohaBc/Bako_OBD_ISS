@@ -16,7 +16,7 @@
 #define SIM800_RX        17
 #define SIM800_BAUD      9600
 #define GPRS_APN         "internet.ooredoo.tn"
-#define VPS_URL          "http://webhook.site/9485e215-17c5-4974-9efa-553971099a18"
+#define VPS_URL          "https://bako-iss.onrender.com/api/ingest"
 #define VPS_API_KEY      "bako-bms-2024"
 #define DEVICE_ID        "esp32-bms-001"
 #define VEHICLE_ID       1
@@ -377,7 +377,7 @@ void gprsPost(const String& body) {
   gprsSendAT("AT+HTTPPARA=\"URL\",\"" VPS_URL "\"");
   gprsSendAT("AT+HTTPPARA=\"CONTENT\",\"application/json\"");
   gprsSendAT("AT+HTTPPARA=\"USERDATA\",\"X-Api-Key: " VPS_API_KEY "\"");
-  gprsSendAT("AT+HTTPSSL=0");
+  gprsSendAT("AT+HTTPSSL=1");
 
   String dataCmd = "AT+HTTPDATA=" + String(body.length()) + ",10000";
   if (gprsSendAT(dataCmd.c_str(), 5000).indexOf("DOWNLOAD") < 0) {

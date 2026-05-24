@@ -39,6 +39,54 @@
 \usepackage{listings}  % For source code listings
 \usepackage{dirtree}   % For directory trees
 
+% ── Code listing style ───────────────────────────────────────────────────────
+\definecolor{lst-bg}{RGB}{248,249,250}
+\definecolor{lst-frame}{RGB}{180,190,200}
+\definecolor{lst-comment}{RGB}{80,130,80}
+\definecolor{lst-keyword}{RGB}{0,90,180}
+\definecolor{lst-string}{RGB}{180,60,0}
+\definecolor{lst-number}{RGB}{120,120,120}
+\definecolor{lst-linenum}{RGB}{150,150,150}
+
+\lstdefinestyle{bakocode}{
+  backgroundcolor  = \color{lst-bg},
+  basicstyle       = \ttfamily\footnotesize\setstretch{1.0},
+  breakatwhitespace= false,
+  breaklines       = true,
+  captionpos       = b,
+  commentstyle     = \color{lst-comment}\itshape,
+  keywordstyle     = \color{lst-keyword}\bfseries,
+  stringstyle      = \color{lst-string},
+  numberstyle      = \tiny\color{lst-linenum},
+  numbers          = left,
+  numbersep        = 10pt,
+  showstringspaces = false,
+  tabsize          = 2,
+  frame            = single,
+  framesep         = 4pt,
+  rulecolor        = \color{lst-frame},
+  xleftmargin      = 20pt,
+  framexleftmargin = 20pt,
+  aboveskip        = 10pt,
+  belowskip        = 6pt,
+  literate         = {->}{{\textrightarrow}}{1}
+                     {=>}{{\textrightarrow}}{1},
+}
+
+\lstdefinestyle{filetree}{
+  backgroundcolor  = \color{lst-bg},
+  basicstyle       = \ttfamily\small\setstretch{1.0},
+  numbers          = none,
+  frame            = single,
+  framesep         = 6pt,
+  rulecolor        = \color{lst-frame},
+  xleftmargin      = 6pt,
+  framexleftmargin = 6pt,
+  aboveskip        = 8pt,
+  belowskip        = 6pt,
+  breaklines       = true,
+}
+
 % Spacing
 \setstretch{1.5}
 
