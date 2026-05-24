@@ -1,5 +1,5 @@
 {
-  "mode": "local",
+  "mode": "serial",
   "serial": {
     "port": null,
     "baud": 115200
@@ -13,6 +13,6 @@
     "listen_port": 9000
   },
   "cloud": {
-    "ws_url": "ws://62.169.24.172:8765/ws"
+    "ws_url": "ws://62.169.24.172:8787/ws"
   }
 }

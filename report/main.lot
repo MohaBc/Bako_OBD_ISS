@@ -3,37 +3,37 @@
 \contentsline {table}{\numberline {3}{\ignorespaces PCB Mechanical and Electrical Parameters}}{38}{table.caption.20}%
 \contentsline {table}{\numberline {4}{\ignorespaces Full Component Inventory --- Integrated Circuits and Connectors}}{39}{table.caption.21}%
 \contentsline {table}{\numberline {5}{\ignorespaces Full Component Inventory --- Passive Components}}{39}{table.caption.22}%
-\contentsline {table}{\numberline {6}{\ignorespaces ISS Enclosure Mechanical Parameters}}{45}{table.caption.29}%
-\contentsline {table}{\numberline {7}{\ignorespaces O'CELL BMS CAN Frame Map (SAE J1939, 250 kbps)}}{48}{table.caption.31}%
-\contentsline {table}{\numberline {8}{\ignorespaces BMS Fault Code Map (byte 7 of 0x18FF28F4)}}{49}{table.caption.32}%
-\contentsline {table}{\numberline {9}{\ignorespaces SOC Calibration Data — Four On-Vehicle Sessions}}{50}{table.caption.33}%
-\contentsline {table}{\numberline {10}{\ignorespaces BMS CAN Frame Parser --- SA = 0xF4 (O'CELL BMS)}}{52}{table.caption.34}%
-\contentsline {table}{\numberline {11}{\ignorespaces ESP32 Sensor Gateway CAN Frame Map --- SA = 0xAA}}{52}{table.caption.35}%
-\contentsline {table}{\numberline {12}{\ignorespaces Wi-Fi Connectivity Evolution Across Three Development Stages}}{55}{table.caption.36}%
-\contentsline {table}{\numberline {13}{\ignorespaces Configurable Parameters Exposed Through the BAKO Web Portal}}{57}{table.caption.38}%
-\contentsline {table}{\numberline {14}{\ignorespaces Web Portal Route Map --- All Routes Protected by Session Authentication}}{58}{table.caption.40}%
-\contentsline {table}{\numberline {15}{\ignorespaces Four Network Services Running Simultaneously on the ESP32 After Stage~3 Integration}}{58}{table.caption.41}%
-\contentsline {table}{\numberline {16}{\ignorespaces Dashboard Panel Layout}}{61}{table.caption.43}%
-\contentsline {table}{\numberline {17}{\ignorespaces ESP32 CAN Simulator --- 7-Phase Scenario Cycle}}{63}{table.caption.45}%
-\contentsline {table}{\numberline {18}{\ignorespaces BLE GATT Characteristic Map}}{67}{table.caption.47}%
-\contentsline {table}{\numberline {19}{\ignorespaces Backend Python Dependencies}}{71}{table.caption.49}%
-\contentsline {table}{\numberline {20}{\ignorespaces Server Environment Variables}}{72}{table.caption.50}%
-\contentsline {table}{\numberline {21}{\ignorespaces Dashboard Panel Summary}}{74}{table.caption.52}%
-\contentsline {table}{\numberline {22}{\ignorespaces Backend API Endpoint Reference}}{76}{table.caption.53}%
-\contentsline {table}{\numberline {23}{\ignorespaces ESP32 JSON Payload — Top-Level Envelope}}{76}{table.caption.54}%
-\contentsline {table}{\numberline {24}{\ignorespaces ESP32 JSON Payload — \texttt {battery} Object Fields}}{77}{table.caption.55}%
-\contentsline {table}{\numberline {25}{\ignorespaces V\&V Test Criteria and Results}}{81}{table.caption.58}%
-\contentsline {table}{\numberline {26}{\ignorespaces Sprint Log and Velocity Summary}}{85}{table.caption.59}%
-\contentsline {table}{\numberline {27}{\ignorespaces MoSCoW Product Backlog (selected items)}}{86}{table.caption.60}%
-\contentsline {table}{\numberline {28}{\ignorespaces Electronics Bill of Materials}}{89}{table.caption.61}%
-\contentsline {table}{\numberline {29}{\ignorespaces Software and Licensing Bill of Materials}}{90}{table.caption.62}%
-\contentsline {table}{\numberline {30}{\ignorespaces Full Project Cost Breakdown --- Material and Human Resources}}{91}{table.caption.63}%
-\contentsline {table}{\numberline {31}{\ignorespaces Human Resources and Responsibility Assignment}}{92}{table.caption.64}%
-\contentsline {table}{\numberline {32}{\ignorespaces Software Development Tools}}{93}{table.caption.65}%
-\contentsline {table}{\numberline {33}{\ignorespaces Resolved Blockers Summary}}{101}{table.caption.66}%
-\contentsline {table}{\numberline {34}{\ignorespaces Project Risk Register}}{103}{table.caption.67}%
-\contentsline {table}{\numberline {35}{\ignorespaces FMEA --- Top Four Failure Modes}}{104}{table.caption.68}%
-\contentsline {table}{\numberline {36}{\ignorespaces Defect Severity Classification}}{107}{table.caption.69}%
-\contentsline {table}{\numberline {37}{\ignorespaces Defect Log}}{108}{table.caption.70}%
-\contentsline {table}{\numberline {38}{\ignorespaces Hardware Subsystem Performance Results}}{109}{table.caption.71}%
-\contentsline {table}{\numberline {39}{\ignorespaces Cost vs.\ Budget Analysis}}{111}{table.caption.72}%
+\contentsline {table}{\numberline {6}{\ignorespaces ISS Enclosure Mechanical Parameters}}{45}{table.caption.28}%
+\contentsline {table}{\numberline {7}{\ignorespaces O'CELL BMS CAN Frame Map (SAE J1939, 250 kbps)}}{48}{table.caption.30}%
+\contentsline {table}{\numberline {8}{\ignorespaces BMS Fault Code Map (byte 7 of 0x18FF28F4)}}{49}{table.caption.31}%
+\contentsline {table}{\numberline {9}{\ignorespaces SOC Calibration Data — Four On-Vehicle Sessions}}{50}{table.caption.32}%
+\contentsline {table}{\numberline {10}{\ignorespaces BMS CAN Frame Parser --- SA = 0xF4 (O'CELL BMS)}}{52}{table.caption.33}%
+\contentsline {table}{\numberline {11}{\ignorespaces ESP32 Sensor Gateway CAN Frame Map --- SA = 0xAA}}{52}{table.caption.34}%
+\contentsline {table}{\numberline {12}{\ignorespaces Wi-Fi Connectivity Evolution Across Three Development Stages}}{55}{table.caption.35}%
+\contentsline {table}{\numberline {13}{\ignorespaces Configurable Parameters Exposed Through the BAKO Web Portal}}{57}{table.caption.37}%
+\contentsline {table}{\numberline {14}{\ignorespaces Web Portal Route Map --- All Routes Protected by Session Authentication}}{58}{table.caption.39}%
+\contentsline {table}{\numberline {15}{\ignorespaces Four Network Services Running Simultaneously on the ESP32 After Stage~3 Integration}}{58}{table.caption.40}%
+\contentsline {table}{\numberline {16}{\ignorespaces Dashboard Panel Layout}}{61}{table.caption.42}%
+\contentsline {table}{\numberline {17}{\ignorespaces ESP32 CAN Simulator --- 7-Phase Scenario Cycle}}{63}{table.caption.44}%
+\contentsline {table}{\numberline {18}{\ignorespaces BLE GATT Characteristic Map}}{67}{table.caption.46}%
+\contentsline {table}{\numberline {19}{\ignorespaces Backend Python Dependencies}}{71}{table.caption.48}%
+\contentsline {table}{\numberline {20}{\ignorespaces Server Environment Variables}}{72}{table.caption.49}%
+\contentsline {table}{\numberline {21}{\ignorespaces Dashboard Panel Summary}}{75}{table.caption.51}%
+\contentsline {table}{\numberline {22}{\ignorespaces Backend API Endpoint Reference}}{77}{table.caption.52}%
+\contentsline {table}{\numberline {23}{\ignorespaces ESP32 JSON Payload — Top-Level Envelope}}{77}{table.caption.53}%
+\contentsline {table}{\numberline {24}{\ignorespaces ESP32 JSON Payload — \texttt {battery} Object Fields}}{78}{table.caption.54}%
+\contentsline {table}{\numberline {25}{\ignorespaces V\&V Test Criteria and Results}}{81}{table.caption.57}%
+\contentsline {table}{\numberline {26}{\ignorespaces Sprint Log and Velocity Summary}}{85}{table.caption.58}%
+\contentsline {table}{\numberline {27}{\ignorespaces MoSCoW Product Backlog (selected items)}}{86}{table.caption.59}%
+\contentsline {table}{\numberline {28}{\ignorespaces Electronics Bill of Materials}}{89}{table.caption.60}%
+\contentsline {table}{\numberline {29}{\ignorespaces Software and Licensing Bill of Materials}}{90}{table.caption.61}%
+\contentsline {table}{\numberline {30}{\ignorespaces Full Project Cost Breakdown --- Material and Human Resources}}{91}{table.caption.62}%
+\contentsline {table}{\numberline {31}{\ignorespaces Human Resources and Responsibility Assignment}}{92}{table.caption.63}%
+\contentsline {table}{\numberline {32}{\ignorespaces Software Development Tools}}{93}{table.caption.64}%
+\contentsline {table}{\numberline {33}{\ignorespaces Resolved Blockers Summary}}{101}{table.caption.65}%
+\contentsline {table}{\numberline {34}{\ignorespaces Project Risk Register}}{103}{table.caption.66}%
+\contentsline {table}{\numberline {35}{\ignorespaces FMEA --- Top Four Failure Modes}}{104}{table.caption.67}%
+\contentsline {table}{\numberline {36}{\ignorespaces Defect Severity Classification}}{107}{table.caption.68}%
+\contentsline {table}{\numberline {37}{\ignorespaces Defect Log}}{108}{table.caption.69}%
+\contentsline {table}{\numberline {38}{\ignorespaces Hardware Subsystem Performance Results}}{109}{table.caption.70}%
+\contentsline {table}{\numberline {39}{\ignorespaces Cost vs.\ Budget Analysis}}{111}{table.caption.71}%

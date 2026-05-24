@@ -128,9 +128,11 @@ The end-to-end data pipeline operates as follows and is illustrated in Figure~\r
     \item Browser clients connected to \texttt{/ws/cloud} receive the latest \texttt{\_cloud\_state} every 2 seconds via WebSocket push.
 \end{enumerate}
 
-\begin{figure}[h]
+\begin{figure}[p]
     \centering
-    \includegraphics[width=0.9\textwidth]{images/cloud-pipeline.png}
+    \rotatebox{90}{%
+        \includegraphics[width=0.92\textheight]{images/cloud-pipeline.png}%
+    }
     \caption{Complete data pipeline from CAN bus to browser}
     \label{fig:cloud-pipeline}
 \end{figure}
@@ -328,7 +330,7 @@ The \texttt{temperatures} object contains \texttt{battery\_avg\_c}, \texttt{batt
 
 \subsubsection{Example API Interaction}
 
-The following \texttt{curl} command simulates an ESP32 posting a snapshot to the server during testing:
+The following \texttt{curl} command simulates an ESP32 posting a snapshot to the server during testing. On a successful ingest the server returns a timestamped acknowledgement and pushes the payload to any browser connected to \texttt{/ws/cloud} within 2 seconds.
 
 \begin{verbatim}
 curl -X POST http://YOUR_VPS_IP:8787/api/ingest \
@@ -348,9 +350,4 @@ curl -X POST http://YOUR_VPS_IP:8787/api/ingest \
   }'
 \end{verbatim}
 
-Response:
-\begin{verbatim}
-{"status": "ok", "ts": "2026-04-18T09:32:11.123456"}
-\end{verbatim}
-
-The server then pushes this payload to any browser connected to \texttt{/ws/cloud} within 2 seconds.
+\noindent The server responds with \texttt{\{"status": "ok", "ts": "2026-04-18T09:32:11.123456"\}}.

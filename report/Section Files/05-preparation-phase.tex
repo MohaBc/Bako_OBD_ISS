@@ -52,11 +52,13 @@ Lessons learned from the stripboard build were incorporated into a KiCad schemat
 The fully populated PCB was connected to the vehicle harness and the cloud back-end. All sensor data paths were verified end-to-end: CAN frames decoded and displayed on the dashboard, temperature and current readings visible in the browser, and cloud telemetry appearing in the SQLite database on the VPS. The Python emulator was run in parallel to validate that the back-end API processed both hardware and emulated data identically.
 
 \medskip
+\begin{samepage}
 \noindent\textbf{Quantitative success criteria applied across all phases:}
 \begin{itemize}
     \item CAN frame reception rate $\geq 99\%$ over a 60-minute continuous test.
     \item DS18B20 temperature accuracy within $\pm 1$\textdegree{}C of a reference thermometer.
     \item ACS712 current measurement error $< 2\%$ of full scale.
     \item Voltage divider readings within $\pm 1\%$ of the multimeter reference.
-    \nopagebreak[4]\item Cloud telemetry delivered to the VPS database with no snapshot loss over a 1-hour test.
+    \item Cloud telemetry delivered to the VPS database with no snapshot loss over a 1-hour test.
 \end{itemize}
+\end{samepage}

@@ -57,7 +57,7 @@ DEFAULT_CONFIG = {
     "mode": "serial",
     "serial": {"port": None, "baud": 115200},
     "local":  {"listen_host": "0.0.0.0", "listen_port": 9000},
-    "cloud":  {"ws_url": "ws://62.169.24.172:8787/ws"},
+    "cloud":  {"ws_url": "ws://62.169.24.172:8787/ws/cloud"},
 }
 
 def load_config() -> dict:
@@ -236,10 +236,18 @@ class ReaderManager:
                 daemon=True,
             )
             self.thread.start()
-        elif mode in ("off", "cloud"):
+        elif mode == "cloud":
+            ws_url = self.config["cloud"].get("ws_url", DEFAULT_CONFIG["cloud"]["ws_url"])
+            self.thread = threading.Thread(
+                target=cloud_reader_loop,
+                args=(ws_url, self.stop_event),
+                daemon=True,
+            )
+            self.thread.start()
+        elif mode == "off":
             with state_lock:
                 state["connected"] = False
-                state["mode"]      = mode
+                state["mode"]      = "off"
                 state["port"]      = "—"
 
     def switch_to(self, new_cfg: dict) -> dict:
@@ -457,6 +465,86 @@ def parse_sensor_json(line: str) -> None:
 
 
 # ─────────────────────────────────────────────────────────────────────────────
+#  Cloud VPS JSON parser  — schema_version 2.0.0 posted by SIM800L
+# ─────────────────────────────────────────────────────────────────────────────
+def parse_cloud_json(data: dict) -> None:
+    """Map the structured firmware JSON snapshot (schema 2.0.0) into state.
+    Caller must hold state_lock."""
+    bat   = data.get("battery",      {})
+    temps = data.get("temperatures", {})
+    solar = data.get("solar",        {})
+    dcdc  = data.get("dc_dc",        {})
+    veh   = data.get("vehicle",      {})
+
+    # ── battery / BMS ────────────────────────────────────────────────────────
+    if bat.get("pack_v")    is not None: state["pack_v"]      = bat["pack_v"]
+    if bat.get("soc")       is not None: state["soc"]         = bat["soc"]
+    if bat.get("soc_bms")   is not None: state["soc_bms"]     = bat["soc_bms"]
+    if bat.get("max_disch_a") is not None: state["disch_i_lim"] = bat["max_disch_a"]
+    if bat.get("cell_count") is not None: state["cell_count"] = bat["cell_count"]
+    if bat.get("cell_avg_mv") is not None: state["cell_avg_mv"] = bat["cell_avg_mv"]
+    if bat.get("cell_min_mv") is not None: state["cell_min_mv"] = bat["cell_min_mv"]
+    if bat.get("cell_max_mv") is not None: state["cell_max_mv"] = bat["cell_max_mv"]
+    if bat.get("cell_spread_mv") is not None: state["cell_spread_mv"] = bat["cell_spread_mv"]
+
+    # Individual cell voltages → cells dict
+    for i, mv in enumerate(bat.get("cells_voltages", []), start=1):
+        if mv and mv > 0:
+            state["cells"][i] = {"mv": mv, "status": cell_status(mv)}
+
+    # Charge limit
+    chg = bat.get("charge_limit", {})
+    if chg.get("max_charge_a") is not None: state["chg_i_req"] = chg["max_charge_a"]
+
+    # Fault / error
+    st = bat.get("status", {})
+    if st.get("fault_level") is not None: state["fault_level"] = st["fault_level"]
+    if st.get("error_code")  is not None: state["error_code"]  = st["error_code"]
+
+    # Derived
+    soc = state.get("soc")
+    if soc is not None:
+        state["remaining_ah"] = round(CAP_ACTUAL_AH * soc / 100.0, 1)
+    state["soh"] = round(CAP_ACTUAL_AH / CAP_RATED_AH * 100.0, 1)
+
+    # ── temperatures ─────────────────────────────────────────────────────────
+    if temps.get("battery_avg_c") is not None: state["avg_temp"] = temps["battery_avg_c"]
+    for i, t in enumerate(temps.get("battery_temps_c", []), start=1):
+        if t is not None:
+            state["temps"][i] = t
+
+    # ── external sensors (solar / dc_dc / vehicle) ───────────────────────────
+    pre  = solar.get("pre_mppt",  {})
+    post = solar.get("post_mppt", {})
+    dc_in  = dcdc.get("input_64v",  {})
+    dc_out = dcdc.get("output_12v", {})
+
+    state["v72_mppt_in"]   = pre.get("voltage_v")
+    state["current_in"]    = pre.get("current_a")
+    state["current_out"]   = post.get("current_a")
+    state["v72_dc_in"]     = dc_in.get("voltage_v")
+    state["v12_dc_out"]    = dc_out.get("voltage_v")
+    state["temp_mppt"]     = temps.get("mppt_temp_c")
+    state["temp_dcdc"]     = temps.get("dcdc_temp_c")
+    state["temp_motor"]    = temps.get("motor_temp_c")
+    state["handbrake_raw"] = int(veh.get("handbrake", False))
+
+    # Map to ext dict (dashboard reads from here)
+    state["ext"]["aux12v"]    = dc_out.get("voltage_v")     # 12V DC out
+    state["ext"]["hv_iso_v"]  = dc_in.get("voltage_v")      # 72V bus
+    state["ext"]["mppt_i1"]   = pre.get("current_a")        # solar current before MPPT
+    state["ext"]["mppt_i2"]   = post.get("current_a")       # MPPT output current
+    state["ext"]["bat_t1"]    = temps.get("mppt_temp_c")    # MPPT heatsink
+    state["ext"]["bat_t2"]    = temps.get("dcdc_temp_c")    # DC/DC heatsink
+    state["ext"]["mppt_t"]    = temps.get("motor_temp_c")   # motor temp
+    state["ext"]["dcdc_t"]    = pre.get("voltage_v")        # 72V MPPT in
+    state["ext"]["handbrake"] = veh.get("handbrake")
+
+    state["frame_count"] = state.get("frame_count", 0) + 1
+    log_buffer.append(f"[cloud] seq={data.get('seq','?')} soc={state.get('soc')}%")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
 #  Common line dispatcher
 # ─────────────────────────────────────────────────────────────────────────────
 _start_time = time.time()
@@ -616,6 +704,69 @@ def local_tcp_server_loop(host: str, port: int, stop_event: threading.Event):
     with state_lock:
         state["connected"] = False
     print("[Local] TCP server stopped")
+
+
+# ─────────────────────────────────────────────────────────────────────────────
+#  Cloud VPS WebSocket reader — connects to ws://62.169.24.172:8787/ws/cloud
+# ─────────────────────────────────────────────────────────────────────────────
+async def _cloud_ws_reader(ws_url: str, stop_event: threading.Event) -> None:
+    try:
+        import websockets
+    except ImportError:
+        with state_lock:
+            state["last_error"] = "websockets package not installed (pip install websockets)"
+        print("[Cloud] ERROR: websockets not installed")
+        return
+
+    print(f"[Cloud] Starting reader → {ws_url}")
+    while not stop_event.is_set():
+        try:
+            async with websockets.connect(
+                ws_url,
+                ping_interval=20,
+                ping_timeout=10,
+                close_timeout=5,
+            ) as ws:
+                with state_lock:
+                    state["connected"]  = True
+                    state["mode"]       = "cloud"
+                    state["port"]       = ws_url
+                    state["last_error"] = ""
+                print(f"[Cloud] Connected to {ws_url}")
+
+                while not stop_event.is_set():
+                    try:
+                        msg = await asyncio.wait_for(ws.recv(), timeout=30.0)
+                    except asyncio.TimeoutError:
+                        # No message in 30 s — VPS may be idle, keep waiting
+                        continue
+                    try:
+                        data = json.loads(msg)
+                    except json.JSONDecodeError:
+                        continue
+                    with state_lock:
+                        parse_cloud_json(data)
+
+        except Exception as e:
+            with state_lock:
+                state["connected"]  = False
+                state["last_error"] = f"Cloud WS: {e}"
+            print(f"[Cloud] {e} — reconnecting in 5 s")
+            # Non-blocking sleep that respects stop_event
+            for _ in range(50):
+                if stop_event.is_set():
+                    break
+                await asyncio.sleep(0.1)
+
+    with state_lock:
+        state["connected"] = False
+    print("[Cloud] Reader stopped")
+
+
+def cloud_reader_loop(ws_url: str, stop_event: threading.Event) -> None:
+    """Thread target — runs its own asyncio event loop so it doesn't conflict
+    with uvicorn's loop on the main thread."""
+    asyncio.run(_cloud_ws_reader(ws_url, stop_event))
 
 
 # ─────────────────────────────────────────────────────────────────────────────
