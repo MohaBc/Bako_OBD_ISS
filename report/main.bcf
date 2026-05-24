@@ -2397,6 +2397,12 @@
     <bcf:citekey order="28" intorder="1">fastapi</bcf:citekey>
     <bcf:citekey order="29" intorder="1">rfc6455</bcf:citekey>
     <bcf:citekey order="30" intorder="1">scrumguide</bcf:citekey>
+    <bcf:citekey order="31" intorder="1">esp32datasheet</bcf:citekey>
+    <bcf:citekey order="32" intorder="1">mcp2515datasheet</bcf:citekey>
+    <bcf:citekey order="33" intorder="1">tja1051datasheet</bcf:citekey>
+    <bcf:citekey order="34" intorder="1">acs712datasheet</bcf:citekey>
+    <bcf:citekey order="35" intorder="1">ds18b20datasheet</bcf:citekey>
+    <bcf:citekey order="36" intorder="1">sim800latcommands</bcf:citekey>
   </bcf:section>
   <!-- SORTING TEMPLATES -->
   <bcf:sortingtemplate name="none">

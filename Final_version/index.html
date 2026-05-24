@@ -1242,7 +1242,7 @@
           <span class="opt-glyph">📡</span>
           Local&nbsp;WiFi
         </div>
-        <div class="mode-opt" data-mode="cloud" style="opacity:0.4;cursor:not-allowed;" title="Coming soon — VPS not deployed">
+        <div class="mode-opt" data-mode="cloud">
           <span class="opt-glyph">☁</span>
           Cloud
         </div>
@@ -1280,7 +1280,7 @@
       <div class="mode-section" id="cloud-section">
         <div class="mode-hint">Dashboard connects directly to the cloud VPS. ESP32 must be online and connected to the VPS.</div>
         <label for="cloud-ws">VPS WebSocket URL</label>
-        <input id="cloud-ws" type="text" value="ws://62.169.24.172:8765/ws" />
+        <input id="cloud-ws" type="text" value="ws://62.169.24.172:8787/ws/cloud" />
       </div>
 
       <div class="mode-actions">
@@ -2158,7 +2158,8 @@
       const dot = document.getElementById('dot');
       const lbl = document.getElementById('conn-lbl');
       if (d.connected) { dot.className = 'dot live'; lbl.textContent = 'Live'; }
-      else if (d.mode === 'off' || d.mode === 'cloud') { dot.className = 'dot'; lbl.textContent = 'Disabled'; }
+      else if (d.mode === 'off') { dot.className = 'dot'; lbl.textContent = 'Disabled'; }
+      else if (d.mode === 'cloud') { dot.className = 'dot err'; lbl.textContent = 'Reconnecting…'; }
       else { dot.className = 'dot err'; lbl.textContent = 'Reconnecting…'; }
 
       // SOC ring
@@ -2293,13 +2294,11 @@
     const cloudWsInput = document.getElementById('cloud-ws');
 
     let selectedMode = 'serial';
-    // CLOUD MODE DISABLED — VPS not yet deployed
-    const cloudWsUrl = null;
 
     function showSection(mode) {
       serialSec.classList.toggle('show', mode === 'serial');
       localSec.classList.toggle('show',  mode === 'local');
-      // cloudSec intentionally never shown
+      cloudSec.classList.toggle('show',  mode === 'cloud');
     }
 
     function setActiveOpt(mode) {
@@ -2309,13 +2308,10 @@
     }
 
     modeOpts.forEach(o => o.addEventListener('click', () => {
-      if (o.dataset.mode === 'cloud') return; // cloud not yet available
       setActiveOpt(o.dataset.mode);
     }));
 
     async function openModeModal() {
-      // Determine current dashboard mode (cloud is client-side, not from server)
-      const currentDash = cloudWsUrl ? 'cloud' : null;
       try {
         const r = await fetch('/api/mode');
         const cfg = await r.json();
@@ -2333,6 +2329,7 @@
         // Pre-fill values
         if (cfg.serial && cfg.serial.baud) baudSelect.value = String(cfg.serial.baud);
         if (cfg.local && cfg.local.listen_port) localPort.value = cfg.local.listen_port;
+        if (cfg.cloud && cfg.cloud.ws_url) cloudWsInput.value = cfg.cloud.ws_url;
         // Disable serial option if pyserial isn't installed
         const serialBtn = document.querySelector('.mode-opt[data-mode="serial"]');
         if (serialBtn) {
@@ -2365,8 +2362,6 @@
     });
 
     modeApply.addEventListener('click', async () => {
-      if (selectedMode === 'cloud') { closeModeModal(); return; } // cloud not yet available
-
       modeApply.disabled = true;
       modeApply.textContent = 'Switching…';
 
@@ -2380,6 +2375,10 @@
         body.local = {
           listen_host: '0.0.0.0',
           listen_port: parseInt(localPort.value, 10) || 9000,
+        };
+      } else if (selectedMode === 'cloud') {
+        body.cloud = {
+          ws_url: cloudWsInput.value.trim() || 'ws://62.169.24.172:8787/ws/cloud',
         };
       }
       try {

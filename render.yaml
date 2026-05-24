@@ -1,0 +1,10 @@
+services:
+  - type: web
+    name: bako-iss
+    env: python
+    rootDir: Final_version
+    buildCommand: pip install -r requirements.txt
+    startCommand: uvicorn server_frame_parser:app --host 0.0.0.0 --port $PORT
+    envVars:
+      - key: BMS_API_KEY
+        value: bako-bms-2024
